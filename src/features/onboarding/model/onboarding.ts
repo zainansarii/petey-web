@@ -96,7 +96,7 @@ export const INITIAL_IDENTITY_ANSWERS: IdentityAnswers = {
 };
 
 export const ONBOARDING_STEPS = [
-  { title: "What are you working towards?", subtitle: "Choose the one outcome you want to prioritise." },
+  { title: "What is your goal?", subtitle: "Choose the one outcome you want to prioritise." },
   { title: "What kind of support fits?", subtitle: "Two quick choices help us tune the shortlist." },
   { title: "What feels comfortable?", subtitle: "Budget and trainer preference shape the people we show you." },
   { title: "Where could you train?", subtitle: "We use your approximate area for matching, never your home address." },

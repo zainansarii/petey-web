@@ -156,7 +156,6 @@ export function App() {
                 setPhase("onboarding");
               }}
               onHome={() => setPhase("landing")}
-              preview={preview}
             />
           </motion.div>
         ) : null}
@@ -171,7 +170,6 @@ export function App() {
 
         {phase === "auth-error" ? (
           <StatusScreen key="auth-error">
-            <p className="eyebrow">Link not completed</p>
             <h1>{authResult === "missing-email" ? "Open the link on this device." : "That link didn’t work."}</h1>
             <p>
               {authResult === "missing-email"

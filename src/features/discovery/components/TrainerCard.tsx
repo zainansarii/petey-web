@@ -1,5 +1,5 @@
 import { ArrowUpRight, BadgeCheck, MapPin, MessageCircle, Target } from "lucide-react";
-import type { Trainer } from "../data/trainers";
+import { trainerCardName, type Trainer } from "../data/trainers";
 
 type TrainerCardProps = {
   trainer: Trainer;
@@ -19,6 +19,7 @@ export function TrainerCard({
   onRequest,
 }: TrainerCardProps) {
   const isFeed = variant === "feed";
+  const cardName = isFeed ? trainer.name : trainerCardName(trainer);
 
   if (decorative) {
     return (
@@ -44,7 +45,7 @@ export function TrainerCard({
 
       <div className="trainer-card__content">
         <div className="trainer-card__name-row">
-          <h2>{trainer.name}</h2>
+          <h2>{cardName}</h2>
           <span aria-label="Example availability" className="trainer-card__status">
             <span />
           </span>

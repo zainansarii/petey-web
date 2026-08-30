@@ -28,6 +28,6 @@ describe("App auth restoration", () => {
   it("restores the feed for an existing Firebase session", async () => {
     render(<App />);
 
-    expect(await screen.findByRole("heading", { name: /two demo trainers to explore/i })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: /four demo trainers to explore/i })).toBeInTheDocument();
   });
 });

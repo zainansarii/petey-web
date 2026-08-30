@@ -67,7 +67,6 @@ export function CheckEmailScreen({
           <span />
         </motion.div>
 
-        {preview ? <p className="preview-badge">Interactive preview</p> : <p className="eyebrow">Link sent</p>}
         <h1>{preview ? "Your shortlist is ready to preview." : "Check your email."}</h1>
         <p className="check-email__lede">
           {preview

@@ -32,12 +32,10 @@ import type { MatchingAnswers } from "../../onboarding/model/onboarding";
 
 export function FeedScreen({
   answers,
-  preview,
   onEditMatch,
   onHome,
 }: {
   answers: MatchingAnswers;
-  preview: boolean;
   onEditMatch: () => void;
   onHome: () => void;
 }) {
@@ -91,11 +89,8 @@ export function FeedScreen({
 
         <div className="feed-layout">
         <aside className="feed-intro">
-          <p className="preview-badge">
-            {preview ? "Interactive demo · nothing is sent" : "Demo shortlist · nothing is sent"}
-          </p>
-          <h1>Two demo trainers to explore.</h1>
-          <p>Ordered around what you told us. Preview both, then draft an introduction when one feels right.</p>
+          <h1>Four demo trainers to explore.</h1>
+          <p>Ordered around what you told us. This is an interactive demo; nothing is sent.</p>
           <div className="feed-intro__signal">
             <Sparkles aria-hidden="true" size={18} />
             <span><strong>Why this order</strong>{matchReasonFor(activeTrainer, answers)}</span>
@@ -329,7 +324,6 @@ function ProfileDialog({
           <span><BadgeCheck aria-hidden="true" size={16} /> Demo profile</span>
         </div>
         <div className="profile-dialog__body">
-          <p className="eyebrow">Demo trainer profile</p>
           <h2>{trainer.name}</h2>
           <p className="profile-dialog__bio">{trainer.bio}</p>
           <div className="profile-dialog__quick">
@@ -414,7 +408,6 @@ function RequestDialog({
           <img alt="" src={trainer.photo} />
           <span><small>Preview with</small><strong>{trainer.name}</strong></span>
         </div>
-        <span className="preview-badge">Preview only · nothing is sent</span>
         <h2>Draft your hello.</h2>
         <p>Try the introduction flow with demo data. Nothing you write or select is sent or saved.</p>
         <label className="textarea-field">

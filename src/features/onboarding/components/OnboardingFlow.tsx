@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { ArrowLeft, ArrowRight, Check, LockKeyhole, MapPin, ShieldCheck } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, MapPin, ShieldCheck } from "lucide-react";
 import { BrandMark } from "../../../shared/ui/BrandMark";
 import { ChoiceGroup } from "../../../shared/ui/ChoiceGroup";
 import { AvailabilityGrid } from "../../../shared/ui/AvailabilityGrid";
@@ -112,34 +112,19 @@ export function OnboardingFlow({
   return (
     <main className="onboarding-shell">
       <header className="flow-header">
-        <button aria-label="Back" className="icon-button flow-header__back" disabled={submitting} onClick={previous} type="button">
-          <ArrowLeft size={20} />
-        </button>
         <BrandMark className="flow-header__logo" />
-        <span className="flow-header__step">{String(step + 1).padStart(2, "0")} / {String(ONBOARDING_STEPS.length).padStart(2, "0")}</span>
+        <div className="flow-header__controls">
+          <button aria-label="Back" className="icon-button flow-header__back" disabled={submitting} onClick={previous} type="button">
+            <ArrowLeft size={20} />
+          </button>
+          <div aria-hidden="true" className="flow-progress">
+            <motion.span animate={{ width: `${progress}%` }} transition={{ duration: reducedMotion ? 0 : 0.35 }} />
+          </div>
+          <span className="flow-header__step">{String(step + 1).padStart(2, "0")} / {String(ONBOARDING_STEPS.length).padStart(2, "0")}</span>
+        </div>
       </header>
 
-      <div aria-hidden="true" className="flow-progress">
-        <motion.span animate={{ width: `${progress}%` }} transition={{ duration: reducedMotion ? 0 : 0.35 }} />
-      </div>
-
       <div className="onboarding-layout">
-        <aside className="onboarding-rail" aria-label="Sign-up progress">
-          <p className="eyebrow">Your match</p>
-          <ol>
-            {ONBOARDING_STEPS.map((item, index) => (
-              <li className={index === step ? "is-active" : index < step ? "is-complete" : ""} key={item.title}>
-                <span>{index < step ? <Check size={13} strokeWidth={3} /> : index + 1}</span>
-                <span>{index === ONBOARDING_STEPS.length - 1 ? "Save shortlist" : item.title}</span>
-              </li>
-            ))}
-          </ol>
-          <div className="privacy-note">
-            <LockKeyhole aria-hidden="true" size={18} />
-            <p><strong>Private by design.</strong> Identity and sign-in wait until the final step.</p>
-          </div>
-        </aside>
-
         <section className="onboarding-stage">
           <form className="onboarding-form" onSubmit={advance}>
             <AnimatePresence initial={false} mode="wait" custom={direction}>
@@ -152,7 +137,7 @@ export function OnboardingFlow({
                 key={step}
                 transition={{ duration: reducedMotion ? 0 : 0.24, ease: [0.22, 1, 0.36, 1] }}
               >
-                <StepHeading step={step} subtitle={stepCopy.subtitle} title={stepCopy.title} />
+                <StepHeading subtitle={stepCopy.subtitle} title={stepCopy.title} />
 
                 <StepFields
                   answers={answers}
@@ -196,7 +181,7 @@ export function OnboardingFlow({
   );
 }
 
-function StepHeading({ step, subtitle, title }: { step: number; subtitle: string; title: string }) {
+function StepHeading({ subtitle, title }: { subtitle: string; title: string }) {
   const headingRef = useRef<HTMLHeadingElement | null>(null);
 
   useEffect(() => {
@@ -205,7 +190,6 @@ function StepHeading({ step, subtitle, title }: { step: number; subtitle: string
 
   return (
     <div className="onboarding-step__heading">
-      <p className="eyebrow">{step === 6 ? "One last thing" : `Question ${step + 1}`}</p>
       <h1 ref={headingRef} tabIndex={-1}>{title}</h1>
       <p>{subtitle}</p>
     </div>

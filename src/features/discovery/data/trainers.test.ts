@@ -7,6 +7,15 @@ const answersWith = (patch: Partial<MatchingAnswers>): MatchingAnswers => ({
 });
 
 describe("trainer matching", () => {
+  it("includes all four demo trainer profiles in carousel order", () => {
+    expect(TRAINERS.map(({ id }) => id)).toEqual([
+      "maya-chen",
+      "marcus-adebayo",
+      "aliyah-rahman",
+      "rohan-kapoor",
+    ]);
+  });
+
   it("scores every matching preference instead of relying on goal alone", () => {
     const firstTrainerId = (patch: Partial<MatchingAnswers>) => (
       orderTrainersFor(answersWith(patch))[0].id
@@ -38,7 +47,12 @@ describe("trainer matching", () => {
       venues: ["outdoors"],
     }));
 
-    expect(trainers.map(({ id }) => id)).toEqual(["maya-chen", "marcus-adebayo"]);
+    expect(trainers.map(({ id }) => id)).toEqual([
+      "maya-chen",
+      "aliyah-rahman",
+      "rohan-kapoor",
+      "marcus-adebayo",
+    ]);
   });
 
   it("ranks Marcus first for compatible advanced strength preferences", () => {
@@ -53,7 +67,12 @@ describe("trainer matching", () => {
       venues: ["commercial_gym"],
     }));
 
-    expect(trainers.map(({ id }) => id)).toEqual(["marcus-adebayo", "maya-chen"]);
+    expect(trainers.map(({ id }) => id)).toEqual([
+      "marcus-adebayo",
+      "rohan-kapoor",
+      "aliyah-rahman",
+      "maya-chen",
+    ]);
   });
 
   it("keeps every demo trainer even when one conflicts with the preferences", () => {
@@ -70,9 +89,25 @@ describe("trainer matching", () => {
     const answers = answersWith({ availability: ["Mon-Lunch"] });
     const trainers = orderTrainersFor(answers);
 
-    expect(trainers.map(({ id }) => id)).toEqual(["marcus-adebayo", "maya-chen"]);
+    expect(trainers.map(({ id }) => id)).toEqual([
+      "marcus-adebayo",
+      "aliyah-rahman",
+      "maya-chen",
+      "rohan-kapoor",
+    ]);
     expect(matchReasonFor(trainers[0], answers)).toBe("Schedule overlap");
-    expect(matchReasonFor(trainers[1], answers)).not.toMatch(/schedule/i);
+    const maya = trainers.find(({ id }) => id === "maya-chen")!;
+    expect(matchReasonFor(maya, answers)).not.toMatch(/schedule/i);
+  });
+
+  it("matches the new trainers' distinct coaching styles", () => {
+    const gentleAnswers = answersWith({ coachingStyle: "gentle_encouragement" });
+    const funAnswers = answersWith({ coachingStyle: "fun" });
+    const aliyah = TRAINERS.find(({ id }) => id === "aliyah-rahman")!;
+    const rohan = TRAINERS.find(({ id }) => id === "rohan-kapoor")!;
+
+    expect(matchReasonFor(aliyah, gentleAnswers)).toBe("Calm coaching");
+    expect(matchReasonFor(rohan, funAnswers)).toBe("High-energy coaching");
   });
 
   it("only names a coaching style when the trainer actually has a compatible style", () => {

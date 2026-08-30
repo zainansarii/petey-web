@@ -1,5 +1,7 @@
+import aliyahPhoto from "../../../assets/trainers/aliyah-rahman.webp";
 import marcusPhoto from "../../../assets/trainers/marcus-adebayo.webp";
 import mayaPhoto from "../../../assets/trainers/maya-chen.webp";
+import rohanPhoto from "../../../assets/trainers/rohan-kapoor.webp";
 import {
   GENDER_OPTIONS,
   type MatchingAnswers,
@@ -16,9 +18,11 @@ type AvailabilityDay = AvailabilitySlot extends `${infer Day}-${string}` ? Day :
 type AvailabilityPeriod = AvailabilitySlot extends `${string}-${infer Period}` ? Period : never;
 
 type TrainerCoachingStyle =
+  | "calm"
   | "encouraging"
   | "friendly"
   | "educational"
+  | "high_energy"
   | "data_driven"
   | "strict_accountability";
 
@@ -45,6 +49,10 @@ export type Trainer = {
   bio: string;
   bestFor: Goal[];
 };
+
+export const trainerCardName = (trainer: Pick<Trainer, "name">) => (
+  trainer.name.trim().split(/\s+/)[0] || trainer.name
+);
 
 const weeklySlots = (
   days: AvailabilityDay[],
@@ -114,21 +122,104 @@ export const TRAINERS: Trainer[] = [
     bio: "Marcus combines clear technique with measurable progress. Expect focused sessions, honest feedback and a plan that makes every hour in the gym count.",
     bestFor: ["build_muscle", "something_else", "improve_fitness"],
   },
+  {
+    id: "aliyah-rahman",
+    name: "Aliyah Rahman",
+    photo: aliyahPhoto,
+    specialty: "Pilates",
+    specialties: ["Mobility", "Body recomposition", "General fitness", "Functional fitness"],
+    area: "Islington · N1",
+    price: 65,
+    tenPackPrice: 590,
+    monthlyPrice: 340,
+    distanceMiles: 4.1,
+    gender: "woman",
+    coachingStyles: ["Calm", "Friendly", "Educational"],
+    coachingStyleCodes: ["calm", "friendly", "educational"],
+    venues: ["Commercial gym", "Outdoors", "Your home", "Your office", "Private studio", "Remote"],
+    venueTypes: ["commercial_gym", "outdoors", "client_home", "office_gym", "private_studio", "remote"],
+    experienceLevels: ["never_trained", "beginner", "intermediate"],
+    qualifications: [
+      "Level 3 Personal Training",
+      "Level 3 Mat Pilates",
+      "Emergency First Aid at Work",
+    ],
+    availability: [
+      "Weekday mornings",
+      "Weekday lunchtimes",
+      "Weekday evenings",
+      "Weekend mornings",
+      "Weekend lunchtimes",
+    ],
+    availabilitySlots: [
+      "Mon-Morning",
+      "Mon-Lunch",
+      "Tue-Evening",
+      "Wed-Morning",
+      "Wed-Lunch",
+      "Thu-Evening",
+      "Fri-Morning",
+      "Sat-Morning",
+      "Sat-Lunch",
+      "Sun-Morning",
+    ],
+    bio: "Aliyah brings calm, precise coaching to Pilates-led strength and mobility. Her sessions build confidence, control and everyday ease from wherever you are starting.",
+    bestFor: ["lose_weight", "recover_from_injury", "improve_fitness"],
+  },
+  {
+    id: "rohan-kapoor",
+    name: "Rohan Kapoor",
+    photo: rohanPhoto,
+    specialty: "Boxing & combat fitness",
+    specialties: ["HIIT", "Strength", "Body recomposition", "General fitness"],
+    area: "Bethnal Green · E2",
+    price: 75,
+    tenPackPrice: 680,
+    monthlyPrice: 420,
+    distanceMiles: 3.8,
+    gender: "man",
+    coachingStyles: ["High-energy", "Accountable", "Educational"],
+    coachingStyleCodes: ["high_energy", "strict_accountability", "educational"],
+    venues: ["Commercial gym", "Outdoors", "Your home", "Your office", "Private studio", "Remote"],
+    venueTypes: ["commercial_gym", "outdoors", "client_home", "office_gym", "private_studio", "remote"],
+    experienceLevels: ["intermediate", "advanced"],
+    qualifications: [
+      "Level 3 Personal Training",
+      "Level 2 Boxing Coach",
+      "Emergency First Aid at Work",
+    ],
+    availability: ["Weekday mornings", "Weekday lunchtimes", "Weekday evenings", "Weekend mornings"],
+    availabilitySlots: [
+      "Mon-Morning",
+      "Mon-Evening",
+      "Tue-Lunch",
+      "Tue-Evening",
+      "Wed-Evening",
+      "Thu-Morning",
+      "Thu-Lunch",
+      "Fri-Evening",
+      "Sat-Morning",
+    ],
+    bio: "Rohan blends boxing technique, conditioning and focused accountability. His high-energy sessions turn hard work into clear progress without losing sight of good form.",
+    bestFor: ["lose_weight", "build_muscle", "prepare_for_event", "improve_fitness"],
+  },
 ];
 
 const STYLE_COMPATIBILITY: Record<CoachingPreference, TrainerCoachingStyle[]> = {
-  gentle_encouragement: ["encouraging", "friendly"],
+  gentle_encouragement: ["calm", "encouraging", "friendly"],
   lots_of_accountability: ["strict_accountability", "data_driven"],
-  tough_love: ["strict_accountability"],
+  tough_love: ["strict_accountability", "high_energy"],
   technical_coaching: ["educational", "data_driven"],
-  fun: ["friendly", "encouraging"],
+  fun: ["friendly", "encouraging", "high_energy"],
   data_and_metrics: ["data_driven"],
 };
 
 const STYLE_REASON_LABELS: Record<TrainerCoachingStyle, string> = {
+  calm: "Calm coaching",
   encouraging: "Encouraging coaching",
   friendly: "Friendly energy",
   educational: "Educational coaching",
+  high_energy: "High-energy coaching",
   data_driven: "Data-driven coaching",
   strict_accountability: "Strong accountability",
 };
