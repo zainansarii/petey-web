@@ -1,0 +1,1433 @@
+import { createHash, randomUUID } from "node:crypto";
+import {
+  type Content,
+  GoogleGenAI,
+  HarmBlockThreshold,
+  HarmCategory,
+  ThinkingLevel,
+} from "@google/genai";
+import { initializeApp } from "firebase-admin/app";
+import { getFirestore, Timestamp, type DocumentReference } from "firebase-admin/firestore";
+import { logger } from "firebase-functions";
+import { defineString } from "firebase-functions/params";
+import {
+  HttpsError,
+  onCall,
+  type CallableRequest,
+  type CallableResponse,
+} from "firebase-functions/v2/https";
+import { z } from "zod";
+import {
+  MAX_ONBOARDING_QUICK_REPLIES,
+  MAX_ONBOARDING_QUICK_REPLY_LENGTH,
+  ONBOARDING_OPENING_MESSAGES,
+  ONBOARDING_OPENING_QUICK_REPLIES,
+  identityAnswersSchema,
+  profileMarkdownSchema,
+  type ConfirmWebOnboardingDraftV3Request,
+  type ConfirmWebOnboardingDraftV3Response,
+  type ConsumeWebOnboardingDraftV3Request,
+  type ConsumeWebOnboardingDraftV3Response,
+  type CreateWebOnboardingDraftV3Request,
+  type CreateWebOnboardingDraftV3Response,
+  type DeleteWebOnboardingDraftV3Request,
+  type DeleteWebOnboardingDraftV3Response,
+  type FinalizeWebOnboardingV4Request,
+  type FinalizeWebOnboardingV4Response,
+  type FinalizeWebOnboardingDraftV3Request,
+  type FinalizeWebOnboardingDraftV3Response,
+  type GetWebOnboardingDraftV3Request,
+  type GetWebOnboardingDraftV3Response,
+  type GetWebClientProfileV3Response,
+  type IdentityAnswers,
+  type OnboardingChatMessage,
+  type OnboardingDraftSnapshotV3,
+  type OnboardingDraftStatus,
+  type OnboardingTurnResultV3,
+  type RunWebOnboardingTurnV4Request,
+  type RunWebOnboardingTurnV4Response,
+  type RunWebOnboardingTurnV4StreamChunk,
+  type RunWebOnboardingTurnV3Request,
+  type RunWebOnboardingTurnV3Response,
+  type WithdrawWebHealthConsentV3Request,
+  type WithdrawWebHealthConsentV3Response,
+} from "../../src/features/onboarding/model/onboardingContract.js";
+import {
+  ONBOARDING_CONVERSATION_SYSTEM_PROMPT,
+  ONBOARDING_MARKDOWN_PROFILE_SYSTEM_PROMPT,
+} from "./onboardingConversationPrompt.js";
+
+initializeApp();
+const db = getFirestore();
+
+const drafts = db.collection("webOnboardingDraftsV3");
+const rateLimits = db.collection("_webOnboardingRateLimitsV3");
+const consumptions = db.collection("_webOnboardingConsumptionsV3");
+const profiles = db.collection("webClientProfiles");
+const health = db.collection("webClientHealth");
+
+const geminiModel = defineString("WEB_ONBOARDING_GEMINI_MODEL_V3", { default: "gemini-3.7-flash" });
+const chatGeminiModelV4 = defineString("WEB_ONBOARDING_CHAT_MODEL_V4", { default: "gemini-3.5-flash-lite" });
+const summaryGeminiModelV4 = defineString("WEB_ONBOARDING_SUMMARY_MODEL_V4", { default: "gemini-3.7-flash" });
+const runtimeServiceAccount = defineString("WEB_ONBOARDING_SERVICE_ACCOUNT_V3");
+const REGION = "europe-west2";
+const GEMINI_LOCATION = "global";
+const callableOptions = {
+  region: REGION,
+  enforceAppCheck: true,
+  serviceAccount: runtimeServiceAccount,
+} as const;
+const DRAFT_TTL_MS = 24 * 60 * 60 * 1_000;
+const CONSUMPTION_TTL_MS = 7 * 24 * 60 * 60 * 1_000;
+const MIN_MODEL_READY_TURNS = 5;
+const FALLBACK_READY_TURNS = 12;
+const MAX_MESSAGE_LENGTH = 2_000;
+const CONSENT_VERSION_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const DEVELOPMENT_PROJECT_ID = "petey-dev-getcass";
+
+export const createRateLimitForProjectV3 = (projectId: string | undefined) => (
+  projectId === DEVELOPMENT_PROJECT_ID ? 50 : 5
+);
+
+type DraftDoc = {
+  schemaVersion: 3;
+  profileFormat: "markdown-v1";
+  capabilityHash: string;
+  consentVersion: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+  expiresAt: Timestamp;
+  version: number;
+  status: OnboardingDraftStatus;
+  confirmationVersion: number | null;
+  profileMarkdown: string | null;
+  quickReplies: string[];
+  userTurns: number;
+  nextSequence: number;
+  identity?: IdentityAnswers;
+};
+
+const hash = (value: string) => createHash("sha256").update(value).digest("hex");
+
+const uuidFromDigest = (value: string) => {
+  const bytes = createHash("sha256").update(value).digest().subarray(0, 16);
+  bytes[6] = (bytes[6]! & 0x0f) | 0x50;
+  bytes[8] = (bytes[8]! & 0x3f) | 0x80;
+  const hex = bytes.toString("hex");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+};
+
+export const draftIdentityForIdempotencyKeyV3 = (idempotencyKey: string) => ({
+  draftId: uuidFromDigest(`petey-web-v3-draft-id:${idempotencyKey}`),
+  capability: createHash("sha256")
+    .update(`petey-web-v3-capability:${idempotencyKey}`)
+    .digest("base64url"),
+});
+
+const createRequestSchema = z.object({
+  consentVersion: z.string().regex(CONSENT_VERSION_PATTERN),
+  idempotencyKey: z.string().uuid(),
+}).strict();
+const capabilityRequestSchema = z.object({
+  draftId: z.string().uuid(),
+  capability: z.string().min(32).max(128),
+}).strict();
+const turnRequestSchema = capabilityRequestSchema.extend({
+  message: z.string().trim().min(1).max(MAX_MESSAGE_LENGTH),
+  idempotencyKey: z.string().uuid(),
+  expectedVersion: z.number().int().positive(),
+}).strict();
+const chatMessageV4Schema = z.object({
+  id: z.string().min(1).max(128),
+  role: z.enum(["assistant", "user"]),
+  text: z.string().trim().min(1).max(MAX_MESSAGE_LENGTH),
+  createdAt: z.string().datetime(),
+  sequence: z.number().int().positive(),
+}).strict();
+const conversationTranscriptV4Schema = z.array(chatMessageV4Schema).min(3).max(40);
+const turnRequestV4Schema = z.object({
+  messages: conversationTranscriptV4Schema,
+}).strict();
+const finalizeRequestV4Schema = z.object({
+  consentVersion: z.string().regex(CONSENT_VERSION_PATTERN),
+  idempotencyKey: z.string().uuid(),
+  messages: conversationTranscriptV4Schema,
+}).strict();
+const finalizeRequestSchema = capabilityRequestSchema.extend({
+  idempotencyKey: z.string().uuid(),
+  expectedVersion: z.number().int().positive(),
+}).strict();
+const confirmRequestSchema = capabilityRequestSchema.extend({
+  expectedVersion: z.number().int().positive(),
+  profileMarkdown: z.string().max(12_000),
+  identity: z.unknown(),
+}).strict();
+const withdrawHealthRequestSchema = z.object({
+  consentVersion: z.string().regex(CONSENT_VERSION_PATTERN),
+}).strict();
+
+const parseData = <T>(schema: z.ZodType<T>, data: unknown): T => {
+  const parsed = schema.safeParse(data);
+  if (!parsed.success) {
+    throw new HttpsError("invalid-argument", parsed.error.issues[0]?.message ?? "The request is invalid.");
+  }
+  return parsed.data;
+};
+
+const assertConversationTranscriptV4 = (
+  messages: readonly OnboardingChatMessage[],
+  endingRole: OnboardingChatMessage["role"],
+) => {
+  if (
+    messages[0]?.role !== "assistant"
+    || messages[0].text !== ONBOARDING_OPENING_MESSAGES[0]
+    || messages[1]?.role !== "assistant"
+    || messages[1].text !== ONBOARDING_OPENING_MESSAGES[1]
+  ) {
+    throw new HttpsError("invalid-argument", "The conversation opening is invalid.");
+  }
+  if (messages.at(-1)?.role !== endingRole) {
+    throw new HttpsError("invalid-argument", `The conversation must end with a ${endingRole} message.`);
+  }
+  if (messages.reduce((total, message) => total + message.text.length, 0) > 30_000) {
+    throw new HttpsError("invalid-argument", "The conversation is too long.");
+  }
+  messages.forEach((message, index) => {
+    if (message.sequence !== index + 1) {
+      throw new HttpsError("invalid-argument", "The conversation sequence is invalid.");
+    }
+    if (index < ONBOARDING_OPENING_MESSAGES.length) return;
+    const expectedRole = index % 2 === 0 ? "user" : "assistant";
+    if (message.role !== expectedRole) {
+      throw new HttpsError("invalid-argument", "The conversation order is invalid.");
+    }
+    if (message.role === "assistant") {
+      try {
+        normalizeConversationalReply(message.text);
+      } catch {
+        throw new HttpsError("invalid-argument", "A previous assistant reply is invalid.");
+      }
+    }
+  });
+};
+
+const ensureAppCheck = (request: CallableRequest<unknown>) => {
+  if (!request.app) throw new HttpsError("failed-precondition", "App Check is required.");
+};
+
+const providerErrorDetails = (error: unknown) => {
+  const record = typeof error === "object" && error !== null
+    ? error as Record<string, unknown>
+    : {};
+  return {
+    errorType: error instanceof Error ? error.name : "unknown",
+    errorMessage: error instanceof Error ? error.message.slice(0, 500) : "Unknown provider error",
+    errorStatus: typeof record.status === "number" || typeof record.status === "string"
+      ? record.status
+      : null,
+    errorCode: typeof record.code === "number" || typeof record.code === "string"
+      ? record.code
+      : null,
+  };
+};
+
+const requestIpKey = (request: CallableRequest<unknown>) => {
+  const forwarded = request.rawRequest.headers["x-forwarded-for"];
+  const ip = Array.isArray(forwarded) ? forwarded[0] : forwarded?.split(",")[0];
+  return hash(ip?.trim() || request.rawRequest.ip || "unknown").slice(0, 24);
+};
+
+const enforceRateLimit = async (key: string, limit: number, windowMs: number) => {
+  const ref = rateLimits.doc(hash(key));
+  const now = Date.now();
+  await db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    const data = snapshot.data() as { count?: number; windowStartedAt?: Timestamp } | undefined;
+    const startedAt = data?.windowStartedAt?.toMillis() ?? 0;
+    const withinWindow = now - startedAt < windowMs;
+    const count = withinWindow ? (data?.count ?? 0) : 0;
+    if (count >= limit) throw new HttpsError("resource-exhausted", "Please wait a moment before trying again.");
+    transaction.set(ref, {
+      count: count + 1,
+      windowStartedAt: withinWindow ? data!.windowStartedAt : Timestamp.fromMillis(now),
+      expiresAt: Timestamp.fromMillis(now + windowMs),
+    });
+  });
+};
+
+const cleanModelText = (value: string) => value
+  .trim()
+  .replace(/^```(?:json|markdown|md|text)?\s*/i, "")
+  .replace(/\s*```$/, "")
+  .trim();
+
+const conversationalModelEnvelopeSchema = z.object({
+  reply: z.string().trim().min(1).max(2_000),
+  readyForReview: z.boolean().default(false),
+  quickReplies: z.array(z.string().min(1).max(200)).max(MAX_ONBOARDING_QUICK_REPLIES).default([]),
+}).strict();
+
+const isSafeQuickReply = (value: string) => (
+  value.length <= MAX_ONBOARDING_QUICK_REPLY_LENGTH
+  && !value.includes("?")
+  && !/[{}[\]`]/.test(value)
+  && !/\b(?:json|readyForReview|quickReplies|response schema)\b/i.test(value)
+);
+
+const addPoundSignsToBudgetNumbers = (value: string) => value
+  .replace(/\b(?:GBP|pounds?)\s*(\d+(?:[.,]\d{1,2})?)/gi, "£$1")
+  .replace(/(?<![£$€\d])(\d+(?:[.,]\d{1,2})?)(?![\d%])/g, "£$1")
+  .replace(/£(\d+(?:[.,]\d{1,2})?)\s*(?:pounds?|GBP)\b/gi, "£$1");
+
+const normalizeQuickReplies = (values: string[], reply: string) => {
+  const seen = new Set<string>();
+  return values.flatMap((value) => {
+    const cleaned = value.replace(/\s+/g, " ").trim().replace(/\.+$/, "").trim();
+    const normalized = /\bbudget\b/i.test(reply) ? addPoundSignsToBudgetNumbers(cleaned) : cleaned;
+    const key = normalized.toLocaleLowerCase("en-GB");
+    if (!isSafeQuickReply(normalized) || seen.has(key)) return [];
+    seen.add(key);
+    return [normalized];
+  });
+};
+
+const normalizeConversationalReply = (value: string) => {
+  let reply = value.replace(/\s+/g, " ").trim();
+  if (
+    !reply
+    || /[{}[\]`]/.test(reply)
+    || /\b(?:json|readyForReview|quickReplies|response schema)\b/i.test(reply)
+  ) {
+    throw new Error("The model returned metadata instead of a conversational reply.");
+  }
+
+  const firstQuestionMark = reply.indexOf("?");
+  if (firstQuestionMark >= 0) reply = reply.slice(0, firstQuestionMark + 1);
+  return reply.slice(0, 500);
+};
+
+export const parseConversationalModelOutputV3 = (raw: string): OnboardingTurnResultV3 => {
+  const cleaned = cleanModelText(raw);
+  if (!cleaned) throw new Error("The model returned no usable reply.");
+  let parsedJson: unknown;
+  let isJson = false;
+  try {
+    parsedJson = JSON.parse(cleaned) as unknown;
+    isJson = true;
+  } catch {
+    // Raw prose remains a defensive fallback for provider/model drift.
+  }
+
+  if (!isJson) {
+    return {
+      reply: normalizeConversationalReply(cleaned),
+      readyForReview: false,
+      quickReplies: [],
+    };
+  }
+
+  const envelope = conversationalModelEnvelopeSchema.safeParse(parsedJson);
+  if (!envelope.success) {
+    throw new Error("The model returned invalid structured output instead of a reply.");
+  }
+
+  const reply = normalizeConversationalReply(envelope.data.reply);
+  return {
+    reply,
+    readyForReview: envelope.data.readyForReview,
+    quickReplies: !envelope.data.readyForReview && reply.includes("?")
+      ? normalizeQuickReplies(envelope.data.quickReplies, reply)
+      : [],
+  };
+};
+
+export const hasReviewReadinessPhrasingV3 = (reply: string) => [
+  /\b(?:i(?:'ve| have)|we(?:'ve| have))(?: now)? (?:got )?(?:everything|all|enough) (?:that )?(?:i|we) need\b/i,
+  /\b(?:i(?:'ve| have)|we(?:'ve| have))(?: now)? (?:got )?enough to (?:prepare|put together|create|draft|generate) (?:your|the) (?:training )?(?:brief|review|notes)\b/i,
+  /\b(?:i(?:'m| am)|we(?:'re| are)) ready to (?:prepare|put together|create|draft|generate) (?:your|the) (?:training )?(?:brief|review|notes)\b/i,
+  /\b(?:i(?:'ll| will)|we(?:'ll| will)) (?:now )?(?:prepare|put together|create|draft|generate) (?:your|the) (?:training )?(?:brief|review|notes)\b/i,
+].some((pattern) => pattern.test(reply));
+
+export const isExplicitFinishRequestV3 = (message: string) => /^(?:done|finish(?: now)?|let(?:'s| us) finish|can we finish(?: now)?|prepare my (?:notes|brief|review)|review(?: it| this| my answers)?|show me (?:the )?review|that(?:'s| is) enough|skip the rest)[.!?\s]*$/i.test(message.trim());
+
+export type RequiredPracticalTopicsV3 = {
+  trainerGenderPreferenceAnswered: boolean;
+  availabilityAnswered: boolean;
+  budgetAnswered: boolean;
+};
+
+type ConversationalMessage = Pick<OnboardingChatMessage, "role" | "text">;
+type RequiredPracticalTopic = keyof RequiredPracticalTopicsV3;
+
+const practicalTopicAskedInV3 = (message: string): RequiredPracticalTopic | null => {
+  const questionEnd = message.indexOf("?");
+  if (questionEnd < 0) return null;
+  const replyThroughQuestion = message.slice(0, questionEnd + 1);
+  const question = replyThroughQuestion.match(/[^.!?]*\?$/)?.[0] ?? replyThroughQuestion;
+
+  const trainerGenderPreferenceAsked = [
+    /\bgender preference\b/i,
+    /\bpreference\b[^?]{0,50}\bgender\b/i,
+    /\bgender\b[^?]{0,50}\bpreference\b/i,
+    /\b(?:trainer|coach)\b[^?]{0,45}\b(?:man|woman|male|female|non[- ]?binary|any gender)\b/i,
+    /\b(?:man|woman|male|female|non[- ]?binary|any gender)\b[^?]{0,45}\b(?:trainer|coach)\b/i,
+  ].some((pattern) => pattern.test(question));
+  const availabilityAsked = [
+    /\bavailability\b/i,
+    /\bschedule\b/i,
+    /\bwhen (?:are|would|can|could|do) you\b[^?]{0,50}\b(?:available|train|work out|exercise)\b/i,
+    /\bwhat (?:days?|times?|times? of day|part of the day)\b/i,
+    /\bwhich (?:days?|times?)\b/i,
+    /\b(?:days?|times?|mornings?|afternoons?|evenings?|weekends?)\b[^?]{0,35}\b(?:work|suit|fit|best)\b/i,
+  ].some((pattern) => pattern.test(question));
+  const budgetAsked = [
+    /\bbudget\b/i,
+    /\bhow much\b[^?]{0,45}\b(?:spend|pay|afford|comfortable)\b/i,
+    /\bwhat\b[^?]{0,45}\b(?:spend|pay|afford)\b/i,
+    /\b(?:price|cost|spending)\b[^?]{0,35}\b(?:range|comfortable|session|month)\b/i,
+    /\b(?:per session|per month)\b[^?]{0,35}\b(?:comfortable|work|suit)\b/i,
+  ].some((pattern) => pattern.test(question));
+
+  const askedTopics: RequiredPracticalTopic[] = [];
+  if (trainerGenderPreferenceAsked) askedTopics.push("trainerGenderPreferenceAnswered");
+  if (availabilityAsked) askedTopics.push("availabilityAnswered");
+  if (budgetAsked) askedTopics.push("budgetAnswered");
+
+  // Required matching topics must each be asked in a separate, focused turn.
+  return askedTopics.length === 1 ? askedTopics[0]! : null;
+};
+
+export const requiredPracticalTopicsForTranscriptV3 = (
+  messages: readonly ConversationalMessage[],
+): RequiredPracticalTopicsV3 => {
+  const answered: RequiredPracticalTopicsV3 = {
+    trainerGenderPreferenceAnswered: false,
+    availabilityAnswered: false,
+    budgetAnswered: false,
+  };
+  let pendingTopic: RequiredPracticalTopic | null = null;
+
+  for (const message of messages) {
+    if (message.role === "assistant") {
+      pendingTopic = practicalTopicAskedInV3(message.text);
+      continue;
+    }
+    if (pendingTopic && message.text.trim()) answered[pendingTopic] = true;
+    pendingTopic = null;
+  }
+
+  return answered;
+};
+
+export const shouldReadyForReviewV3 = ({
+  userTurns,
+  explicitFinish,
+  modelReadyForReview = false,
+  reply = "",
+  trainerGenderPreferenceAnswered = false,
+  availabilityAnswered = false,
+  budgetAnswered = false,
+}: {
+  userTurns: number;
+  explicitFinish: boolean;
+  modelReadyForReview?: boolean;
+  reply?: string;
+  trainerGenderPreferenceAnswered?: boolean;
+  availabilityAnswered?: boolean;
+  budgetAnswered?: boolean;
+}) => {
+  if (!trainerGenderPreferenceAnswered || !availabilityAnswered || !budgetAnswered) return false;
+  return (
+    explicitFinish
+    || userTurns >= FALLBACK_READY_TURNS
+    || (
+      userTurns >= MIN_MODEL_READY_TURNS
+      && (modelReadyForReview || hasReviewReadinessPhrasingV3(reply))
+    )
+  );
+};
+
+const providerSafetySettings = [
+  HarmCategory.HARM_CATEGORY_HARASSMENT,
+  HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+  HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+  HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+].map((category) => ({ category, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH }));
+
+const conversationalResponseJsonSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["reply"],
+  propertyOrdering: ["reply", "readyForReview", "quickReplies"],
+  properties: {
+    reply: {
+      type: "string",
+      description: "The short user-facing response, with no more than one question.",
+    },
+    readyForReview: {
+      type: "boolean",
+      description: "Whether the app should immediately move to secure final details.",
+    },
+    quickReplies: {
+      type: "array",
+      minItems: 0,
+      maxItems: MAX_ONBOARDING_QUICK_REPLIES,
+      description: "Concise natural answers to the exact question in reply, or empty when there is no question.",
+      items: { type: "string" },
+    },
+  },
+} as const;
+
+const conversationThinkingConfigV4 = (model: string) => {
+  if (model.startsWith("gemini-2.")) return { thinkingBudget: 0 };
+  if (model.startsWith("gemini-3.7")) return { thinkingLevel: ThinkingLevel.LOW };
+  return { thinkingLevel: ThinkingLevel.MINIMAL };
+};
+
+export const conversationHistoryForGeminiV3 = (messages: OnboardingChatMessage[]): Content[] => {
+  const firstUserMessage = messages.findIndex(({ role }) => role === "user");
+  if (firstUserMessage < 0) return [];
+  return messages.slice(firstUserMessage).map(({ role, text }) => ({
+    role: role === "assistant" ? "model" : "user",
+    parts: [{ text }],
+  }));
+};
+
+let cachedGeminiClient: GoogleGenAI | null = null;
+let cachedGeminiProject: string | null = null;
+
+const geminiClient = () => {
+  const project = process.env.GCLOUD_PROJECT ?? process.env.GOOGLE_CLOUD_PROJECT;
+  if (!project) throw new Error("The Gemini project is not configured.");
+  if (!cachedGeminiClient || cachedGeminiProject !== project) {
+    cachedGeminiClient = new GoogleGenAI({ vertexai: true, project, location: GEMINI_LOCATION });
+    cachedGeminiProject = project;
+  }
+  return cachedGeminiClient;
+};
+
+export const extractReplyPrefixFromStructuredStreamV4 = (raw: string) => {
+  const property = /"reply"\s*:\s*"/.exec(raw);
+  if (!property) return "";
+  let result = "";
+  for (let index = property.index + property[0].length; index < raw.length; index += 1) {
+    const character = raw[index]!;
+    if (character === '"') break;
+    if (character !== "\\") {
+      result += character;
+      continue;
+    }
+    const escape = raw[index + 1];
+    if (!escape) break;
+    if (escape === "u") {
+      const code = raw.slice(index + 2, index + 6);
+      if (!/^[0-9a-f]{4}$/i.test(code)) break;
+      result += String.fromCharCode(Number.parseInt(code, 16));
+      index += 5;
+      continue;
+    }
+    const decoded = ({
+      '"': '"',
+      "\\": "\\",
+      "/": "/",
+      b: "\b",
+      f: "\f",
+      n: "\n",
+      r: "\r",
+      t: "\t",
+    } as Record<string, string>)[escape];
+    if (decoded === undefined) break;
+    result += decoded;
+    index += 1;
+  }
+  return result;
+};
+
+const runConversationModelV4 = async (
+  messages: OnboardingChatMessage[],
+  onReplyDelta?: (delta: string) => Promise<void>,
+  abortSignal?: AbortSignal,
+) => {
+  const latestUserMessage = messages.at(-1);
+  if (latestUserMessage?.role !== "user") throw new Error("The conversation is missing the latest answer.");
+  const history = messages.slice(0, -1);
+  const userTurns = messages.filter(({ role }) => role === "user").length;
+  const requiredPracticalTopics = requiredPracticalTopicsForTranscriptV3(messages);
+  const model = chatGeminiModelV4.value();
+  const chat = geminiClient().chats.create({
+    model,
+    history: conversationHistoryForGeminiV3(history),
+    config: {
+      systemInstruction: `${ONBOARDING_CONVERSATION_SYSTEM_PROMPT}
+
+Private turn state supplied by the application:
+- User answers so far, including the latest answer: ${userTurns}
+- Trainer gender preference has been explicitly asked and answered: ${requiredPracticalTopics.trainerGenderPreferenceAnswered ? "yes" : "no"}
+- Availability has been explicitly asked and answered: ${requiredPracticalTopics.availabilityAnswered ? "yes" : "no"}
+- Budget has been explicitly asked and answered: ${requiredPracticalTopics.budgetAnswered ? "yes" : "no"}
+Treat this state as authoritative. Do not set "readyForReview" to true until all three required matching
+topics say "yes". If the conversation is approaching twelve answers, prioritise the missing required topic
+now, while still asking only one question.`,
+      responseMimeType: "application/json",
+      responseJsonSchema: conversationalResponseJsonSchema,
+      maxOutputTokens: 256,
+      thinkingConfig: conversationThinkingConfigV4(model),
+      safetySettings: providerSafetySettings,
+    },
+  });
+  const modelStartedAt = Date.now();
+  const stream = await chat.sendMessageStream({ message: latestUserMessage.text });
+  let raw = "";
+  let streamedReply = "";
+  let modelFirstChunkMs: number | null = null;
+  let firstReplyChunkMs: number | null = null;
+
+  for await (const chunk of stream) {
+    if (abortSignal?.aborted) throw new HttpsError("cancelled", "The request was cancelled.");
+    if (modelFirstChunkMs === null) modelFirstChunkMs = Date.now() - modelStartedAt;
+    raw += chunk.text ?? "";
+    const replyPrefix = extractReplyPrefixFromStructuredStreamV4(raw);
+    if (replyPrefix.length <= streamedReply.length) continue;
+    const delta = replyPrefix.slice(streamedReply.length);
+    streamedReply = replyPrefix;
+    if (onReplyDelta) {
+      await onReplyDelta(delta);
+      if (firstReplyChunkMs === null) firstReplyChunkMs = Date.now() - modelStartedAt;
+    }
+  }
+
+  if (!raw) throw new Error("The model returned no content.");
+  return {
+    turn: parseConversationalModelOutputV3(raw),
+    modelFirstChunkMs,
+    firstReplyChunkMs,
+    modelTotalMs: Date.now() - modelStartedAt,
+    userTurns,
+    requiredPracticalTopics,
+  };
+};
+
+const runConversationModel = async (
+  messages: OnboardingChatMessage[],
+  userMessage: string,
+  userTurns: number,
+  requiredPracticalTopics: RequiredPracticalTopicsV3,
+) => {
+  const chat = geminiClient().chats.create({
+    model: geminiModel.value(),
+    history: conversationHistoryForGeminiV3(messages),
+    config: {
+      systemInstruction: `${ONBOARDING_CONVERSATION_SYSTEM_PROMPT}
+
+Private turn state supplied by the application:
+- User answers so far, including the latest answer: ${userTurns}
+- Trainer gender preference has been explicitly asked and answered: ${requiredPracticalTopics.trainerGenderPreferenceAnswered ? "yes" : "no"}
+- Availability has been explicitly asked and answered: ${requiredPracticalTopics.availabilityAnswered ? "yes" : "no"}
+- Budget has been explicitly asked and answered: ${requiredPracticalTopics.budgetAnswered ? "yes" : "no"}
+Treat this state as authoritative. Do not set "readyForReview" to true until all three required matching
+topics say "yes". If the conversation is approaching twelve answers, prioritise the missing required topic
+now, while still asking only one question.`,
+      responseMimeType: "application/json",
+      responseJsonSchema: conversationalResponseJsonSchema,
+      maxOutputTokens: 512,
+      thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
+      safetySettings: providerSafetySettings,
+    },
+  });
+  const response = await chat.sendMessage({ message: userMessage });
+  if (!response.text) throw new Error("The model returned no content.");
+  return parseConversationalModelOutputV3(response.text);
+};
+
+export const normalizeProfileMarkdownV3 = (raw: string) => {
+  const markdown = cleanModelText(raw);
+  if (/^[{[]/.test(markdown)) throw new Error("The model returned structured output instead of Markdown.");
+  return profileMarkdownSchema.parse(markdown);
+};
+
+const runMarkdownProfileGeneration = async (messages: OnboardingChatMessage[]) => {
+  const transcript = messages.map(({ role, text }) => ({ role, text }));
+  const response = await geminiClient().models.generateContent({
+    model: summaryGeminiModelV4.value(),
+    contents: `Create the Markdown training brief from this conversation:\n${JSON.stringify(transcript)}`,
+    config: {
+      systemInstruction: ONBOARDING_MARKDOWN_PROFILE_SYSTEM_PROMPT,
+      responseMimeType: "text/plain",
+      maxOutputTokens: 2_000,
+      thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
+      safetySettings: providerSafetySettings,
+    },
+  });
+  if (!response.text) throw new Error("The model returned no profile document.");
+  return normalizeProfileMarkdownV3(response.text);
+};
+
+const storeMessage = (
+  batch: FirebaseFirestore.WriteBatch,
+  ref: DocumentReference,
+  message: OnboardingChatMessage,
+  expiresAt: Timestamp,
+) => {
+  batch.create(ref.collection("messages").doc(message.id), {
+    role: message.role,
+    text: message.text,
+    sequence: message.sequence,
+    createdAt: Timestamp.fromDate(new Date(message.createdAt)),
+    expiresAt,
+  });
+};
+
+const readMessages = async (ref: DocumentReference): Promise<OnboardingChatMessage[]> => {
+  const snapshot = await ref.collection("messages").orderBy("sequence", "asc").get();
+  return snapshot.docs.flatMap((message) => {
+    const data = message.data() as {
+      role: "assistant" | "user";
+      text: string;
+      sequence: number;
+      createdAt: Timestamp;
+    };
+    let text = data.text;
+    if (data.role === "assistant" && !ONBOARDING_OPENING_MESSAGES.some((opening) => opening === text)) {
+      try {
+        text = parseConversationalModelOutputV3(text).reply;
+      } catch {
+        return [];
+      }
+    }
+    return [{
+      id: message.id,
+      role: data.role,
+      text,
+      sequence: data.sequence,
+      createdAt: data.createdAt.toDate().toISOString(),
+    }];
+  });
+};
+
+const assertLiveDraft = (doc: DraftDoc) => {
+  if (doc.expiresAt.toMillis() <= Date.now()) throw new HttpsError("not-found", "This chat has expired. Start a new one.");
+};
+
+const readAuthorizedDraft = async (draftId: string, capability: string) => {
+  const ref = drafts.doc(draftId);
+  const snapshot = await ref.get();
+  const doc = snapshot.data() as DraftDoc | undefined;
+  if (!doc || doc.schemaVersion !== 3 || doc.profileFormat !== "markdown-v1") {
+    throw new HttpsError("not-found", "This chat uses an older format. Start a new one.");
+  }
+  if (doc.capabilityHash !== hash(capability)) throw new HttpsError("permission-denied", "This chat capability is invalid.");
+  assertLiveDraft(doc);
+  return { ref, doc };
+};
+
+const snapshotFromDoc = async (
+  draftId: string,
+  ref: DocumentReference,
+  doc: DraftDoc,
+): Promise<OnboardingDraftSnapshotV3> => ({
+  schemaVersion: 3,
+  draftId,
+  version: doc.version,
+  status: doc.status,
+  profileMarkdown: doc.profileMarkdown,
+  messages: await readMessages(ref),
+  quickReplies: doc.quickReplies,
+  expiresAt: doc.expiresAt.toDate().toISOString(),
+  confirmationVersion: doc.confirmationVersion,
+  userTurns: doc.userTurns,
+});
+
+const snapshotForFinalizedConversationV4 = (
+  draftId: string,
+  doc: DraftDoc,
+): OnboardingDraftSnapshotV3 => ({
+  schemaVersion: 3,
+  draftId,
+  version: doc.version,
+  status: doc.status,
+  profileMarkdown: doc.profileMarkdown,
+  messages: [],
+  quickReplies: [],
+  expiresAt: doc.expiresAt.toDate().toISOString(),
+  confirmationVersion: doc.confirmationVersion,
+  userTurns: doc.userTurns,
+});
+
+export const isTranscriptReadyForFinalizationV4 = (messages: readonly OnboardingChatMessage[]) => {
+  const required = requiredPracticalTopicsForTranscriptV3(messages);
+  const userTurns = messages.filter(({ role }) => role === "user").length;
+  const latestUserMessage = [...messages].reverse().find(({ role }) => role === "user")?.text ?? "";
+  return required.trainerGenderPreferenceAnswered
+    && required.availabilityAnswered
+    && required.budgetAnswered
+    && (userTurns >= MIN_MODEL_READY_TURNS || isExplicitFinishRequestV3(latestUserMessage));
+};
+
+export const createWebOnboardingDraftV3 = onCall<CreateWebOnboardingDraftV3Request, Promise<CreateWebOnboardingDraftV3Response>>(
+  callableOptions,
+  async (request) => {
+    ensureAppCheck(request);
+    const input = parseData(createRequestSchema, request.data);
+    const { draftId, capability } = draftIdentityForIdempotencyKeyV3(input.idempotencyKey);
+    const ref = drafts.doc(draftId);
+    const existing = await ref.get();
+    if (existing.exists) {
+      const existingDoc = existing.data() as DraftDoc;
+      if (existingDoc.capabilityHash !== hash(capability)) throw new HttpsError("already-exists", "This creation key is already in use.");
+      if (existingDoc.schemaVersion !== 3 || existingDoc.profileFormat !== "markdown-v1") {
+        throw new HttpsError("failed-precondition", "This chat uses an older format. Start a new one.");
+      }
+      assertLiveDraft(existingDoc);
+      return { draftId, capability, snapshot: await snapshotFromDoc(draftId, ref, existingDoc) };
+    }
+
+    const projectId = process.env.GCLOUD_PROJECT ?? process.env.GOOGLE_CLOUD_PROJECT;
+    await enforceRateLimit(
+      `create:${requestIpKey(request)}`,
+      createRateLimitForProjectV3(projectId),
+      60 * 60 * 1_000,
+    );
+    const createdAt = Timestamp.now();
+    const expiresAt = Timestamp.fromMillis(createdAt.toMillis() + DRAFT_TTL_MS);
+    const doc: DraftDoc = {
+      schemaVersion: 3,
+      profileFormat: "markdown-v1",
+      capabilityHash: hash(capability),
+      consentVersion: input.consentVersion,
+      createdAt,
+      updatedAt: createdAt,
+      expiresAt,
+      version: 1,
+      status: "collecting",
+      confirmationVersion: null,
+      profileMarkdown: null,
+      quickReplies: [...ONBOARDING_OPENING_QUICK_REPLIES],
+      userTurns: 0,
+      nextSequence: ONBOARDING_OPENING_MESSAGES.length + 1,
+    };
+    const opening = ONBOARDING_OPENING_MESSAGES.map((text, index): OnboardingChatMessage => ({
+      id: randomUUID(),
+      role: "assistant",
+      text,
+      createdAt: createdAt.toDate().toISOString(),
+      sequence: index + 1,
+    }));
+    const batch = db.batch();
+    batch.create(ref, doc);
+    opening.forEach((message) => storeMessage(batch, ref, message, expiresAt));
+    try {
+      await batch.commit();
+    } catch (error) {
+      const raced = await ref.get();
+      const racedDoc = raced.data() as DraftDoc | undefined;
+      if (racedDoc?.capabilityHash === hash(capability)) {
+        return { draftId, capability, snapshot: await snapshotFromDoc(draftId, ref, racedDoc) };
+      }
+      throw error;
+    }
+    return { draftId, capability, snapshot: await snapshotFromDoc(draftId, ref, doc) };
+  },
+);
+
+export const getWebOnboardingDraftV3 = onCall<GetWebOnboardingDraftV3Request, Promise<GetWebOnboardingDraftV3Response>>(
+  callableOptions,
+  async (request) => {
+    ensureAppCheck(request);
+    const input = parseData(capabilityRequestSchema, request.data);
+    const { ref, doc } = await readAuthorizedDraft(input.draftId, input.capability);
+    return { snapshot: await snapshotFromDoc(input.draftId, ref, doc) };
+  },
+);
+
+export const runWebOnboardingTurnV3 = onCall<
+  RunWebOnboardingTurnV3Request | RunWebOnboardingTurnV4Request,
+  Promise<RunWebOnboardingTurnV3Response | RunWebOnboardingTurnV4Response>,
+  RunWebOnboardingTurnV4StreamChunk
+>(
+  { ...callableOptions, timeoutSeconds: 60, minInstances: 1 },
+  async (request, response) => {
+    if (Array.isArray((request.data as Partial<RunWebOnboardingTurnV4Request>)?.messages)) {
+      return handleWebOnboardingTurnV4(
+        request as CallableRequest<RunWebOnboardingTurnV4Request>,
+        response,
+      );
+    }
+    ensureAppCheck(request);
+    const input = parseData(turnRequestSchema, request.data);
+    const { ref, doc } = await readAuthorizedDraft(input.draftId, input.capability);
+    const turnRef = ref.collection("idempotentTurnsV3").doc(hash(input.idempotencyKey));
+    const requestHash = hash(`${input.expectedVersion}:${input.message}`);
+    const prior = await turnRef.get();
+    if (prior.exists) {
+      if (prior.data()?.requestHash !== requestHash) throw new HttpsError("already-exists", "This turn key was used for different input.");
+      const latest = await readAuthorizedDraft(input.draftId, input.capability);
+      return { snapshot: await snapshotFromDoc(input.draftId, latest.ref, latest.doc) };
+    }
+    if (doc.version !== input.expectedVersion) throw new HttpsError("aborted", "The chat changed in another tab. Refresh and try again.");
+    if (doc.status !== "collecting") throw new HttpsError("failed-precondition", "This chat is ready for secure final details.");
+    await enforceRateLimit(`turn:${input.draftId}`, 30, 60 * 60 * 1_000);
+    const messages = await readMessages(ref);
+    const userTurns = doc.userTurns + 1;
+    const requiredPracticalTopics = requiredPracticalTopicsForTranscriptV3([
+      ...messages,
+      { role: "user", text: input.message },
+    ]);
+    const startedAt = Date.now();
+    let modelTurn: OnboardingTurnResultV3;
+    try {
+      modelTurn = await runConversationModel(
+        messages,
+        input.message,
+        userTurns,
+        requiredPracticalTopics,
+      );
+    } catch (error) {
+      logger.error("web_onboarding_conversation_failed", {
+        draftKey: hash(input.draftId).slice(0, 12),
+        latencyMs: Date.now() - startedAt,
+        errorType: error instanceof Error ? error.name : "unknown",
+      });
+      throw new HttpsError("unavailable", "I couldn’t reply just now. Your answer is still here — please try again.");
+    }
+
+    const ready = shouldReadyForReviewV3({
+      userTurns,
+      explicitFinish: isExplicitFinishRequestV3(input.message),
+      modelReadyForReview: modelTurn.readyForReview,
+      reply: modelTurn.reply,
+      ...requiredPracticalTopics,
+    });
+    const timestamp = Timestamp.now();
+    const userMessage: OnboardingChatMessage = {
+      id: randomUUID(),
+      role: "user",
+      text: input.message,
+      createdAt: timestamp.toDate().toISOString(),
+      sequence: doc.nextSequence,
+    };
+    const assistantMessage: OnboardingChatMessage = {
+      id: randomUUID(),
+      role: "assistant",
+      text: modelTurn.reply,
+      createdAt: timestamp.toDate().toISOString(),
+      sequence: doc.nextSequence + 1,
+    };
+    const nextDoc: DraftDoc = {
+      ...doc,
+      updatedAt: timestamp,
+      version: doc.version + 1,
+      status: ready ? "ready_to_map" : "collecting",
+      confirmationVersion: null,
+      profileMarkdown: null,
+      quickReplies: ready ? [] : modelTurn.quickReplies,
+      userTurns,
+      nextSequence: doc.nextSequence + 2,
+    };
+    delete nextDoc.identity;
+
+    await db.runTransaction(async (transaction) => {
+      const [fresh, idempotent] = await Promise.all([transaction.get(ref), transaction.get(turnRef)]);
+      if (idempotent.exists) {
+        if (idempotent.data()?.requestHash !== requestHash) throw new HttpsError("already-exists", "This turn key was used for different input.");
+        return;
+      }
+      const freshDoc = fresh.data() as DraftDoc | undefined;
+      if (!freshDoc || freshDoc.capabilityHash !== hash(input.capability)) throw new HttpsError("permission-denied", "This chat capability is invalid.");
+      if (freshDoc.version !== input.expectedVersion) throw new HttpsError("aborted", "The chat changed in another tab. Refresh and try again.");
+      transaction.set(ref, nextDoc);
+      transaction.create(ref.collection("messages").doc(userMessage.id), {
+        role: userMessage.role,
+        text: userMessage.text,
+        sequence: userMessage.sequence,
+        createdAt: timestamp,
+        expiresAt: doc.expiresAt,
+      });
+      transaction.create(ref.collection("messages").doc(assistantMessage.id), {
+        role: assistantMessage.role,
+        text: assistantMessage.text,
+        sequence: assistantMessage.sequence,
+        createdAt: timestamp,
+        expiresAt: doc.expiresAt,
+      });
+      transaction.create(turnRef, {
+        resultVersion: nextDoc.version,
+        requestHash,
+        createdAt: timestamp,
+        expiresAt: doc.expiresAt,
+      });
+    });
+
+    logger.info("web_onboarding_conversation_turn", {
+      turnCount: userTurns,
+      readyForReview: ready,
+      latencyMs: Date.now() - startedAt,
+    });
+    const latest = await readAuthorizedDraft(input.draftId, input.capability);
+    return { snapshot: await snapshotFromDoc(input.draftId, latest.ref, latest.doc) };
+  },
+);
+
+export const runWebOnboardingTurnV4 = onCall<
+  RunWebOnboardingTurnV4Request,
+  Promise<RunWebOnboardingTurnV4Response>,
+  RunWebOnboardingTurnV4StreamChunk
+>(
+  { ...callableOptions, timeoutSeconds: 60, minInstances: 1 },
+  handleWebOnboardingTurnV4,
+);
+
+async function handleWebOnboardingTurnV4(
+  request: CallableRequest<RunWebOnboardingTurnV4Request>,
+  response?: CallableResponse<RunWebOnboardingTurnV4StreamChunk>,
+): Promise<RunWebOnboardingTurnV4Response> {
+    const handlerStartedAt = Date.now();
+    ensureAppCheck(request);
+    const input = parseData(turnRequestV4Schema, request.data);
+    assertConversationTranscriptV4(input.messages, "user");
+
+    const rateLimitStartedAt = Date.now();
+    await enforceRateLimit(`turn-v4:${requestIpKey(request)}`, 30, 60 * 60 * 1_000);
+    const rateLimitMs = Date.now() - rateLimitStartedAt;
+
+    let modelResult: Awaited<ReturnType<typeof runConversationModelV4>>;
+    try {
+      modelResult = await runConversationModelV4(
+        input.messages,
+        request.acceptsStreaming && response
+          ? (delta) => response.sendChunk({ type: "reply_delta", text: delta }).then(() => undefined)
+          : undefined,
+        response?.signal,
+      );
+    } catch (error) {
+      const details = providerErrorDetails(error);
+      logger.error("web_onboarding_conversation_failed_v4", {
+        rateLimitMs,
+        latencyMs: Date.now() - handlerStartedAt,
+        ...details,
+      });
+      if (error instanceof HttpsError) throw error;
+      const project = process.env.GCLOUD_PROJECT ?? process.env.GOOGLE_CLOUD_PROJECT;
+      if (project === DEVELOPMENT_PROJECT_ID) {
+        throw new HttpsError(
+          "unavailable",
+          `Gemini dev error: ${details.errorStatus ?? details.errorCode ?? "unknown"} ${details.errorMessage}`,
+        );
+      }
+      throw new HttpsError("unavailable", "I couldn’t reply just now. Your answer is still here — please try again.");
+    }
+
+    const readyForReview = shouldReadyForReviewV3({
+      userTurns: modelResult.userTurns,
+      explicitFinish: isExplicitFinishRequestV3(input.messages.at(-1)!.text),
+      modelReadyForReview: modelResult.turn.readyForReview,
+      reply: modelResult.turn.reply,
+      ...modelResult.requiredPracticalTopics,
+    });
+    const result: OnboardingTurnResultV3 = {
+      reply: modelResult.turn.reply,
+      readyForReview,
+      quickReplies: readyForReview ? [] : modelResult.turn.quickReplies,
+    };
+    const timings = {
+      rateLimitMs,
+      modelFirstChunkMs: modelResult.modelFirstChunkMs,
+      firstReplyChunkMs: modelResult.firstReplyChunkMs,
+      modelTotalMs: modelResult.modelTotalMs,
+      totalMs: Date.now() - handlerStartedAt,
+    };
+    logger.info("web_onboarding_conversation_turn_v4", {
+      model: chatGeminiModelV4.value(),
+      turnCount: modelResult.userTurns,
+      readyForReview,
+      ...timings,
+    });
+  return { result, timings };
+}
+
+export const finalizeWebOnboardingDraftV3 = onCall<
+  FinalizeWebOnboardingDraftV3Request | FinalizeWebOnboardingV4Request,
+  Promise<FinalizeWebOnboardingDraftV3Response | FinalizeWebOnboardingV4Response>
+>(
+  { ...callableOptions, timeoutSeconds: 60 },
+  async (request) => {
+    if (Array.isArray((request.data as Partial<FinalizeWebOnboardingV4Request>)?.messages)) {
+      return handleFinalizeWebOnboardingV4(request as CallableRequest<FinalizeWebOnboardingV4Request>);
+    }
+    ensureAppCheck(request);
+    const input = parseData(finalizeRequestSchema, request.data);
+    const { ref, doc } = await readAuthorizedDraft(input.draftId, input.capability);
+    const finalizeRef = ref.collection("idempotentFinalizationsV3").doc(hash(input.idempotencyKey));
+    const requestHash = hash(String(input.expectedVersion));
+    const prior = await finalizeRef.get();
+    if (prior.exists) {
+      if (prior.data()?.requestHash !== requestHash) throw new HttpsError("already-exists", "This finalization key was used for another version.");
+      const latest = await readAuthorizedDraft(input.draftId, input.capability);
+      return { snapshot: await snapshotFromDoc(input.draftId, latest.ref, latest.doc) };
+    }
+    if (doc.version !== input.expectedVersion) throw new HttpsError("aborted", "The chat changed in another tab. Refresh and try again.");
+    if (doc.status === "review" && doc.profileMarkdown) {
+      return { snapshot: await snapshotFromDoc(input.draftId, ref, doc) };
+    }
+    if (doc.status !== "ready_to_map") throw new HttpsError("failed-precondition", "Continue the conversation before preparing the matching profile.");
+
+    await enforceRateLimit(`finalize:${input.draftId}`, 8, 60 * 60 * 1_000);
+    const messages = await readMessages(ref);
+    const startedAt = Date.now();
+    let profileMarkdown: string;
+    try {
+      profileMarkdown = await runMarkdownProfileGeneration(messages);
+    } catch (error) {
+      logger.error("web_onboarding_finalization_failed", {
+        draftKey: hash(input.draftId).slice(0, 12),
+        turnCount: doc.userTurns,
+        latencyMs: Date.now() - startedAt,
+        errorType: error instanceof Error ? error.name : "unknown",
+      });
+      throw new HttpsError("unavailable", "I couldn’t prepare your details just now. Your conversation is saved — try preparing them again.");
+    }
+
+    const timestamp = Timestamp.now();
+    const nextDoc: DraftDoc = {
+      ...doc,
+      updatedAt: timestamp,
+      version: doc.version + 1,
+      status: "review",
+      profileMarkdown,
+      quickReplies: [],
+    };
+    await db.runTransaction(async (transaction) => {
+      const [fresh, idempotent] = await Promise.all([transaction.get(ref), transaction.get(finalizeRef)]);
+      if (idempotent.exists) return;
+      const freshDoc = fresh.data() as DraftDoc | undefined;
+      if (!freshDoc || freshDoc.capabilityHash !== hash(input.capability)) throw new HttpsError("permission-denied", "This chat capability is invalid.");
+      if (freshDoc.version !== input.expectedVersion || freshDoc.status !== "ready_to_map") {
+        throw new HttpsError("aborted", "The chat changed. Prepare the latest version instead.");
+      }
+      transaction.set(ref, nextDoc);
+      transaction.create(finalizeRef, {
+        resultVersion: nextDoc.version,
+        requestHash,
+        createdAt: timestamp,
+        expiresAt: doc.expiresAt,
+      });
+    });
+    logger.info("web_onboarding_finalized", {
+      turnCount: doc.userTurns,
+      profileLength: profileMarkdown.length,
+      latencyMs: Date.now() - startedAt,
+    });
+    const latest = await readAuthorizedDraft(input.draftId, input.capability);
+    return { snapshot: await snapshotFromDoc(input.draftId, latest.ref, latest.doc) };
+  },
+);
+
+export const finalizeWebOnboardingV4 = onCall<FinalizeWebOnboardingV4Request, Promise<FinalizeWebOnboardingV4Response>>(
+  { ...callableOptions, timeoutSeconds: 60 },
+  handleFinalizeWebOnboardingV4,
+);
+
+async function handleFinalizeWebOnboardingV4(
+  request: CallableRequest<FinalizeWebOnboardingV4Request>,
+): Promise<FinalizeWebOnboardingV4Response> {
+    const handlerStartedAt = Date.now();
+    ensureAppCheck(request);
+    const input = parseData(finalizeRequestV4Schema, request.data);
+    assertConversationTranscriptV4(input.messages, "assistant");
+    if (!isTranscriptReadyForFinalizationV4(input.messages)) {
+      throw new HttpsError("failed-precondition", "Continue the conversation before preparing the matching profile.");
+    }
+
+    const { draftId, capability } = draftIdentityForIdempotencyKeyV3(input.idempotencyKey);
+    const ref = drafts.doc(draftId);
+    const existing = await ref.get();
+    if (existing.exists) {
+      const existingDoc = existing.data() as DraftDoc;
+      if (existingDoc.capabilityHash !== hash(capability)) {
+        throw new HttpsError("already-exists", "This finalization key is already in use.");
+      }
+      assertLiveDraft(existingDoc);
+      return {
+        draftId,
+        capability,
+        snapshot: snapshotForFinalizedConversationV4(draftId, existingDoc),
+        timings: { rateLimitMs: 0, modelMs: 0, writeMs: 0, totalMs: Date.now() - handlerStartedAt },
+      };
+    }
+
+    const rateLimitStartedAt = Date.now();
+    await enforceRateLimit(`finalize-v4:${requestIpKey(request)}`, 8, 60 * 60 * 1_000);
+    const rateLimitMs = Date.now() - rateLimitStartedAt;
+    const modelStartedAt = Date.now();
+    let profileMarkdown: string;
+    try {
+      profileMarkdown = await runMarkdownProfileGeneration(input.messages);
+    } catch (error) {
+      logger.error("web_onboarding_finalization_failed_v4", {
+        turnCount: input.messages.filter(({ role }) => role === "user").length,
+        rateLimitMs,
+        modelMs: Date.now() - modelStartedAt,
+        latencyMs: Date.now() - handlerStartedAt,
+        ...providerErrorDetails(error),
+      });
+      throw new HttpsError("unavailable", "I couldn’t prepare your details just now. Your conversation is kept on this device — try again.");
+    }
+    const modelMs = Date.now() - modelStartedAt;
+
+    const timestamp = Timestamp.now();
+    const expiresAt = Timestamp.fromMillis(timestamp.toMillis() + DRAFT_TTL_MS);
+    const userTurns = input.messages.filter(({ role }) => role === "user").length;
+    const doc: DraftDoc = {
+      schemaVersion: 3,
+      profileFormat: "markdown-v1",
+      capabilityHash: hash(capability),
+      consentVersion: input.consentVersion,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      expiresAt,
+      version: 1,
+      status: "review",
+      confirmationVersion: null,
+      profileMarkdown,
+      quickReplies: [],
+      userTurns,
+      nextSequence: 1,
+    };
+    const writeStartedAt = Date.now();
+    try {
+      await ref.create(doc);
+    } catch (error) {
+      const raced = await ref.get();
+      const racedDoc = raced.data() as DraftDoc | undefined;
+      if (racedDoc?.capabilityHash === hash(capability)) {
+        return {
+          draftId,
+          capability,
+          snapshot: snapshotForFinalizedConversationV4(draftId, racedDoc),
+          timings: {
+            rateLimitMs,
+            modelMs,
+            writeMs: Date.now() - writeStartedAt,
+            totalMs: Date.now() - handlerStartedAt,
+          },
+        };
+      }
+      throw error;
+    }
+    const timings = {
+      rateLimitMs,
+      modelMs,
+      writeMs: Date.now() - writeStartedAt,
+      totalMs: Date.now() - handlerStartedAt,
+    };
+    logger.info("web_onboarding_finalized_v4", {
+      model: summaryGeminiModelV4.value(),
+      turnCount: userTurns,
+      profileLength: profileMarkdown.length,
+      ...timings,
+    });
+  return {
+    draftId,
+    capability,
+    snapshot: snapshotForFinalizedConversationV4(draftId, doc),
+    timings,
+  };
+}
+
+export const confirmWebOnboardingDraftV3 = onCall<ConfirmWebOnboardingDraftV3Request, Promise<ConfirmWebOnboardingDraftV3Response>>(
+  callableOptions,
+  async (request) => {
+    ensureAppCheck(request);
+    const input = parseData(confirmRequestSchema, request.data);
+    const profileMarkdown = profileMarkdownSchema.safeParse(input.profileMarkdown);
+    if (!profileMarkdown.success) {
+      throw new HttpsError(
+        "failed-precondition",
+        profileMarkdown.error.issues[0]?.message ?? "Check the matching profile.",
+      );
+    }
+    const identity = identityAnswersSchema.safeParse(input.identity);
+    if (!identity.success) throw new HttpsError("invalid-argument", identity.error.issues[0]?.message ?? "Check the private details.");
+    const { ref } = await readAuthorizedDraft(input.draftId, input.capability);
+    await db.runTransaction(async (transaction) => {
+      const snapshot = await transaction.get(ref);
+      const doc = snapshot.data() as DraftDoc | undefined;
+      if (!doc || doc.capabilityHash !== hash(input.capability)) throw new HttpsError("permission-denied", "This chat capability is invalid.");
+      if (doc.version !== input.expectedVersion) throw new HttpsError("aborted", "The matching details changed. Check the latest version.");
+      if (!["review", "confirmed"].includes(doc.status) || !doc.profileMarkdown) {
+        throw new HttpsError("failed-precondition", "Prepare the matching details before confirming them.");
+      }
+      const version = doc.version + 1;
+      transaction.set(ref, {
+        ...doc,
+        updatedAt: Timestamp.now(),
+        version,
+        status: "confirmed",
+        confirmationVersion: version,
+        profileMarkdown: profileMarkdown.data,
+        identity: {
+          fullName: identity.data.fullName.trim(),
+          dateOfBirth: identity.data.dateOfBirth,
+          email: identity.data.email.trim().toLowerCase(),
+        },
+      } satisfies DraftDoc);
+    });
+    logger.info("web_onboarding_confirmed", { turnCount: (await ref.get()).data()?.userTurns ?? null });
+    const confirmed = await readAuthorizedDraft(input.draftId, input.capability);
+    return { snapshot: await snapshotFromDoc(input.draftId, confirmed.ref, confirmed.doc) };
+  },
+);
+
+export const consumeWebOnboardingDraftV3 = onCall<ConsumeWebOnboardingDraftV3Request, Promise<ConsumeWebOnboardingDraftV3Response>>(
+  callableOptions,
+  async (request) => {
+    ensureAppCheck(request);
+    const input = parseData(capabilityRequestSchema, request.data);
+    const authenticatedEmail = typeof request.auth?.token.email === "string" ? request.auth.token.email.toLowerCase() : null;
+    if (!request.auth || !authenticatedEmail) throw new HttpsError("unauthenticated", "Sign in with the confirmed email first.");
+    const uid = request.auth.uid;
+    const markerRef = consumptions.doc(input.draftId);
+    const marker = await markerRef.get();
+    if (marker.exists) {
+      const data = marker.data() as {
+        uid?: string;
+        capabilityHash?: string;
+        profileFormat?: string;
+        profileMarkdown?: unknown;
+      };
+      const profileMarkdown = profileMarkdownSchema.safeParse(data.profileMarkdown);
+      if (
+        data.uid !== uid
+        || data.capabilityHash !== hash(input.capability)
+        || data.profileFormat !== "markdown-v1"
+        || !profileMarkdown.success
+      ) {
+        throw new HttpsError("permission-denied", "This consumption capability is invalid.");
+      }
+      await db.recursiveDelete(drafts.doc(input.draftId));
+      return { profileMarkdown: profileMarkdown.data };
+    }
+
+    const { ref, doc } = await readAuthorizedDraft(input.draftId, input.capability);
+    if (doc.status !== "confirmed" || !doc.identity || !doc.profileMarkdown) {
+      throw new HttpsError("failed-precondition", "Confirm the draft before consuming it.");
+    }
+    if (doc.identity.email.toLowerCase() !== authenticatedEmail) {
+      throw new HttpsError("permission-denied", "The signed-in email does not match this draft.");
+    }
+
+    const profileRef = profiles.doc(uid);
+    const timestamp = Timestamp.now();
+
+    await db.runTransaction(async (transaction) => {
+      const [fresh, existingMarker] = await Promise.all([
+        transaction.get(ref),
+        transaction.get(markerRef),
+      ]);
+      if (existingMarker.exists) {
+        const markerData = existingMarker.data();
+        if (markerData?.uid !== uid || markerData?.capabilityHash !== hash(input.capability)) {
+          throw new HttpsError("permission-denied", "This consumption capability is invalid.");
+        }
+        return;
+      }
+      const freshDoc = fresh.data() as DraftDoc | undefined;
+      if (
+        !freshDoc
+        || freshDoc.capabilityHash !== hash(input.capability)
+        || freshDoc.status !== "confirmed"
+        || !freshDoc.profileMarkdown
+      ) {
+        throw new HttpsError("failed-precondition", "This confirmed draft is no longer available.");
+      }
+      if (freshDoc.version !== doc.version || freshDoc.confirmationVersion !== doc.confirmationVersion) {
+        throw new HttpsError("aborted", "The confirmed draft changed. Retry with the latest version.");
+      }
+      if (freshDoc.identity?.email.toLowerCase() !== authenticatedEmail) {
+        throw new HttpsError("permission-denied", "The signed-in email no longer matches this draft.");
+      }
+
+      transaction.set(profileRef, {
+        profileFormat: "markdown-v1",
+        profileMarkdown: freshDoc.profileMarkdown,
+        source: "web-onboarding-v3",
+        updatedAt: timestamp,
+      });
+      transaction.set(markerRef, {
+        uid,
+        capabilityHash: hash(input.capability),
+        profileFormat: "markdown-v1",
+        profileMarkdown: freshDoc.profileMarkdown,
+        consumedAt: timestamp,
+        expiresAt: Timestamp.fromMillis(Date.now() + CONSUMPTION_TTL_MS),
+      });
+      transaction.update(ref, { status: "consumed", updatedAt: timestamp });
+    });
+
+    await db.recursiveDelete(ref);
+    return { profileMarkdown: doc.profileMarkdown };
+  },
+);
+
+export const getWebClientProfileV3 = onCall<Record<string, never>, Promise<GetWebClientProfileV3Response>>(
+  callableOptions,
+  async (request) => {
+    ensureAppCheck(request);
+    if (!request.auth) throw new HttpsError("unauthenticated", "Sign in to load your matching profile.");
+    const snapshot = await profiles.doc(request.auth.uid).get();
+    if (!snapshot.exists) return { profileMarkdown: null };
+    const data = snapshot.data();
+    if (!data) throw new HttpsError("data-loss", "The stored matching profile is invalid.");
+    const profileMarkdown = profileMarkdownSchema.safeParse(data.profileMarkdown);
+    if (data.profileFormat !== "markdown-v1" || !profileMarkdown.success) {
+      return { profileMarkdown: null };
+    }
+    return { profileMarkdown: profileMarkdown.data };
+  },
+);
+
+export const deleteWebOnboardingDraftV3 = onCall<DeleteWebOnboardingDraftV3Request, Promise<DeleteWebOnboardingDraftV3Response>>(
+  callableOptions,
+  async (request) => {
+    ensureAppCheck(request);
+    const input = parseData(capabilityRequestSchema, request.data);
+    const { ref } = await readAuthorizedDraft(input.draftId, input.capability);
+    await db.recursiveDelete(ref);
+    return { deleted: true };
+  },
+);
+
+export const withdrawWebHealthConsentV3 = onCall<WithdrawWebHealthConsentV3Request, Promise<WithdrawWebHealthConsentV3Response>>(
+  callableOptions,
+  async (request) => {
+    ensureAppCheck(request);
+    const input = parseData(withdrawHealthRequestSchema, request.data);
+    if (!request.auth) throw new HttpsError("unauthenticated", "Sign in before withdrawing health consent.");
+    const uid = request.auth.uid;
+    const healthRef = health.doc(uid);
+    await db.runTransaction(async (transaction) => {
+      const snapshot = await transaction.get(healthRef);
+      const current = snapshot.data() as { consentId?: string | null; active?: boolean } | undefined;
+      if (!snapshot.exists || !current?.active) return;
+      const timestamp = Timestamp.now();
+      const withdrawalId = hash(`${uid}:${current.consentId ?? "none"}:${input.consentVersion}:withdrawal-v3`);
+      transaction.set(healthRef.collection("consents").doc(withdrawalId), {
+        uid,
+        consentId: withdrawalId,
+        schemaVersion: 3,
+        consentVersion: input.consentVersion,
+        purpose: "safe-personal-training-matching",
+        granted: false,
+        supersedesConsentId: current.consentId ?? null,
+        withdrawnAt: timestamp,
+      });
+      transaction.update(healthRef, {
+        active: false,
+        medicalNote: "",
+        rehabilitationGoal: false,
+        consentWithdrawnAt: timestamp,
+        updatedAt: timestamp,
+      });
+    });
+    return { withdrawn: true };
+  },
+);

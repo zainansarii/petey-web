@@ -28,18 +28,15 @@ import {
   orderTrainersFor,
   type Trainer,
 } from "../../discovery/data/trainers";
-import type { MatchingAnswers } from "../../onboarding/model/onboarding";
 
 export function FeedScreen({
-  answers,
   onEditMatch,
   onHome,
 }: {
-  answers: MatchingAnswers;
   onEditMatch: () => void;
   onHome: () => void;
 }) {
-  const trainers = orderTrainersFor(answers);
+  const trainers = orderTrainersFor();
   const [activeIndex, setActiveIndex] = useState(0);
   const [profileTrainer, setProfileTrainer] = useState<Trainer | null>(null);
   const [requestTrainer, setRequestTrainer] = useState<Trainer | null>(null);
@@ -90,10 +87,10 @@ export function FeedScreen({
         <div className="feed-layout">
         <aside className="feed-intro">
           <h1>Four demo trainers to explore.</h1>
-          <p>Ordered around what you told us. This is an interactive demo; nothing is sent.</p>
+          <p>A neutral demo list while personalised matching is being prepared. Nothing is sent.</p>
           <div className="feed-intro__signal">
             <Sparkles aria-hidden="true" size={18} />
-            <span><strong>Why this order</strong>{matchReasonFor(activeTrainer, answers)}</span>
+            <span><strong>Trainer snapshot</strong>{matchReasonFor(activeTrainer)}</span>
           </div>
           <div className="feed-intro__controls">
             <button aria-label="Previous trainer" onClick={() => move(-1)} type="button"><ChevronLeft size={21} /></button>
@@ -131,7 +128,7 @@ export function FeedScreen({
               transition={{ duration: reducedMotion ? 0 : 0.3, ease: [0.22, 1, 0.36, 1] }}
             >
               <TrainerCard
-                matchReason={matchReasonFor(activeTrainer, answers)}
+                matchReason={matchReasonFor(activeTrainer)}
                 onRequest={(trigger) => {
                   setDialogTrigger(trigger);
                   setRequestTrainer(activeTrainer);
@@ -164,7 +161,6 @@ export function FeedScreen({
         ) : null}
         {requestTrainer ? (
           <RequestDialog
-            answers={answers}
             onClose={() => setRequestTrainer(null)}
             onPreviewComplete={() => {
               setToast(`Preview complete — nothing was sent to ${requestTrainer.name}.`);
@@ -360,14 +356,12 @@ function ProfileSection({ icon, title, items }: { icon: React.ReactNode; title: 
 
 function RequestDialog({
   trainer,
-  answers,
   onClose,
   onPreviewComplete,
   reducedMotion,
   returnFocusTo,
 }: {
   trainer: Trainer;
-  answers: MatchingAnswers;
   onClose: () => void;
   onPreviewComplete: () => void;
   reducedMotion: boolean;
@@ -375,7 +369,6 @@ function RequestDialog({
 }) {
   const [message, setMessage] = useState("");
   const [shareGoal, setShareGoal] = useState(false);
-  const [shareHealth, setShareHealth] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const submit = (event: FormEvent) => {
@@ -425,9 +418,6 @@ function RequestDialog({
         <div className="request-dialog__sharing">
           <p>Include in this preview</p>
           <ToggleShare checked={shareGoal} label="Primary goal" onChange={setShareGoal} />
-          {answers.medicalNote.trim() ? (
-            <ToggleShare checked={shareHealth} label="Private health note" onChange={setShareHealth} />
-          ) : null}
         </div>
         <div aria-live="polite" className="flow-error">{error ?? <span>&nbsp;</span>}</div>
         <button className="primary-button request-dialog__submit" type="submit">

@@ -120,10 +120,13 @@ export function LandingScreen({ onStart }: { onStart: () => void }) {
           transition={{ duration: reducedMotion ? 0 : 0.65, ease: [0.22, 1, 0.36, 1] }}
         >
           <h1>Find your personal trainer.</h1>
-          <p className="landing__lede">A shortlist shaped around your goals, schedule and the way you like to be coached.</p>
+          <p className="landing__lede">We find the best match for your goals, schedule and the way you like to be coached.</p>
           <div className="landing__cta-row">
             <button className="primary-button" onClick={start} type="button">
               Find my trainer <ArrowRight aria-hidden="true" size={20} />
+            </button>
+            <button className="primary-button landing__trainer-cta" type="button">
+              I'm a personal trainer <ArrowRight aria-hidden="true" size={20} />
             </button>
           </div>
         </motion.section>

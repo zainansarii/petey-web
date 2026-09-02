@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "rootDir": "..",
+    "outDir": "lib",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "types": ["node"],
+    "noUncheckedIndexedAccess": true
+  },
+  "include": ["src/**/*.ts", "../src/features/onboarding/model/onboardingContract.ts"],
+  "exclude": ["src/**/*.test.ts"]
+}
