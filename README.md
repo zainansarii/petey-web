@@ -1,6 +1,6 @@
 # Petey web
 
-A trainee-only web adaptation of Petey's mobile discovery and onboarding experience. The flow starts with a trainer carousel, moves into a compressed matching questionnaire after one scroll gesture, and asks for identity plus email magic-link authentication only at the end.
+A trainee-only web adaptation of Petey's mobile discovery and onboarding experience. The flow starts with a trainer carousel, moves into a natural-language matching conversation after one scroll gesture, and opens a secure identity and email magic-link handoff when the conversation is complete.
 
 ## Run locally
 
@@ -9,13 +9,64 @@ npm install
 npm run dev
 ```
 
-`npm run verify` runs linting, type-checking, unit tests, and a production build.
+`npm run verify` runs linting, type-checking, unit tests, and production builds for both the web app and the `web-onboarding-v3` Firebase Functions codebase. The Functions runtime targets Node 22; the web app supports Node 20.19 or newer.
+
+There is deliberately no browser-side extraction parser or simulated concierge. A usable onboarding conversation requires the configured V3 Functions backend and Gemini; unit tests inject bounded response fixtures at the protocol boundary.
+
+For responsive manual QA only, a Vite development build accepts `?onboardingFixture=1`. This lazy-loads fixed protocol snapshots (it does not interpret text), and the branch is removed from production builds.
+
+## Conversational onboarding backend
+
+The `functions/` package is a separate Firebase Functions codebase named `web-onboarding-v3`, deployed in `europe-west2`. It exports:
+
+- `createWebOnboardingDraftV3`
+- `getWebOnboardingDraftV3`
+- `runWebOnboardingTurnV3`
+- `finalizeWebOnboardingDraftV3`
+- `confirmWebOnboardingDraftV3`
+- `consumeWebOnboardingDraftV3`
+- `getWebClientProfileV3`
+- `deleteWebOnboardingDraftV3`
+- `withdrawWebHealthConsentV3`
+
+The browser keeps only a V3 opaque draft capability in session storage. Each ordinary turn continues one native Gemini chat and stores messages only. In that same call, Gemini returns a small private application envelope containing the user-facing reply, a readiness signal, and up to three contextual example answers. Only the reply and examples can reach the interface; the envelope itself is never shown or stored as a chat message. There is no coverage engine, profile patch, concierge-note store, or secondary model judge. Gemini may finish from the fifth answer when it has a good-enough picture, but availability and budget must each have been asked and answered first. Seven answers is a target rather than a limit, with twelve as the fallback finish point after those required topics are complete. A separate finalization call turns the complete transcript into an internal Markdown matching profile. The profile is never rendered in onboarding; the secure final-details modal opens over the completed chat instead. Identity stays outside prompts and transcript messages.
+
+The conversation is one native Gemini chat: every turn restores the stored
+`user`/`model` history and sends only the new user message. To change Petey's
+tone, questioning style, or conversational behaviour, edit
+`ONBOARDING_CONVERSATION_SYSTEM_PROMPT` in
+[`functions/src/onboardingConversationPrompt.ts`](./functions/src/onboardingConversationPrompt.ts).
+The prompt guides the conversation through trainee, trainer, and sessions phases,
+with one open-ended question per turn, restrained acknowledgements, useful
+clarifications inside each phase, and context-specific example answers.
+The end-only `ONBOARDING_MARKDOWN_PROFILE_SYSTEM_PROMPT` is in the same file and is intentionally separate
+from the live chat. It controls the internal matching profile, which is not rendered to the user.
+
+Draft messages and idempotency records are subcollections rather than one growing array. Authenticated consumption atomically writes the user-confirmed internal `profileMarkdown` document, then recursively removes the capability-protected draft and raw transcript. The new flow does not extract or persist structured matching fields, postcodes, health notes, or concierge notes. The trainer feed therefore remains a neutral demo catalogue until a separate Markdown-aware matcher is deliberately designed.
+
+For a production environment:
+
+1. Enable Firestore and configure the six TTL policies in the [rollout runbook](./docs/web-onboarding-v3-rollout.md).
+2. Enable App Check for the Web app with reCAPTCHA Enterprise and set `VITE_FIREBASE_APPCHECK_SITE_KEY`.
+3. Enable the Vertex AI API and deploy the V3 Functions with a dedicated runtime service account carrying only the Firestore and Vertex AI roles documented in the rollout runbook. No Gemini API key is stored in the browser or repository.
+4. Optionally set `WEB_ONBOARDING_GEMINI_MODEL_V3`; it defaults to `gemini-3.7-flash`.
+5. Build and test with `npm run verify`, then deploy with `firebase deploy --only functions:web-onboarding-v3`.
+6. If organization policy rejects an `allUsers` invoker binding, apply the
+   documented Cloud Run `--no-invoker-iam-check` post-deploy step to the nine
+   V3 services. App Check and the callable's capability checks still run on
+   every onboarding request.
+
+The callable endpoints enforce App Check, capability authorization, request/version limits, rate limits, idempotency keys, a 2,000-character message limit, and a twelve-answer fallback finish point once availability and budget are complete. A failed conversational call produces an explicit retry state. Readiness automatically starts internal profile preparation; failed preparation preserves the transcript and can be retried. Successful preparation opens the secure final-details modal over the chat without rendering the Markdown profile. The production mobile `completeClientOnboarding` callable remains untouched.
+
+Before a V3 launch or web-only data reset, follow the
+[privacy procedure](./docs/web-onboarding-v3-privacy.md) and
+the [guarded reset and rollout runbook](./docs/web-onboarding-v3-rollout.md).
 
 ## Firebase email-link authentication
 
-The app works as a complete interaction prototype without Firebase. In that mode, the final screen offers a **Preview matched feed** action instead of sending email. Trainer profiles and introduction requests are demo-only in every mode; the UI never claims that a request was delivered.
+Trainer profiles and introduction requests are demo-only; the UI never claims that a request was delivered. The concierge itself requires Firebase configuration because all natural-language interpretation is performed by Gemini behind the protected backend.
 
-For real web magic links, copy `.env.example` to `.env.local` and provide a Firebase Web app configuration. Enable Email/Password > Email link in Firebase Authentication and add both `localhost` and the deployed GitHub Pages domain to Firebase Authentication's authorised domains.
+For real web magic links and secure onboarding drafts, copy `.env.example` to `.env.local` and provide the Firebase Web app configuration plus the reCAPTCHA Enterprise App Check site key. Local development should additionally use a registered `VITE_FIREBASE_APPCHECK_DEBUG_TOKEN`; that value must stay in ignored local environment files and must never be added to a deployed build. Enable Email/Password > Email link in Firebase Authentication and add both `localhost` and the deployed custom domain to Firebase Authentication's authorised domains.
 
 The mobile app's current callable and redirect are intentionally not reused: they enforce App Check and hand links to the native app. This web build uses Firebase's Web SDK and returns to the current GitHub Pages URL.
 
@@ -32,15 +83,14 @@ The included workflow builds and deploys `dist/` on pushes to `main`.
    - `VITE_FIREBASE_STORAGE_BUCKET`
    - `VITE_FIREBASE_MESSAGING_SENDER_ID`
    - `VITE_FIREBASE_APP_ID`
+   - `VITE_FIREBASE_APPCHECK_SITE_KEY`
 
 Vite uses relative asset paths, so the same build works at a project Pages URL such as `https://zainansarii.github.io/petey-web/` and at a custom domain.
 
-Use the default project Pages URL for the Firebase-free prototype. Before enabling real authentication or collecting user information, use a dedicated custom domain: every repository under `username.github.io/*` shares the same browser-storage origin.
+Use the default project Pages URL only for the Firebase-free prototype. Before enabling real authentication or collecting user information, use a dedicated custom domain: every repository under `username.github.io/*` shares the same browser-storage origin.
 
 ## Product integration note
 
-Non-sensitive choice answers are kept in session storage. Postcode, optional free text, health consent, name, and date of birth stay in memory. The email address is saved only as required to complete a Firebase email-link sign-in and is removed after successful authentication or a failed send. An abandoned or expired flow may leave it in browser storage until that site data is cleared.
+The transcript and sensitive matching details live in the short-lived server draft in configured environments. Name, date of birth, and email are accepted only by the final confirmation callable and never enter the assistant runtime or Gemini request. The email address is also kept locally only as required to complete Firebase email-link sign-in and is removed after successful authentication or a failed send.
 
-Firebase Web configuration enables the email sign-in round trip, but it does not persist the signup profile or send trainer introductions. A production handoff still needs a short-lived server-side signup draft so a link opened in a new tab or device can safely recover the trainee's answers without putting personal data in the URL.
-
-The existing mobile completion endpoint also requires verified phone state, while its OTP implementation is native-only. Shipping this lower-friction web flow against the production backend therefore requires a deliberate backend policy/API update (or a web phone-verification step after sign-in); this repository does not bypass that requirement.
+The confirmed internal Markdown profile unlocks the demo trainer results after sign-in; it does not create the production mobile profile, calculate a real trainer ranking, send trainer introductions, or bypass the mobile phone-verification policy.

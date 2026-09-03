@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ArrowRight, LoaderCircle } from "lucide-react";
 import { CheckEmailScreen } from "../features/auth/components/CheckEmailScreen";
@@ -11,27 +11,86 @@ import { LandingScreen } from "../features/discovery/components/LandingScreen";
 import { FeedScreen } from "../features/feed/components/FeedScreen";
 import { OnboardingFlow } from "../features/onboarding/components/OnboardingFlow";
 import {
+  clearDraftCapability,
+  clearLocalConversationV4,
+  consumeWebOnboardingDraftV3,
+  getWebClientProfileV3,
+  prewarmWebOnboarding,
+} from "../features/onboarding/api/webOnboarding";
+import {
   INITIAL_IDENTITY_ANSWERS,
-  loadMatchingDraft,
-  saveMatchingDraft,
   type IdentityAnswers,
-  type MatchingAnswers,
 } from "../features/onboarding/model/onboarding";
 import { BrandMark } from "../shared/ui/BrandMark";
 
-type AppPhase = "landing" | "onboarding" | "check-email" | "feed" | "auth-loading" | "auth-error";
+type AppPhase = "landing" | "onboarding" | "check-email" | "feed" | "auth-loading" | "auth-error" | "profile-error";
 
 const hasMagicLinkReturn = () => new URLSearchParams(window.location.search).has("finishSignUp");
+const hasHandoffPreview = () => {
+  const search = new URLSearchParams(window.location.search);
+  return import.meta.env.DEV
+    && search.has("onboardingFixture")
+    && search.has("skipOnboarding");
+};
+
+const setHandoffPreviewUrl = (enabled: boolean, removeFixture = false) => {
+  const url = new URL(window.location.href);
+  if (enabled) {
+    url.searchParams.set("onboardingFixture", "1");
+    url.searchParams.set("skipOnboarding", "1");
+  } else {
+    url.searchParams.delete("skipOnboarding");
+    if (removeFixture) url.searchParams.delete("onboardingFixture");
+  }
+  window.history.replaceState({}, document.title, `${url.pathname}${url.search}${url.hash}`);
+};
 
 export function App() {
-  const [phase, setPhase] = useState<AppPhase>(() => hasMagicLinkReturn() ? "auth-loading" : "landing");
-  const [answers, setAnswers] = useState<MatchingAnswers>(loadMatchingDraft);
+  const [handoffPreview, setHandoffPreview] = useState(hasHandoffPreview);
+  const [phase, setPhase] = useState<AppPhase>(() => (
+    hasMagicLinkReturn() ? "auth-loading" : hasHandoffPreview() ? "onboarding" : "landing"
+  ));
+  const [profileMarkdown, setProfileMarkdown] = useState("");
   const [identity, setIdentity] = useState<IdentityAnswers>(INITIAL_IDENTITY_ANSWERS);
-  const [onboardingStartStep, setOnboardingStartStep] = useState(0);
   const [email, setEmail] = useState("");
   const [preview, setPreview] = useState(false);
   const [authResult, setAuthResult] = useState<FinishMagicLinkResult | null>(null);
   const reducedMotion = useReducedMotion();
+
+  const openOnboarding = (previewHandoff: boolean) => {
+    setHandoffPreviewUrl(previewHandoff);
+    setHandoffPreview(previewHandoff);
+    setPhase("onboarding");
+  };
+
+  const exitOnboarding = () => {
+    if (handoffPreview) {
+      clearLocalConversationV4();
+      clearDraftCapability();
+    }
+    setHandoffPreviewUrl(false, handoffPreview);
+    setHandoffPreview(false);
+    setPhase("landing");
+  };
+
+  useEffect(() => {
+    if (hasMagicLinkReturn()) return;
+    void prewarmWebOnboarding().catch(() => {
+      // The first callable retries normal App Check initialization if prewarming fails.
+    });
+  }, []);
+
+  const consumeDraftIntoFeed = useCallback(async () => {
+    try {
+      const consumed = await consumeWebOnboardingDraftV3();
+      const profile = consumed?.profileMarkdown ?? (await getWebClientProfileV3()).profileMarkdown;
+      if (!profile?.trim()) throw new Error("No web profile notes are available for this account.");
+      setProfileMarkdown(profile);
+      setPhase("feed");
+    } catch {
+      setPhase("profile-error");
+    }
+  }, []);
 
   useEffect(() => {
     if (hasMagicLinkReturn()) return;
@@ -40,7 +99,7 @@ export function App() {
     let unsubscribe: (() => void) | undefined;
 
     void observeFirebaseAuthSession((isSignedIn) => {
-      if (active && isSignedIn) setPhase("feed");
+      if (active && isSignedIn) void consumeDraftIntoFeed();
     }).then((stopObserving) => {
       if (active) unsubscribe = stopObserving;
       else stopObserving();
@@ -52,16 +111,16 @@ export function App() {
       active = false;
       unsubscribe?.();
     };
-  }, []);
+  }, [consumeDraftIntoFeed]);
 
   useEffect(() => {
     if (phase !== "auth-loading") return;
     let cancelled = false;
 
-    void finishMagicLink().then((result) => {
+    void finishMagicLink().then(async (result) => {
       if (cancelled) return;
       setAuthResult(result);
-      if (result === "signed-in") setPhase("feed");
+      if (result === "signed-in") await consumeDraftIntoFeed();
       else if (result === "ignored") {
         window.history.replaceState({}, document.title, window.location.pathname);
         setPhase("landing");
@@ -72,12 +131,7 @@ export function App() {
     return () => {
       cancelled = true;
     };
-  }, [phase]);
-
-  const updateAnswers = (next: MatchingAnswers) => {
-    setAnswers(next);
-    saveMatchingDraft(next);
-  };
+  }, [consumeDraftIntoFeed, phase]);
 
   return (
     <div className="app-shell">
@@ -89,10 +143,10 @@ export function App() {
             key="landing"
             transition={{ duration: reducedMotion ? 0 : 0.28, ease: [0.22, 1, 0.36, 1] }}
           >
-            <LandingScreen onStart={() => {
-              setOnboardingStartStep(0);
-              setPhase("onboarding");
-            }} />
+            <LandingScreen
+              onPreviewHandoff={import.meta.env.DEV ? () => openOnboarding(true) : undefined}
+              onStart={() => openOnboarding(false)}
+            />
           </motion.div>
         ) : null}
 
@@ -102,21 +156,21 @@ export function App() {
             className="screen-frame"
             exit={{ opacity: 0, y: reducedMotion ? 0 : -18 }}
             initial={{ opacity: 0, y: reducedMotion ? 0 : 28 }}
-            key={`onboarding-${onboardingStartStep}`}
+            key="onboarding"
             transition={{ duration: reducedMotion ? 0 : 0.32, ease: [0.22, 1, 0.36, 1] }}
           >
             <OnboardingFlow
-              answers={answers}
               identity={identity}
-              initialStep={onboardingStartStep}
-              onAnswersChange={updateAnswers}
-              onExit={() => setPhase("landing")}
+              onExit={exitOnboarding}
               onIdentityChange={setIdentity}
               onMagicLinkRequested={(requestedEmail, mode) => {
                 setEmail(requestedEmail);
                 setPreview(mode === "preview");
                 setPhase("check-email");
               }}
+              onProfileMarkdownChange={setProfileMarkdown}
+              previewHandoff={handoffPreview}
+              profileMarkdown={profileMarkdown}
             />
           </motion.div>
         ) : null}
@@ -132,10 +186,9 @@ export function App() {
             <CheckEmailScreen
               email={email}
               onBack={() => {
-                setOnboardingStartStep(6);
                 setPhase("onboarding");
               }}
-              onPreviewFeed={() => setPhase("feed")}
+              onPreviewFeed={() => void consumeDraftIntoFeed()}
               preview={preview}
             />
           </motion.div>
@@ -150,9 +203,7 @@ export function App() {
             transition={{ duration: reducedMotion ? 0 : 0.24 }}
           >
             <FeedScreen
-              answers={answers}
               onEditMatch={() => {
-                setOnboardingStartStep(0);
                 setPhase("onboarding");
               }}
               onHome={() => setPhase("landing")}
@@ -174,14 +225,26 @@ export function App() {
             <p>
               {authResult === "missing-email"
                 ? "For security, request a fresh link here and open it in the same browser."
-                : "The link may have expired or already been used. Your matching answers are still here."}
+                : "The link may have expired or already been used. Your matching details are still here."}
             </p>
             <button className="primary-button" onClick={() => {
               window.history.replaceState({}, document.title, window.location.pathname);
-              setOnboardingStartStep(6);
               setPhase("onboarding");
             }} type="button">
               Request another link <ArrowRight size={18} />
+            </button>
+          </StatusScreen>
+        ) : null}
+
+        {phase === "profile-error" ? (
+          <StatusScreen key="profile-error">
+            <h1>We couldn’t load your match.</h1>
+            <p>Your profile has not been replaced. Check your connection and try the secure handoff again.</p>
+            <button className="primary-button" onClick={() => {
+              setPhase("auth-loading");
+              void consumeDraftIntoFeed();
+            }} type="button">
+              Try again <ArrowRight size={18} />
             </button>
           </StatusScreen>
         ) : null}

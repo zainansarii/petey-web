@@ -1,55 +1,63 @@
+import { describe, expect, it } from "vitest";
 import {
-  INITIAL_IDENTITY_ANSWERS,
-  INITIAL_MATCHING_ANSWERS,
-  formatDobInput,
-  isAdultDate,
-  normalizePostcode,
-  saveMatchingDraft,
-  stepError,
+  ONBOARDING_OPENING_MESSAGES,
+  ONBOARDING_OPENING_QUICK_REPLIES,
+  conversationProgress,
+  identityAnswersSchema,
+  profileMarkdownSchema,
 } from "./onboarding";
 
-describe("web onboarding model", () => {
-  it("keeps personal identity out of the matching draft", () => {
-    expect(INITIAL_MATCHING_ANSWERS).not.toHaveProperty("fullName");
-    expect(INITIAL_MATCHING_ANSWERS).not.toHaveProperty("dateOfBirth");
-    expect(INITIAL_MATCHING_ANSWERS).not.toHaveProperty("email");
+describe("onboarding V3 Markdown contract", () => {
+  it("uses the requested welcome and outcome-led examples", () => {
+    expect(ONBOARDING_OPENING_MESSAGES).toEqual([
+      "Hi, welcome to Petey!",
+      "To get you matched with the best personal trainer for you, tell us a bit about what you're hoping to achieve.",
+    ]);
+    expect(ONBOARDING_OPENING_QUICK_REPLIES).toEqual([
+      "I want to build strength",
+      "Help train for a marathon",
+      "I want to lose weight before my wedding",
+    ]);
   });
 
-  it("normalizes UK postcodes", () => {
-    expect(normalizePostcode("sw11 3aa")).toBe("SW11 3AA");
+  it("accepts one useful editable Markdown training brief", () => {
+    const result = profileMarkdownSchema.safeParse(`# Training brief
+
+## The trainee
+Wants to build strength for everyday life.
+
+## The trainer
+Responds best to patient, data-informed coaching.
+
+## The sessions
+Usually free on weekday mornings.`);
+    expect(result.success).toBe(true);
   });
 
-  it("rejects under-18 dates", () => {
-    const today = new Date("2026-08-15T12:00:00Z");
-    expect(isAdultDate("16/08/2008", today)).toBe(false);
-    expect(isAdultDate("15/08/2008", today)).toBe(true);
+  it("rejects an empty or implausibly short training brief", () => {
+    expect(profileMarkdownSchema.safeParse("").success).toBe(false);
+    expect(profileMarkdownSchema.safeParse("Not sure").success).toBe(false);
   });
 
-  it("formats a numeric mobile date of birth as it is entered", () => {
-    expect(formatDobInput("20051995")).toBe("20/05/1995");
-    expect(formatDobInput("20/05/1995")).toBe("20/05/1995");
+  it("keeps identity separate and validates it independently", () => {
+    expect(identityAnswersSchema.safeParse({
+      fullName: "Sam Taylor",
+      dateOfBirth: "01/01/1990",
+      email: "sam@example.com",
+    }).success).toBe(true);
+    expect(identityAnswersSchema.safeParse({
+      fullName: "Sam Taylor",
+      dateOfBirth: "01/01/2015",
+      email: "sam@example.com",
+    }).success).toBe(false);
   });
 
-  it("requires explicit consent when health information is present", () => {
-    const answers = {
-      ...INITIAL_MATCHING_ANSWERS,
-      medicalNote: "A knee injury",
-    };
-    expect(stepError(5, answers, INITIAL_IDENTITY_ANSWERS)).toMatch(/consent/i);
-  });
-
-  it("does not persist health information in the session draft", () => {
-    saveMatchingDraft({
-      ...INITIAL_MATCHING_ANSWERS,
-      postcode: "SW11 3AA",
-      medicalNote: "Private health context",
-      biggestObstacle: "Private free text",
-      healthConsent: true,
-    });
-    const stored = JSON.parse(window.sessionStorage.getItem("petey.web.matching-draft.v1") ?? "{}");
-    expect(stored.postcode).toBe("");
-    expect(stored.medicalNote).toBe("");
-    expect(stored.biggestObstacle).toBe("");
-    expect(stored.healthConsent).toBe(false);
+  it("advances a bounded conversational progress percentage and completes at handoff", () => {
+    expect(conversationProgress("collecting", 0)).toEqual({ percent: 12, isComplete: false });
+    expect(conversationProgress("collecting", 1).percent).toBeGreaterThan(12);
+    expect(conversationProgress("collecting", 8).percent).toBeGreaterThan(conversationProgress("collecting", 7).percent);
+    expect(conversationProgress("collecting", 50)).toEqual({ percent: 96, isComplete: false });
+    expect(conversationProgress("ready_to_map", 8)).toEqual({ percent: 100, isComplete: true });
+    expect(conversationProgress("review", 8)).toEqual({ percent: 100, isComplete: true });
   });
 });

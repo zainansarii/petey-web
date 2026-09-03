@@ -1,414 +1,1061 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { ArrowLeft, ArrowRight, Check, MapPin, ShieldCheck } from "lucide-react";
-import { BrandMark } from "../../../shared/ui/BrandMark";
-import { ChoiceGroup } from "../../../shared/ui/ChoiceGroup";
-import { AvailabilityGrid } from "../../../shared/ui/AvailabilityGrid";
-import { requestMagicLink } from "../../auth/api/magicLink";
 import {
-  BUDGET_OPTIONS,
-  COACHING_OPTIONS,
-  EXPERIENCE_OPTIONS,
+  ActionBarPrimitive,
+  AssistantRuntimeProvider,
+  ComposerPrimitive,
+  ErrorPrimitive,
+  MessagePrimitive,
+  ThreadPrimitive,
+  useAui,
+  useAuiEvent,
+  useAuiState,
+  useLocalRuntime,
+  type ChatModelAdapter,
+  type EmptyMessagePartProps,
+  type TextMessagePartProps,
+  type ThreadMessageLike,
+} from "@assistant-ui/react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type RefObject } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { ArrowLeft, ArrowRight, LoaderCircle, LockKeyhole, RotateCcw, Send, Trash2 } from "lucide-react";
+import { requestMagicLink } from "../../auth/api/magicLink";
+import { TrainerCard } from "../../discovery/components/TrainerCard";
+import { TRAINERS } from "../../discovery/data/trainers";
+import { TextDots } from "../../../shared/ui/TextDots";
+import { TwinOrbit } from "../../../shared/ui/TwinOrbit";
+import {
+  clearLocalConversationV4,
+  clearDraftCapability,
+  confirmWebOnboardingDraftV3,
+  createLocalConversationV4,
+  createIdempotencyKey,
+  deleteWebOnboardingDraftV3,
+  finalizeWebOnboardingV4,
+  getWebOnboardingDraftV3,
+  readLocalConversationV4,
+  readDraftCapability,
+  runWebOnboardingTurnV4,
+  saveLocalConversationV4,
+  WEB_ONBOARDING_CONSENT_VERSION,
+} from "../api/webOnboarding";
+import {
+  conversationProgress,
   formatDobInput,
-  GENDER_OPTIONS,
-  GOAL_OPTIONS,
-  ONBOARDING_STEPS,
-  normalizePostcode,
-  stepError,
-  VENUE_OPTIONS,
+  identityAnswersSchema,
+  profileMarkdownSchema,
+  type DraftCapability,
   type IdentityAnswers,
-  type MatchingAnswers,
+  type OnboardingChatMessage,
+  type OnboardingConversationSessionV4,
+  type OnboardingDraftSnapshotV3,
 } from "../model/onboarding";
 
 type OnboardingFlowProps = {
-  answers: MatchingAnswers;
+  profileMarkdown: string;
   identity: IdentityAnswers;
-  initialStep?: number;
-  onAnswersChange: (answers: MatchingAnswers) => void;
+  previewHandoff?: boolean;
   onExit: () => void;
   onIdentityChange: (identity: IdentityAnswers) => void;
   onMagicLinkRequested: (email: string, mode: "sent" | "preview") => void;
+  onProfileMarkdownChange: (profileMarkdown: string) => void;
 };
 
-export function OnboardingFlow({
-  answers,
+type LoadState = "starting" | "chat" | "error";
+type HandoffPhase = "chat" | "confirmation" | "clearing" | "matching" | "matches" | "error";
+
+const COMPLETION_MESSAGE = "Thanks! We have everything needed now to find your match.";
+const COMPLETION_HOLD_MS = 1_400;
+const CLEARING_MS = 500;
+const MINIMUM_MATCHING_MS = 2_500;
+const CHAT_SCROLL_TIME_CONSTANT_MS = 180;
+const CHAT_SCROLL_SETTLE_DISTANCE_PX = 0.5;
+const PREVIEW_MATCHES = TRAINERS.slice(0, 3);
+
+const createHandoffPreviewSessionV4 = (): OnboardingConversationSessionV4 => {
+  const opening = createLocalConversationV4();
+  const createdAt = new Date().toISOString();
+  return {
+    ...opening,
+    status: "ready_to_map",
+    messages: [
+      ...opening.messages,
+      {
+        id: crypto.randomUUID(),
+        role: "user",
+        text: "I’m ready to see my matches.",
+        createdAt,
+        sequence: opening.messages.length + 1,
+      },
+      {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        text: COMPLETION_MESSAGE,
+        createdAt,
+        sequence: opening.messages.length + 2,
+      },
+    ],
+    quickReplies: [],
+    userTurns: 6,
+    updatedAt: createdAt,
+  };
+};
+
+const readableError = (error: unknown, fallback: string) => {
+  const message = error instanceof Error ? error.message.trim() : "";
+  return !message || /^(?:internal|unknown|not found)$/i.test(message) ? fallback : message;
+};
+
+const isTerminalDraftRestoreError = (error: unknown) => {
+  const code = typeof error === "object" && error !== null && "code" in error ? String(error.code) : "";
+  return ["not-found", "permission-denied", "deadline-exceeded"].some((item) => code.endsWith(item));
+};
+
+const localConversationFromSnapshot = (
+  snapshot: OnboardingDraftSnapshotV3,
+): OnboardingConversationSessionV4 => {
+  const fallback = createLocalConversationV4();
+  const status = snapshot.status === "ready_to_map" ? "ready_to_map" : "collecting";
+  return {
+    schemaVersion: 4,
+    status,
+    messages: snapshot.messages.length > 0 ? snapshot.messages : fallback.messages,
+    quickReplies: snapshot.quickReplies,
+    userTurns: snapshot.userTurns,
+    updatedAt: new Date().toISOString(),
+  };
+};
+
+export function OnboardingFlow(props: OnboardingFlowProps) {
+  const { onProfileMarkdownChange, previewHandoff = false } = props;
+  const [initialCapability] = useState<DraftCapability | null>(() => (
+    previewHandoff ? null : readDraftCapability()
+  ));
+  const [loadState, setLoadState] = useState<LoadState>(initialCapability ? "starting" : "chat");
+  const [session, setSession] = useState<OnboardingConversationSessionV4>(() => (
+    previewHandoff
+      ? createHandoffPreviewSessionV4()
+      : readLocalConversationV4() ?? createLocalConversationV4()
+  ));
+  const [reviewSnapshot, setReviewSnapshot] = useState<OnboardingDraftSnapshotV3 | null>(null);
+  const [capability, setCapability] = useState<DraftCapability | null>(initialCapability);
+  const [error, setError] = useState<string | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    const openChat = async () => {
+      setError(null);
+      if (previewHandoff) {
+        setLoadState("chat");
+        return;
+      }
+      const stored = readDraftCapability();
+      if (!stored) {
+        saveLocalConversationV4(session);
+        setLoadState("chat");
+        return;
+      }
+      setLoadState("starting");
+      try {
+        const restored = await getWebOnboardingDraftV3(stored);
+        if (cancelled) return;
+        if (["review", "confirmed"].includes(restored.snapshot.status) && restored.snapshot.profileMarkdown) {
+          setCapability(stored);
+          setReviewSnapshot(restored.snapshot);
+          onProfileMarkdownChange(restored.snapshot.profileMarkdown);
+          clearLocalConversationV4();
+        } else {
+          const migrated = localConversationFromSnapshot(restored.snapshot);
+          setSession(migrated);
+          saveLocalConversationV4(migrated);
+          setCapability(null);
+          clearDraftCapability();
+        }
+        setLoadState("chat");
+      } catch (restoreError) {
+        if (cancelled) return;
+        if (isTerminalDraftRestoreError(restoreError)) {
+          clearDraftCapability();
+          setCapability(null);
+          saveLocalConversationV4(session);
+          setLoadState("chat");
+        } else {
+          setError(readableError(restoreError, "The secure onboarding draft isn’t available right now. Please try again in a moment."));
+          setLoadState("error");
+        }
+      }
+    };
+    void openChat();
+    return () => { cancelled = true; };
+  }, [onProfileMarkdownChange, previewHandoff, retryKey, session]);
+
+  if (loadState === "starting") return <LoadingShell onExit={props.onExit} />;
+  if (loadState === "error") {
+    return <ChatStartError error={error} onExit={props.onExit} onRetry={() => setRetryKey((value) => value + 1)} />;
+  }
+
+  return (
+    <ChatOnboarding
+      {...props}
+      initialCapability={capability}
+      initialReviewSnapshot={reviewSnapshot}
+      initialSession={session}
+    />
+  );
+}
+
+function ChatOnboarding({
   identity,
-  initialStep = 0,
-  onAnswersChange,
+  initialCapability,
+  initialReviewSnapshot,
+  initialSession,
   onExit,
   onIdentityChange,
   onMagicLinkRequested,
-}: OnboardingFlowProps) {
-  const [step, setStep] = useState(Math.min(initialStep, ONBOARDING_STEPS.length - 1));
-  const [direction, setDirection] = useState<1 | -1>(1);
+  onProfileMarkdownChange,
+}: OnboardingFlowProps & {
+  initialCapability: DraftCapability | null;
+  initialReviewSnapshot: OnboardingDraftSnapshotV3 | null;
+  initialSession: OnboardingConversationSessionV4;
+}) {
+  const [session, setSession] = useState(initialSession);
+  const [capability, setCapability] = useState(initialCapability);
+  const [reviewSnapshot, setReviewSnapshot] = useState(initialReviewSnapshot);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [finalizationError, setFinalizationError] = useState<string | null>(null);
+  const [preparingDetails, setPreparingDetails] = useState(false);
+  const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null);
+  const [handoffPhase, setHandoffPhase] = useState<HandoffPhase>(() => {
+    if (initialReviewSnapshot?.profileMarkdown) return "matches";
+    if (initialSession.status === "ready_to_map") return "confirmation";
+    return "chat";
+  });
+  const sessionRef = useRef(session);
+  const finalizationKeyRef = useRef<string | null>(null);
+  const handoffRef = useRef<HTMLElement | null>(null);
+  const matchingStartedAtRef = useRef<number | null>(null);
+  const threadViewportRef = useRef<HTMLDivElement | null>(null);
+  const reducedMotion = Boolean(useReducedMotion());
+
+  useEffect(() => { sessionRef.current = session; }, [session]);
+
+  const updateSession = useCallback((next: OnboardingConversationSessionV4) => {
+    sessionRef.current = next;
+    if (next.status === "ready_to_map") {
+      setHandoffPhase((current) => current === "chat" ? "confirmation" : current);
+    }
+    setSession(next);
+    saveLocalConversationV4(next);
+  }, []);
+
+  const updateReviewSnapshot = useCallback((next: OnboardingDraftSnapshotV3) => {
+    setReviewSnapshot(next);
+    if (next.profileMarkdown !== null) onProfileMarkdownChange(next.profileMarkdown);
+  }, [onProfileMarkdownChange]);
+
+  const chatModel = useMemo<ChatModelAdapter>(() => ({
+    async *run({ messages, abortSignal }) {
+      const transcript = messages.flatMap((message): OnboardingChatMessage[] => {
+        if (message.role !== "assistant" && message.role !== "user") return [];
+        const text = message.content
+          .filter((part) => part.type === "text")
+          .map((part) => part.text)
+          .join("\n")
+          .trim();
+        if (!text) return [];
+        return [{
+          id: message.id,
+          role: message.role,
+          text,
+          createdAt: message.createdAt instanceof Date ? message.createdAt.toISOString() : new Date().toISOString(),
+          sequence: 0,
+        }];
+      }).map((message, index) => ({ ...message, sequence: index + 1 }));
+      if (transcript.at(-1)?.role !== "user") throw new Error("Write an answer before sending.");
+
+      const clientStartedAt = performance.now();
+      const pending = await runWebOnboardingTurnV4({ messages: transcript }, abortSignal);
+      const streamReadyMs = Math.round(performance.now() - clientStartedAt);
+      let streamedReply = "";
+      let firstReplyMs: number | null = null;
+      const streamIterator = pending.stream[Symbol.asyncIterator]();
+      const finalResponse = pending.data.then((value) => ({ type: "response" as const, value }));
+      const commitTurn = (
+        assistantMessage: string,
+        readyForReview: boolean,
+        quickReplies: string[],
+      ) => {
+        const completedAt = new Date().toISOString();
+        updateSession({
+          schemaVersion: 4,
+          status: readyForReview ? "ready_to_map" : "collecting",
+          messages: [
+            ...transcript,
+            {
+              id: crypto.randomUUID(),
+              role: "assistant",
+              text: assistantMessage,
+              createdAt: completedAt,
+              sequence: transcript.length + 1,
+            },
+          ],
+          quickReplies: readyForReview ? [] : quickReplies,
+          userTurns: transcript.filter(({ role }) => role === "user").length,
+          updatedAt: completedAt,
+        });
+      };
+      let response: Awaited<typeof pending.data> | null = null;
+      while (!response) {
+        const event = await Promise.race([
+          streamIterator.next().then((result) => ({ type: "stream" as const, result })),
+          finalResponse,
+        ]);
+        if (event.type === "response") {
+          response = event.value;
+          void streamIterator.return?.().catch(() => undefined);
+          break;
+        }
+        if (event.result.done) {
+          response = await pending.data;
+          break;
+        }
+        const chunk = event.result.value;
+        if (chunk.type !== "reply_delta" || !chunk.text) continue;
+        streamedReply += chunk.text;
+        if (firstReplyMs === null) firstReplyMs = Math.round(performance.now() - clientStartedAt);
+        yield { content: [{ type: "text", text: streamedReply }] };
+      }
+
+      const assistantMessage = response.result.readyForReview
+        ? COMPLETION_MESSAGE
+        : response.result.reply;
+      if (!assistantMessage) throw new Error("Petey returned an empty reply. Please try again.");
+      commitTurn(assistantMessage, response.result.readyForReview, response.result.quickReplies);
+      console.info("web_onboarding_latency_v4", {
+        streamReadyMs,
+        firstReplyMs,
+        clientTotalMs: Math.round(performance.now() - clientStartedAt),
+        ...response.timings,
+      });
+      if (streamedReply !== assistantMessage) {
+        yield { content: [{ type: "text", text: assistantMessage }] };
+      }
+    },
+  }), [updateSession]);
+
+  const initialMessages = useMemo<ThreadMessageLike[]>(() => initialSession.messages.map((message) => (
+    message.role === "assistant"
+      ? {
+          id: message.id,
+          role: "assistant" as const,
+          content: [{
+            type: "text" as const,
+            text: initialSession.status === "ready_to_map"
+              && message.id === initialSession.messages.at(-1)?.id
+              ? COMPLETION_MESSAGE
+              : message.text,
+          }],
+          createdAt: new Date(message.createdAt),
+          status: { type: "complete" as const, reason: "stop" as const },
+        }
+      : {
+          id: message.id,
+          role: "user" as const,
+          content: [{ type: "text" as const, text: message.text }],
+          createdAt: new Date(message.createdAt),
+        }
+  )), [initialSession.messages, initialSession.status]);
+
+  const runtime = useLocalRuntime(chatModel, { initialMessages });
+  const progress = conversationProgress(reviewSnapshot?.status ?? session.status, session.userTurns);
+  const hasSecureDetails = Boolean(capability && reviewSnapshot?.profileMarkdown)
+    && (reviewSnapshot?.status === "review" || reviewSnapshot?.status === "confirmed");
+  const showingSecureDetails = hasSecureDetails
+    && handoffPhase === "matches"
+    && selectedMatchId !== null;
+  const showComposer = handoffPhase === "chat" || handoffPhase === "confirmation";
+
+  const prepareDetails = useCallback(async () => {
+    const current = sessionRef.current;
+    if (current.status !== "ready_to_map" || preparingDetails) return;
+    const idempotencyKey = finalizationKeyRef.current ?? createIdempotencyKey();
+    finalizationKeyRef.current = idempotencyKey;
+    setPreparingDetails(true);
+    setFinalizationError(null);
+    try {
+      const response = await finalizeWebOnboardingV4({
+        consentVersion: WEB_ONBOARDING_CONSENT_VERSION,
+        idempotencyKey,
+        messages: current.messages,
+      });
+      setCapability({ draftId: response.draftId, capability: response.capability });
+      updateReviewSnapshot(response.snapshot);
+      finalizationKeyRef.current = null;
+    } catch (prepareError) {
+      setFinalizationError(readableError(
+        prepareError,
+        "We couldn’t prepare your details. Your conversation is kept on this device — try again.",
+      ));
+    } finally {
+      setPreparingDetails(false);
+    }
+  }, [preparingDetails, updateReviewSnapshot]);
+
+  useEffect(() => {
+    if (session.status === "ready_to_map" && !reviewSnapshot && !finalizationError) void prepareDetails();
+  }, [finalizationError, prepareDetails, reviewSnapshot, session.status]);
+
+  useEffect(() => {
+    if (handoffPhase !== "confirmation") return;
+    const confirmationTimer = window.setTimeout(
+      () => setHandoffPhase("clearing"),
+      COMPLETION_HOLD_MS,
+    );
+    return () => window.clearTimeout(confirmationTimer);
+  }, [handoffPhase]);
+
+  useEffect(() => {
+    if (handoffPhase !== "clearing") return;
+    handoffRef.current?.scrollIntoView({
+      behavior: reducedMotion ? "auto" : "smooth",
+      block: "start",
+    });
+    const matchingTimer = window.setTimeout(() => {
+      matchingStartedAtRef.current = performance.now();
+      setHandoffPhase("matching");
+    }, reducedMotion ? 0 : CLEARING_MS);
+    return () => {
+      window.clearTimeout(matchingTimer);
+    };
+  }, [handoffPhase, reducedMotion]);
+
+  useEffect(() => {
+    if (handoffPhase !== "matching" || (!hasSecureDetails && !finalizationError)) return;
+    const minimumDuration = reducedMotion ? 300 : MINIMUM_MATCHING_MS;
+    const elapsed = performance.now() - (matchingStartedAtRef.current ?? performance.now());
+    const revealTimer = window.setTimeout(() => {
+      setHandoffPhase(finalizationError ? "error" : "matches");
+    }, Math.max(0, minimumDuration - elapsed));
+    return () => window.clearTimeout(revealTimer);
+  }, [finalizationError, handoffPhase, hasSecureDetails, reducedMotion]);
+
+  const retryPreparingDetails = useCallback(() => {
+    matchingStartedAtRef.current = performance.now();
+    setHandoffPhase("matching");
+    void prepareDetails();
+  }, [prepareDetails]);
+
+  const deleteAndExit = async () => {
+    if (deleting) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await deleteWebOnboardingDraftV3(capability ?? undefined);
+      clearLocalConversationV4();
+      clearDraftCapability();
+      onExit();
+    } catch {
+      setDeleteError("We couldn’t delete this chat. Check your connection and try again.");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  return (
+    <main className="onboarding-shell onboarding-shell--chat">
+      <ChatHeader
+        deleteError={deleteError}
+        deleting={deleting}
+        inactive={showingSecureDetails}
+        onDelete={deleteAndExit}
+        onExit={onExit}
+        progress={progress}
+        showProgress={showComposer}
+      />
+      <AssistantRuntimeProvider runtime={runtime}>
+        <ThreadPrimitive.Root aria-hidden={showingSecureDetails || undefined} className="chat-thread" inert={showingSecureDetails || undefined}>
+          <ThreadPrimitive.Viewport
+            autoScroll={false}
+            className="chat-thread__viewport"
+            ref={threadViewportRef}
+            scrollToBottomOnInitialize={false}
+            scrollToBottomOnRunStart={false}
+            scrollToBottomOnThreadSwitch={false}
+          >
+            <ChatScrollAnimator
+              enabled={handoffPhase === "chat" || handoffPhase === "confirmation"}
+              reducedMotion={reducedMotion}
+              viewportRef={threadViewportRef}
+            />
+            <div aria-live="polite" className="chat-thread__messages">
+              <ThreadPrimitive.Messages components={{ AssistantMessage, UserMessage }} />
+            </div>
+
+            {handoffPhase !== "chat" && handoffPhase !== "confirmation" ? (
+              <PostChatHandoff
+                error={finalizationError}
+                onSelectMatch={setSelectedMatchId}
+                onRetry={retryPreparingDetails}
+                phase={handoffPhase}
+                reducedMotion={reducedMotion}
+                stageRef={handoffRef}
+              />
+            ) : null}
+
+            <ThreadPrimitive.ViewportFooter className="chat-thread__footer">
+              <AnimatePresence initial={false}>
+                {showComposer ? (
+                  <motion.div
+                    animate={{ opacity: 1, y: 0 }}
+                    aria-hidden={handoffPhase === "confirmation" || undefined}
+                    className="chat-thread__controls"
+                    exit={{ opacity: 0, y: reducedMotion ? 0 : 8 }}
+                    inert={handoffPhase === "confirmation" || undefined}
+                    initial={false}
+                    key="chat-controls"
+                    transition={{ duration: reducedMotion ? 0 : 0.32, ease: [0.22, 1, 0.36, 1] }}
+                  >
+                    {session.status === "collecting" ? <QuickReplies prompts={session.quickReplies} /> : null}
+                    <ChatComposer inactive={handoffPhase === "confirmation"} />
+                  </motion.div>
+                ) : null}
+              </AnimatePresence>
+            </ThreadPrimitive.ViewportFooter>
+          </ThreadPrimitive.Viewport>
+        </ThreadPrimitive.Root>
+      </AssistantRuntimeProvider>
+      <AnimatePresence initial={false}>
+        {showingSecureDetails && capability && reviewSnapshot?.profileMarkdown ? (
+          <SecureDetailsModal
+            capability={capability}
+            identity={identity}
+            key="secure-details"
+            onIdentityChange={onIdentityChange}
+            onMagicLinkRequested={onMagicLinkRequested}
+            onSnapshotChange={updateReviewSnapshot}
+            profileMarkdown={reviewSnapshot.profileMarkdown}
+            snapshot={reviewSnapshot}
+          />
+        ) : null}
+      </AnimatePresence>
+    </main>
+  );
+}
+
+function PostChatHandoff({
+  error,
+  onRetry,
+  onSelectMatch,
+  phase,
+  reducedMotion,
+  stageRef,
+}: {
+  error: string | null;
+  onRetry: () => void;
+  onSelectMatch: (trainerId: string) => void;
+  phase: HandoffPhase;
+  reducedMotion: boolean;
+  stageRef: RefObject<HTMLElement | null>;
+}) {
+  return (
+    <section className="post-chat-handoff" ref={stageRef}>
+      <AnimatePresence initial={false} mode="wait">
+        {phase === "matching" ? (
+          <motion.div
+            animate={{ opacity: 1 }}
+            className="post-chat-matching"
+            exit={{ opacity: 0 }}
+            initial={reducedMotion ? false : { opacity: 0 }}
+            key="matching"
+            transition={{ duration: reducedMotion ? 0 : 0.56, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <div className="post-chat-matching__content">
+              <span aria-hidden="true" className="post-chat-matching__loader">
+                <TwinOrbit className="post-chat-matching__orbit" />
+              </span>
+              <h2>
+                <TextDots aria-label="Finding your personal trainer">Finding your personal trainer</TextDots>
+              </h2>
+            </div>
+          </motion.div>
+        ) : null}
+
+        {phase === "matches" ? (
+          <motion.div
+            animate={{ opacity: 1 }}
+            aria-live="polite"
+            className="post-chat-results"
+            initial={reducedMotion ? false : { opacity: 0 }}
+            key="matches"
+            transition={{ duration: reducedMotion ? 0 : 0.5, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <motion.h2
+              animate={{ opacity: 1, y: 0 }}
+              initial={reducedMotion ? false : { opacity: 0, y: 52 }}
+              transition={{ duration: reducedMotion ? 0 : 0.9, ease: [0.22, 1, 0.36, 1] }}
+            >
+              We found {PREVIEW_MATCHES.length} matches
+            </motion.h2>
+            <div aria-label="Your trainer matches" className="match-preview" role="list">
+              {PREVIEW_MATCHES.map((trainer, index) => (
+                <MatchPreviewCard
+                  index={index}
+                  key={trainer.id}
+                  onSelect={onSelectMatch}
+                  reducedMotion={reducedMotion}
+                  trainer={trainer}
+                />
+              ))}
+            </div>
+          </motion.div>
+        ) : null}
+
+        {phase === "error" ? (
+          <motion.div
+            animate={{ opacity: 1, y: 0 }}
+            className="post-chat-error"
+            initial={reducedMotion ? false : { opacity: 0, y: 8 }}
+            key="error"
+            role="alert"
+            transition={{ duration: reducedMotion ? 0 : 0.24 }}
+          >
+            <h2>Your details aren’t ready yet</h2>
+            <p>{error ?? "We couldn’t prepare your details. Your conversation is kept on this device — try again."}</p>
+            <button className="secondary-button" onClick={onRetry} type="button">
+              <RotateCcw aria-hidden="true" size={16} /> Try preparing again
+            </button>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+    </section>
+  );
+}
+
+function MatchPreviewCard({
+  index,
+  onSelect,
+  reducedMotion,
+  trainer,
+}: {
+  index: number;
+  onSelect: (trainerId: string) => void;
+  reducedMotion: boolean;
+  trainer: (typeof PREVIEW_MATCHES)[number];
+}) {
+  const [focused, setFocused] = useState(false);
+  const restingPose = { scale: 1, y: 0 };
+  const raisedPose = reducedMotion ? restingPose : { scale: 1.025, y: -8 };
+
+  return (
+    <motion.div
+      animate={{ opacity: 1, y: 0 }}
+      className="match-preview__item"
+      initial={reducedMotion ? false : { opacity: 0, y: 20 }}
+      role="listitem"
+      transition={{
+        delay: reducedMotion ? 0 : 0.28 + index * 0.13,
+        duration: reducedMotion ? 0 : 0.66,
+        ease: [0.22, 1, 0.36, 1],
+      }}
+    >
+      <motion.div
+        animate={focused ? raisedPose : restingPose}
+        className="match-preview__card"
+        initial={false}
+        onBlurCapture={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setFocused(false);
+        }}
+        onFocusCapture={() => setFocused(true)}
+        transition={{ duration: reducedMotion ? 0 : 0.28, ease: [0.22, 1, 0.36, 1] }}
+        whileHover={raisedPose}
+      >
+        <div aria-hidden="true" className="match-preview__profile">
+          <TrainerCard trainer={trainer} variant="hero" />
+        </div>
+        <button
+          aria-label={`Choose match ${index + 1}, ${trainer.name}: ${trainer.specialty}, ${trainer.area}, from £${trainer.price}`}
+          className="match-preview__select"
+          onClick={() => onSelect(trainer.id)}
+          type="button"
+        >
+          <span className="match-preview__action">Choose <ArrowRight aria-hidden="true" size={15} /></span>
+        </button>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+function QuickReplies({ prompts }: { prompts: string[] }) {
+  const aui = useAui();
+  const labels = [...new Set(prompts.map((prompt) => prompt.trim().replace(/\.+$/, "").trim()))]
+    .filter(Boolean);
+  if (labels.length === 0) return null;
+  return (
+    <div aria-label="Suggested replies" className="chat-suggestions">
+      {labels.map((prompt) => (
+        <button className="chat-suggestion" key={prompt} onClick={() => {
+          aui.thread.composer().setText(prompt);
+          aui.thread.composer().send();
+        }} type="button">{prompt}</button>
+      ))}
+    </div>
+  );
+}
+
+function ChatHeader({
+  deleteError,
+  deleting,
+  inactive,
+  onDelete,
+  onExit,
+  progress,
+  showProgress,
+}: {
+  deleteError: string | null;
+  deleting: boolean;
+  inactive: boolean;
+  onDelete: () => void;
+  onExit: () => void;
+  progress: ReturnType<typeof conversationProgress>;
+  showProgress: boolean;
+}) {
+  const reducedMotion = useReducedMotion();
+  return (
+    <header aria-hidden={inactive || undefined} className="flow-header chat-header" inert={inactive || undefined}>
+      <button aria-label="Back to home" className="icon-button" onClick={onExit} type="button"><ArrowLeft size={20} /></button>
+      <AnimatePresence initial={false}>
+        {showProgress ? (
+          <motion.div
+            animate={{ opacity: 1 }}
+            className="chat-progress"
+            exit={{ opacity: 0 }}
+            initial={false}
+            key="chat-progress"
+            role="progressbar"
+            aria-label="Conversation progress"
+            aria-valuemax={100}
+            aria-valuemin={0}
+            aria-valuenow={progress.percent}
+            aria-valuetext={`${progress.percent}% complete`}
+            transition={{ duration: reducedMotion ? 0 : 0.32, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <span className="sr-only">Conversation {progress.percent}% complete</span>
+            <motion.span
+              animate={{ scaleX: progress.percent / 100 }}
+              aria-hidden="true"
+              className="chat-progress__fill"
+              initial={false}
+              transition={{ duration: reducedMotion ? 0 : 0.45, ease: [0.22, 1, 0.36, 1] }}
+            />
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+      <button aria-label="Delete chat" className="chat-delete" disabled={deleting} onClick={onDelete} type="button">
+        <Trash2 aria-hidden="true" size={17} /> <span>{deleting ? "Deleting…" : "Delete chat"}</span>
+      </button>
+      {deleteError ? <p className="flow-error chat-delete-error" role="alert">{deleteError}</p> : null}
+    </header>
+  );
+}
+
+function AssistantMessage() {
+  const messageIndex = useAuiState((state) => state.message.index);
+  const reducedMotion = useReducedMotion();
+  const openingDelay = messageIndex === 0 ? 80 : messageIndex === 1 ? 680 : 0;
+  return (
+    <MessagePrimitive.Root className="chat-message chat-message--assistant" style={{ animationDelay: reducedMotion ? "0ms" : `${openingDelay}ms` }}>
+      <span aria-hidden="true" className="chat-message__avatar">P</span>
+      <div className="chat-message__content">
+        <MessagePrimitive.Parts components={{ Empty: AssistantPending, Text: GenerativeText }} />
+        <MessagePrimitive.Error>
+          <div className="chat-message__failure" role="alert">
+            <ErrorPrimitive.Root className="chat-message__error"><ErrorPrimitive.Message /></ErrorPrimitive.Root>
+            <ActionBarPrimitive.Root>
+              <ActionBarPrimitive.Reload className="chat-message__retry" type="button"><RotateCcw size={15} /> Try again</ActionBarPrimitive.Reload>
+            </ActionBarPrimitive.Root>
+          </div>
+        </MessagePrimitive.Error>
+      </div>
+    </MessagePrimitive.Root>
+  );
+}
+
+function GenerativeText({ text }: TextMessagePartProps) {
+  const messageIndex = useAuiState((state) => state.message.index);
+  const reducedMotion = useReducedMotion();
+  const openingDelay = messageIndex === 0 ? 120 : messageIndex === 1 ? 720 : 45;
+  return (
+    <p className="chat-message__text">
+      <span className="sr-only">{text}</span>
+      <span aria-hidden="true">{text.split(/(\s+)/).map((segment, index) => {
+        if (/^\s+$/.test(segment)) return segment;
+        const delay = openingDelay + Math.min(index * 28, 715);
+        return <motion.span animate={{ opacity: 1, y: 0 }} className="chat-message__word" initial={reducedMotion ? false : { opacity: 0, y: 3 }} key={`${segment}-${index}`} transition={{ delay: reducedMotion ? 0 : delay / 1_000, duration: reducedMotion ? 0 : 0.18 }}>{segment}</motion.span>;
+      })}</span>
+    </p>
+  );
+}
+
+function AssistantPending({ status }: EmptyMessagePartProps) {
+  if (status.type !== "running") return null;
+  return <span aria-label="Petey is thinking" className="chat-typing" role="status"><span aria-hidden="true"><i /><i /><i /></span></span>;
+}
+
+function ChatScrollAnimator({
+  enabled,
+  reducedMotion,
+  viewportRef,
+}: {
+  enabled: boolean;
+  reducedMotion: boolean;
+  viewportRef: RefObject<HTMLDivElement | null>;
+}) {
+  const animationFrameRef = useRef<number | null>(null);
+  const measureFrameRef = useRef<number | null>(null);
+  const lastFrameAtRef = useRef<number | null>(null);
+  const targetScrollTopRef = useRef(0);
+  const followingBottomRef = useRef(true);
+
+  const cancelAnimation = useCallback(() => {
+    if (animationFrameRef.current !== null) cancelAnimationFrame(animationFrameRef.current);
+    if (measureFrameRef.current !== null) cancelAnimationFrame(measureFrameRef.current);
+    animationFrameRef.current = null;
+    measureFrameRef.current = null;
+    lastFrameAtRef.current = null;
+  }, []);
+
+  const animateToBottom = useCallback(function animateScroll(now: number) {
+    const viewport = viewportRef.current;
+    if (!viewport || !enabled || !followingBottomRef.current) {
+      animationFrameRef.current = null;
+      lastFrameAtRef.current = null;
+      return;
+    }
+
+    const current = viewport.scrollTop;
+    const distance = targetScrollTopRef.current - current;
+    if (Math.abs(distance) <= CHAT_SCROLL_SETTLE_DISTANCE_PX) {
+      viewport.scrollTop = targetScrollTopRef.current;
+      animationFrameRef.current = null;
+      lastFrameAtRef.current = null;
+      return;
+    }
+
+    const previousFrameAt = lastFrameAtRef.current ?? now - (1_000 / 60);
+    const elapsed = Math.min(34, Math.max(0, now - previousFrameAt));
+    const easing = 1 - Math.exp(-elapsed / CHAT_SCROLL_TIME_CONSTANT_MS);
+    viewport.scrollTop = current + distance * easing;
+    lastFrameAtRef.current = now;
+    animationFrameRef.current = requestAnimationFrame(animateScroll);
+  }, [enabled, viewportRef]);
+
+  const measureAndAnimate = useCallback(() => {
+    const viewport = viewportRef.current;
+    if (!viewport || !enabled || !followingBottomRef.current) return;
+    targetScrollTopRef.current = Math.max(0, viewport.scrollHeight - viewport.clientHeight);
+    if (reducedMotion) {
+      viewport.scrollTop = targetScrollTopRef.current;
+      return;
+    }
+    if (animationFrameRef.current === null) {
+      lastFrameAtRef.current = null;
+      animationFrameRef.current = requestAnimationFrame(animateToBottom);
+    }
+  }, [animateToBottom, enabled, reducedMotion, viewportRef]);
+
+  const scheduleMeasurement = useCallback(() => {
+    if (measureFrameRef.current !== null) cancelAnimationFrame(measureFrameRef.current);
+    measureFrameRef.current = requestAnimationFrame(() => {
+      measureFrameRef.current = null;
+      measureAndAnimate();
+    });
+  }, [measureAndAnimate]);
+
+  useLayoutEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    targetScrollTopRef.current = Math.max(0, viewport.scrollHeight - viewport.clientHeight);
+    viewport.scrollTop = targetScrollTopRef.current;
+  }, [viewportRef]);
+
+  useAuiEvent("thread.runStart", () => {
+    if (!enabled) return;
+    followingBottomRef.current = true;
+    scheduleMeasurement();
+  });
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+
+    const stopFollowing = () => {
+      followingBottomRef.current = false;
+      cancelAnimation();
+    };
+    viewport.addEventListener("wheel", stopFollowing, { passive: true });
+    viewport.addEventListener("touchstart", stopFollowing, { passive: true });
+    viewport.addEventListener("pointerdown", stopFollowing, { passive: true });
+
+    const resizeObserver = new ResizeObserver(() => {
+      if (followingBottomRef.current) measureAndAnimate();
+    });
+    viewport.querySelectorAll(":scope > .chat-thread__messages, :scope > .chat-thread__footer")
+      .forEach((element) => resizeObserver.observe(element));
+
+    return () => {
+      viewport.removeEventListener("wheel", stopFollowing);
+      viewport.removeEventListener("touchstart", stopFollowing);
+      viewport.removeEventListener("pointerdown", stopFollowing);
+      resizeObserver.disconnect();
+      cancelAnimation();
+    };
+  }, [cancelAnimation, measureAndAnimate, viewportRef]);
+
+  return null;
+}
+
+function UserMessage() {
+  return <MessagePrimitive.Root className="chat-message chat-message--user"><div className="chat-message__content"><MessagePrimitive.Parts /></div></MessagePrimitive.Root>;
+}
+
+function ChatComposer({ inactive = false }: { inactive?: boolean }) {
+  const running = useAuiState((state) => state.thread.isRunning);
+  return (
+    <div className="chat-composer-wrap">
+      <ComposerPrimitive.Root className="chat-composer">
+        <ComposerPrimitive.Input aria-label="Your answer" autoFocus className="chat-composer__input" disabled={inactive} maxLength={2_000} placeholder="Answer naturally…" rows={1} />
+        <ComposerPrimitive.Send aria-label="Send answer" className="chat-composer__send" disabled={inactive}>
+          {running ? <LoaderCircle className="status-spinner" size={18} /> : <Send size={18} />}
+        </ComposerPrimitive.Send>
+      </ComposerPrimitive.Root>
+      <span className="sr-only" role="status">{running ? "Reading your answer" : "Ready for your answer"}</span>
+    </div>
+  );
+}
+
+function SecureDetailsModal({
+  capability,
+  identity,
+  onIdentityChange,
+  onMagicLinkRequested,
+  onSnapshotChange,
+  profileMarkdown,
+  snapshot,
+}: {
+  capability: DraftCapability;
+  identity: IdentityAnswers;
+  onIdentityChange: (identity: IdentityAnswers) => void;
+  onMagicLinkRequested: OnboardingFlowProps["onMagicLinkRequested"];
+  onSnapshotChange: (snapshot: OnboardingDraftSnapshotV3) => void;
+  profileMarkdown: string;
+  snapshot: OnboardingDraftSnapshotV3;
+}) {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  const firstIdentityFieldRef = useRef<HTMLInputElement | null>(null);
   const reducedMotion = useReducedMotion();
-  const stepCopy = ONBOARDING_STEPS[step];
-  const isLastStep = step === ONBOARDING_STEPS.length - 1;
-  const progress = ((step + 1) / ONBOARDING_STEPS.length) * 100;
 
-  const patchAnswers = (patch: Partial<MatchingAnswers>) => {
-    setError(null);
-    onAnswersChange({ ...answers, ...patch });
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      firstIdentityFieldRef.current?.focus({ preventScroll: true });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, []);
+
+  const keepFocusInDialog = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== "Tab") return;
+    const focusable = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>(
+      "input:not([disabled]), button:not([disabled]), [tabindex]:not([tabindex='-1'])",
+    ) ?? []);
+    const first = focusable[0];
+    const last = focusable.at(-1);
+    if (!first || !last) return;
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
   };
 
-  const patchIdentity = (patch: Partial<IdentityAnswers>) => {
-    setError(null);
-    onIdentityChange({ ...identity, ...patch });
-  };
-
-  const previous = () => {
-    if (submitting) return;
-    setError(null);
-    if (step === 0) {
-      onExit();
+  const submitIdentity = async (event: FormEvent) => {
+    event.preventDefault();
+    const profileResult = profileMarkdownSchema.safeParse(profileMarkdown);
+    if (!profileResult.success) {
+      setError("We couldn’t finish preparing your matching profile. Please delete this chat and start again.");
       return;
     }
-    setDirection(-1);
-    setStep((current) => current - 1);
-  };
-
-  const advance = async (event?: FormEvent) => {
-    event?.preventDefault();
-    const validationError = stepError(step, answers, identity);
-    if (validationError) {
-      setError(validationError);
+    const identityResult = identityAnswersSchema.safeParse(identity);
+    if (!identityResult.success) {
+      setError(identityResult.error.issues[0]?.message ?? "Check your private details.");
       return;
     }
-
-    if (!isLastStep) {
-      setDirection(1);
-      setError(null);
-      setStep((current) => current + 1);
-      return;
-    }
-
     try {
       setSubmitting(true);
       setError(null);
-      const normalizedEmail = identity.email.trim().toLowerCase();
+      const confirmed = await confirmWebOnboardingDraftV3({
+        ...capability,
+        profileMarkdown: profileResult.data,
+        identity: identityResult.data,
+        expectedVersion: snapshot.version,
+      });
+      onSnapshotChange(confirmed.snapshot);
+      const normalizedEmail = identityResult.data.email.trim().toLowerCase();
       const mode = await requestMagicLink(normalizedEmail);
       onMagicLinkRequested(normalizedEmail, mode);
-    } catch (requestError) {
-      setError(
-        requestError instanceof Error
-          ? requestError.message
-          : "We couldn't send the sign-in link. Please try again.",
-      );
+    } catch (submitError) {
+      setError(readableError(submitError, "We couldn’t send the sign-in link. Try again."));
     } finally {
       setSubmitting(false);
     }
   };
 
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !submitting) previous();
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  });
-
   return (
-    <main className="onboarding-shell">
-      <header className="flow-header">
-        <BrandMark className="flow-header__logo" />
-        <div className="flow-header__controls">
-          <button aria-label="Back" className="icon-button flow-header__back" disabled={submitting} onClick={previous} type="button">
-            <ArrowLeft size={20} />
-          </button>
-          <div aria-hidden="true" className="flow-progress">
-            <motion.span animate={{ width: `${progress}%` }} transition={{ duration: reducedMotion ? 0 : 0.35 }} />
-          </div>
-          <span className="flow-header__step">{String(step + 1).padStart(2, "0")} / {String(ONBOARDING_STEPS.length).padStart(2, "0")}</span>
-        </div>
-      </header>
-
-      <div className="onboarding-layout">
-        <section className="onboarding-stage">
-          <form className="onboarding-form" onSubmit={advance}>
-            <AnimatePresence initial={false} mode="wait" custom={direction}>
-              <motion.div
-                animate={{ opacity: 1, x: 0 }}
-                className="onboarding-step"
-                custom={direction}
-                exit={{ opacity: 0, x: reducedMotion ? 0 : direction * -28 }}
-                initial={{ opacity: 0, x: reducedMotion ? 0 : direction * 28 }}
-                key={step}
-                transition={{ duration: reducedMotion ? 0 : 0.24, ease: [0.22, 1, 0.36, 1] }}
-              >
-                <StepHeading subtitle={stepCopy.subtitle} title={stepCopy.title} />
-
-                <StepFields
-                  answers={answers}
-                  identity={identity}
-                  patchAnswers={patchAnswers}
-                  patchIdentity={patchIdentity}
-                  step={step}
-                />
-              </motion.div>
-            </AnimatePresence>
-
-            <div aria-live="polite" className="flow-error" role={error ? "alert" : undefined}>
-              {error ?? <span>&nbsp;</span>}
+    <motion.div
+      animate={{ opacity: 1 }}
+      className="secure-details-modal"
+      exit={{ opacity: 0 }}
+      initial={reducedMotion ? false : { opacity: 0 }}
+      role="presentation"
+      transition={{ delay: reducedMotion ? 0 : 0.48, duration: reducedMotion ? 0 : 0.26, ease: [0.22, 1, 0.36, 1] }}
+    >
+      <motion.div
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        aria-describedby="secure-details-description"
+        aria-labelledby="secure-details-title"
+        aria-modal="true"
+        className="secure-details-modal__panel"
+        initial={reducedMotion ? false : { opacity: 0, scale: 0.985, y: 12 }}
+        onKeyDown={keepFocusInDialog}
+        ref={dialogRef}
+        role="dialog"
+        transition={{ delay: reducedMotion ? 0 : 0.5, duration: reducedMotion ? 0 : 0.28, ease: [0.22, 1, 0.36, 1] }}
+      >
+        <form className="secure-identity" onSubmit={submitIdentity}>
+          <div className="secure-identity__heading">
+            <div className="secure-identity__title">
+              <span aria-hidden="true" className="secure-identity__icon"><LockKeyhole size={20} /></span>
+              <h2 id="secure-details-title">Create an account</h2>
             </div>
-
-            <footer className="flow-footer">
-              {step === 5
-                && answers.goal !== "recover_from_injury"
-                && !answers.medicalNote.trim()
-                && !answers.biggestObstacle.trim() ? (
-                <button
-                  className="text-button"
-                  onClick={() => {
-                    setDirection(1);
-                    setStep(6);
-                  }}
-                  type="button"
-                >
-                  Skip for now
-                </button>
-              ) : <span />}
-              <button className="primary-button" disabled={submitting} type="submit">
-                {isLastStep ? (submitting ? "Sending link…" : "Email my secure link") : "Continue"}
-                {!submitting ? <ArrowRight aria-hidden="true" size={19} /> : null}
-              </button>
-            </footer>
-          </form>
-        </section>
-      </div>
-    </main>
-  );
-}
-
-function StepHeading({ subtitle, title }: { subtitle: string; title: string }) {
-  const headingRef = useRef<HTMLHeadingElement | null>(null);
-
-  useEffect(() => {
-    headingRef.current?.focus();
-  }, []);
-
-  return (
-    <div className="onboarding-step__heading">
-      <h1 ref={headingRef} tabIndex={-1}>{title}</h1>
-      <p>{subtitle}</p>
-    </div>
-  );
-}
-
-function StepFields({
-  step,
-  answers,
-  identity,
-  patchAnswers,
-  patchIdentity,
-}: {
-  step: number;
-  answers: MatchingAnswers;
-  identity: IdentityAnswers;
-  patchAnswers: (patch: Partial<MatchingAnswers>) => void;
-  patchIdentity: (patch: Partial<IdentityAnswers>) => void;
-}) {
-  if (step === 0) {
-    return (
-      <ChoiceGroup
-        ariaLabel="Primary goal"
-        columns={2}
-        onChange={(goal) => patchAnswers({ goal: goal as MatchingAnswers["goal"] })}
-        options={GOAL_OPTIONS}
-        value={answers.goal}
-      />
-    );
-  }
-
-  if (step === 1) {
-    return (
-      <div className="field-stack">
-        <fieldset className="field-group">
-          <legend>Where are you starting from?</legend>
-          <ChoiceGroup
-            ariaLabel="Training experience"
-            onChange={(experience) => patchAnswers({ experience: experience as MatchingAnswers["experience"] })}
-            options={EXPERIENCE_OPTIONS}
-            value={answers.experience}
-          />
-        </fieldset>
-        <fieldset className="field-group">
-          <legend>What gets the best from you?</legend>
-          <ChoiceGroup
-            ariaLabel="Coaching preference"
-            onChange={(coachingStyle) => patchAnswers({ coachingStyle: coachingStyle as MatchingAnswers["coachingStyle"] })}
-            options={COACHING_OPTIONS}
-            value={answers.coachingStyle}
-          />
-        </fieldset>
-      </div>
-    );
-  }
-
-  if (step === 2) {
-    const hasNoGenderPreference = answers.trainerGenders.length === 0
-      || answers.trainerGenders.length === GENDER_OPTIONS.length;
-    return (
-      <div className="field-stack">
-        <fieldset className="field-group">
-          <legend>Monthly budget</legend>
-          <ChoiceGroup
-            ariaLabel="Monthly budget"
-            onChange={(budget) => patchAnswers({ budget: budget as MatchingAnswers["budget"] })}
-            options={BUDGET_OPTIONS}
-            value={answers.budget}
-          />
-        </fieldset>
-        <fieldset className="field-group field-group--compact">
-          <legend>Trainer preference <span>Optional</span></legend>
-          <ChoiceGroup
-            ariaLabel="Trainer gender preference"
-            columns={3}
-            multiple
-            onChange={(trainerGenders) => patchAnswers({ trainerGenders: trainerGenders as MatchingAnswers["trainerGenders"] })}
-            options={GENDER_OPTIONS}
-            value={answers.trainerGenders}
-          />
-          <p className="field-hint">{hasNoGenderPreference ? "No preference — everyone is included." : "Your preference will influence the shortlist order."}</p>
-        </fieldset>
-      </div>
-    );
-  }
-
-  if (step === 3) {
-    return (
-      <div className="field-stack">
-        <label className="input-field">
-          <span>Home postcode</span>
-          <div className="input-field__control">
-            <MapPin aria-hidden="true" size={19} />
-            <input
-              autoComplete="postal-code"
-              inputMode="text"
-              maxLength={8}
-              onBlur={(event) => patchAnswers({ postcode: normalizePostcode(event.target.value) })}
-              onChange={(event) => patchAnswers({ postcode: event.target.value.toUpperCase() })}
-              placeholder="e.g. SW11 3AA"
-              value={answers.postcode}
-            />
+            <p id="secure-details-description">Add your basic details to access your matches. They stay separate from your conversation and are only used for your account and secure sign-in.</p>
           </div>
-        </label>
-        <fieldset className="field-group field-group--compact">
-          <legend>I could train at</legend>
-          <ChoiceGroup
-            ariaLabel="Training venues"
-            columns={3}
-            multiple
-            onChange={(venues) => patchAnswers({ venues: venues as MatchingAnswers["venues"] })}
-            options={VENUE_OPTIONS}
-            value={answers.venues}
-          />
-        </fieldset>
-        <label className="range-field">
-          <span><strong>Travel up to</strong><output>{answers.travelKm} km</output></span>
-          <input
-            aria-label="Maximum travel distance"
-            max="25"
-            min="5"
-            onChange={(event) => patchAnswers({ travelKm: Number(event.target.value) })}
-            step="1"
-            type="range"
-            value={answers.travelKm}
-          />
-          <span className="range-field__labels"><span>5 km</span><span>25 km</span></span>
-        </label>
-      </div>
-    );
-  }
-
-  if (step === 4) {
-    return <AvailabilityGrid onChange={(availability) => patchAnswers({ availability })} value={answers.availability} />;
-  }
-
-  if (step === 5) {
-    const needsHealthConsent = answers.goal === "recover_from_injury" || answers.medicalNote.trim().length > 0;
-    return (
-      <div className="field-stack">
-        <label className="textarea-field">
-          <span>Injuries or medical context <small>Optional</small></span>
-          <textarea
-            maxLength={400}
-            onChange={(event) => patchAnswers({ medicalNote: event.target.value, healthConsent: event.target.value ? answers.healthConsent : false })}
-            placeholder="Only share what a trainer should know."
-            rows={3}
-            value={answers.medicalNote}
-          />
-          <small>{answers.medicalNote.length} / 400</small>
-        </label>
-        <label className="textarea-field">
-          <span>What usually gets in the way? <small>Optional</small></span>
-          <textarea
-            maxLength={800}
-            onChange={(event) => patchAnswers({ biggestObstacle: event.target.value })}
-            placeholder="e.g. I know what to do, but consistency is hard."
-            rows={3}
-            value={answers.biggestObstacle}
-          />
-          <small>{answers.biggestObstacle.length} / 800</small>
-        </label>
-        {needsHealthConsent ? (
-          <label className="consent-row">
-            <input
-              checked={answers.healthConsent}
-              onChange={(event) => patchAnswers({ healthConsent: event.target.checked })}
-              type="checkbox"
-            />
-            <span className="consent-row__box"><Check size={15} strokeWidth={3} /></span>
-            <span>I explicitly consent to Petey storing this health information for safe training and sharing it only with trainers I choose.</span>
-          </label>
-        ) : null}
-      </div>
-    );
-  }
-
-  return (
-    <div className="identity-fields">
-      <div className="identity-fields__privacy">
-        <ShieldCheck aria-hidden="true" size={20} />
-        <span>Your matching answers are ready. Identity and sign-in come last; this prototype keeps these details only in this browser tab.</span>
-      </div>
-      <label className="input-field">
-        <span>Full name</span>
-        <input
-          autoComplete="name"
-          maxLength={100}
-          onChange={(event) => patchIdentity({ fullName: event.target.value })}
-          placeholder="Your name"
-          value={identity.fullName}
-        />
-      </label>
-      <label className="input-field">
-        <span>Date of birth</span>
-        <input
-          autoComplete="bday"
-          inputMode="numeric"
-          maxLength={10}
-          onChange={(event) => patchIdentity({ dateOfBirth: formatDobInput(event.target.value) })}
-          placeholder="DD/MM/YYYY"
-          type="text"
-          value={identity.dateOfBirth}
-        />
-        <small>You must be 18 or over. Your date of birth stays private.</small>
-      </label>
-      <label className="input-field">
-        <span>Email address</span>
-        <input
-          autoCapitalize="none"
-          autoComplete="email"
-          inputMode="email"
-          onChange={(event) => patchIdentity({ email: event.target.value })}
-          placeholder="you@example.com"
-          type="email"
-          value={identity.email}
-        />
-        <small>No password. We’ll send one secure sign-in link.</small>
-      </label>
-    </div>
+          <label className="input-field"><span>Full name</span><input autoComplete="name" maxLength={100} onChange={(event) => onIdentityChange({ ...identity, fullName: event.target.value })} placeholder="Your name" ref={firstIdentityFieldRef} value={identity.fullName} /></label>
+          <label className="input-field"><span>Date of birth</span><input autoComplete="bday" inputMode="numeric" maxLength={10} onChange={(event) => onIdentityChange({ ...identity, dateOfBirth: formatDobInput(event.target.value) })} placeholder="DD/MM/YYYY" value={identity.dateOfBirth} /><small>You must be 18 or over. Your date of birth stays private.</small></label>
+          <label className="input-field"><span>Email address</span><input autoCapitalize="none" autoComplete="email" inputMode="email" maxLength={320} onChange={(event) => onIdentityChange({ ...identity, email: event.target.value })} placeholder="you@example.com" type="email" value={identity.email} /><small>No password. We’ll send one secure sign-in link.</small></label>
+          {error ? <p aria-live="polite" className="flow-error secure-identity__error" role="alert">{error}</p> : null}
+          <button className="primary-button" disabled={submitting} type="submit">{submitting ? "Sending link…" : "Confirm and email my link"}{!submitting ? <ArrowRight aria-hidden="true" size={18} /> : null}</button>
+        </form>
+      </motion.div>
+    </motion.div>
   );
+}
+
+function ChatStartError({ error, onExit, onRetry }: { error: string | null; onExit: () => void; onRetry: () => void }) {
+  return <main className="onboarding-shell onboarding-shell--chat"><header className="flow-header chat-header chat-header--simple"><button aria-label="Back to home" className="icon-button" onClick={onExit} type="button"><ArrowLeft size={20} /></button></header><section className="chat-loading" role="alert"><h1>We couldn’t start the chat.</h1><p>{error ?? "Check your connection and try again."}</p><button className="primary-button" onClick={onRetry} type="button">Try again <ArrowRight size={18} /></button></section></main>;
+}
+
+function LoadingShell({ onExit }: { onExit: () => void }) {
+  return <main className="onboarding-shell onboarding-shell--chat"><header className="flow-header chat-header chat-header--simple"><button aria-label="Back to home" className="icon-button" onClick={onExit} type="button"><ArrowLeft size={20} /></button></header><section className="chat-loading" role="status"><LoaderCircle className="status-spinner" size={26} /><h1>Preparing your onboarding</h1><p>Detailed answers help us find the perfect match</p></section></main>;
 }

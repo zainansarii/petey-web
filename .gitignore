@@ -4,5 +4,6 @@ dist
 .env.local
 .env.*.local
 coverage
+functions/lib
 *.log
 .DS_Store

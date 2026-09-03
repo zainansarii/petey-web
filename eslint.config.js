@@ -5,7 +5,7 @@ import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["dist", "coverage"] },
+  { ignores: ["dist", "coverage", "functions/lib", "functions/node_modules"] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
@@ -27,6 +27,12 @@ export default tseslint.config(
     files: ["src/**/*.test.{ts,tsx}", "src/test/**/*.ts"],
     languageOptions: {
       globals: { ...globals.browser, ...globals.node },
+    },
+  },
+  {
+    files: ["functions/src/**/*.ts", "functions/vitest.config.ts"],
+    languageOptions: {
+      globals: globals.node,
     },
   },
 );

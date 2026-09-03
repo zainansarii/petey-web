@@ -1,0 +1,7 @@
+{
+  "projects": {
+    "default": "petey-dev-getcass",
+    "dev": "petey-dev-getcass",
+    "prod": "petey-prod-getcass"
+  }
+}
