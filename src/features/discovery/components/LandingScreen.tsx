@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
-import { ArrowDown, ArrowRight } from "lucide-react";
+import { ArrowDown, ArrowRight, FastForward } from "lucide-react";
 import { BrandMark } from "../../../shared/ui/BrandMark";
 import { TrainerCard } from "./TrainerCard";
 import { TRAINERS } from "../data/trainers";
@@ -26,7 +26,12 @@ const trainerIndexAt = (position: number) => (
   (position % TRAINERS.length + TRAINERS.length) % TRAINERS.length
 );
 
-export function LandingScreen({ onStart }: { onStart: () => void }) {
+type LandingScreenProps = {
+  onPreviewHandoff?: () => void;
+  onStart: () => void;
+};
+
+export function LandingScreen({ onPreviewHandoff, onStart }: LandingScreenProps) {
   const [carouselPosition, setCarouselPosition] = useState(0);
   const [interactionPaused, setInteractionPaused] = useState(false);
   const transitionLocked = useRef(false);
@@ -110,6 +115,16 @@ export function LandingScreen({ onStart }: { onStart: () => void }) {
     >
       <header className="landing__header">
         <BrandMark className="landing__logo" />
+        {onPreviewHandoff ? (
+          <button
+            aria-label="Skip onboarding and preview the matching flow"
+            className="quiet-button landing__skip-button"
+            onClick={onPreviewHandoff}
+            type="button"
+          >
+            Skip onboarding <FastForward aria-hidden="true" size={16} />
+          </button>
+        ) : null}
       </header>
 
       <div className="landing__composition">

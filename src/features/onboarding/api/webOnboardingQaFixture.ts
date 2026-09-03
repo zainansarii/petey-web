@@ -107,7 +107,7 @@ export const runFixtureTurn = async (
       {
         id: "fixture-assistant",
         role: "assistant",
-        text: "Thanks — I have everything I need. Secure final details are next.",
+        text: "Thanks! We have everything needed now to find your match.",
         createdAt,
         sequence: 4,
       },
@@ -126,7 +126,7 @@ export const runFixtureTurnV4 = async (
   data: Promise<RunWebOnboardingTurnV4Response>;
 }> => {
   if (abortSignal?.aborted) throw new DOMException("The request was cancelled.", "AbortError");
-  const reply = "Thanks — I have everything I need. Secure final details are next.";
+  const reply = "Thanks! We have everything needed now to find your match.";
   const data = Promise.resolve({
     result: { reply, readyForReview: true, quickReplies: [] },
     timings: {
@@ -140,8 +140,8 @@ export const runFixtureTurnV4 = async (
   return {
     stream: (async function* streamFixtureReply() {
       if (request.messages.length === 0) throw new Error("The fixture transcript is empty.");
-      yield { type: "reply_delta", text: "Thanks — I have everything I need. " } as const;
-      yield { type: "reply_delta", text: "Secure final details are next." } as const;
+      yield { type: "reply_delta", text: "Thanks! We have everything needed " } as const;
+      yield { type: "reply_delta", text: "now to find your match." } as const;
     })(),
     data,
   };

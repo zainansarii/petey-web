@@ -6,6 +6,7 @@ import {
   MessagePrimitive,
   ThreadPrimitive,
   useAui,
+  useAuiEvent,
   useAuiState,
   useLocalRuntime,
   type ChatModelAdapter,
@@ -13,10 +14,14 @@ import {
   type TextMessagePartProps,
   type ThreadMessageLike,
 } from "@assistant-ui/react";
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
-import { motion, useReducedMotion } from "motion/react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type RefObject } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ArrowLeft, ArrowRight, LoaderCircle, LockKeyhole, RotateCcw, Send, Trash2 } from "lucide-react";
 import { requestMagicLink } from "../../auth/api/magicLink";
+import { TrainerCard } from "../../discovery/components/TrainerCard";
+import { TRAINERS } from "../../discovery/data/trainers";
+import { TextDots } from "../../../shared/ui/TextDots";
+import { TwinOrbit } from "../../../shared/ui/TwinOrbit";
 import {
   clearLocalConversationV4,
   clearDraftCapability,
@@ -47,6 +52,7 @@ import {
 type OnboardingFlowProps = {
   profileMarkdown: string;
   identity: IdentityAnswers;
+  previewHandoff?: boolean;
   onExit: () => void;
   onIdentityChange: (identity: IdentityAnswers) => void;
   onMagicLinkRequested: (email: string, mode: "sent" | "preview") => void;
@@ -54,6 +60,44 @@ type OnboardingFlowProps = {
 };
 
 type LoadState = "starting" | "chat" | "error";
+type HandoffPhase = "chat" | "confirmation" | "clearing" | "matching" | "matches" | "error";
+
+const COMPLETION_MESSAGE = "Thanks! We have everything needed now to find your match.";
+const COMPLETION_HOLD_MS = 1_400;
+const CLEARING_MS = 500;
+const MINIMUM_MATCHING_MS = 2_500;
+const CHAT_SCROLL_TIME_CONSTANT_MS = 180;
+const CHAT_SCROLL_SETTLE_DISTANCE_PX = 0.5;
+const PREVIEW_MATCHES = TRAINERS.slice(0, 3);
+
+const createHandoffPreviewSessionV4 = (): OnboardingConversationSessionV4 => {
+  const opening = createLocalConversationV4();
+  const createdAt = new Date().toISOString();
+  return {
+    ...opening,
+    status: "ready_to_map",
+    messages: [
+      ...opening.messages,
+      {
+        id: crypto.randomUUID(),
+        role: "user",
+        text: "I’m ready to see my matches.",
+        createdAt,
+        sequence: opening.messages.length + 1,
+      },
+      {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        text: COMPLETION_MESSAGE,
+        createdAt,
+        sequence: opening.messages.length + 2,
+      },
+    ],
+    quickReplies: [],
+    userTurns: 6,
+    updatedAt: createdAt,
+  };
+};
 
 const readableError = (error: unknown, fallback: string) => {
   const message = error instanceof Error ? error.message.trim() : "";
@@ -81,11 +125,15 @@ const localConversationFromSnapshot = (
 };
 
 export function OnboardingFlow(props: OnboardingFlowProps) {
-  const { onProfileMarkdownChange } = props;
-  const [initialCapability] = useState<DraftCapability | null>(() => readDraftCapability());
+  const { onProfileMarkdownChange, previewHandoff = false } = props;
+  const [initialCapability] = useState<DraftCapability | null>(() => (
+    previewHandoff ? null : readDraftCapability()
+  ));
   const [loadState, setLoadState] = useState<LoadState>(initialCapability ? "starting" : "chat");
   const [session, setSession] = useState<OnboardingConversationSessionV4>(() => (
-    readLocalConversationV4() ?? createLocalConversationV4()
+    previewHandoff
+      ? createHandoffPreviewSessionV4()
+      : readLocalConversationV4() ?? createLocalConversationV4()
   ));
   const [reviewSnapshot, setReviewSnapshot] = useState<OnboardingDraftSnapshotV3 | null>(null);
   const [capability, setCapability] = useState<DraftCapability | null>(initialCapability);
@@ -96,6 +144,10 @@ export function OnboardingFlow(props: OnboardingFlowProps) {
     let cancelled = false;
     const openChat = async () => {
       setError(null);
+      if (previewHandoff) {
+        setLoadState("chat");
+        return;
+      }
       const stored = readDraftCapability();
       if (!stored) {
         saveLocalConversationV4(session);
@@ -134,7 +186,7 @@ export function OnboardingFlow(props: OnboardingFlowProps) {
     };
     void openChat();
     return () => { cancelled = true; };
-  }, [onProfileMarkdownChange, retryKey, session]);
+  }, [onProfileMarkdownChange, previewHandoff, retryKey, session]);
 
   if (loadState === "starting") return <LoadingShell onExit={props.onExit} />;
   if (loadState === "error") {
@@ -172,13 +224,26 @@ function ChatOnboarding({
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [finalizationError, setFinalizationError] = useState<string | null>(null);
   const [preparingDetails, setPreparingDetails] = useState(false);
+  const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null);
+  const [handoffPhase, setHandoffPhase] = useState<HandoffPhase>(() => {
+    if (initialReviewSnapshot?.profileMarkdown) return "matches";
+    if (initialSession.status === "ready_to_map") return "confirmation";
+    return "chat";
+  });
   const sessionRef = useRef(session);
   const finalizationKeyRef = useRef<string | null>(null);
+  const handoffRef = useRef<HTMLElement | null>(null);
+  const matchingStartedAtRef = useRef<number | null>(null);
+  const threadViewportRef = useRef<HTMLDivElement | null>(null);
+  const reducedMotion = Boolean(useReducedMotion());
 
   useEffect(() => { sessionRef.current = session; }, [session]);
 
   const updateSession = useCallback((next: OnboardingConversationSessionV4) => {
     sessionRef.current = next;
+    if (next.status === "ready_to_map") {
+      setHandoffPhase((current) => current === "chat" ? "confirmation" : current);
+    }
     setSession(next);
     saveLocalConversationV4(next);
   }, []);
@@ -213,34 +278,59 @@ function ChatOnboarding({
       const streamReadyMs = Math.round(performance.now() - clientStartedAt);
       let streamedReply = "";
       let firstReplyMs: number | null = null;
-      for await (const chunk of pending.stream) {
+      const streamIterator = pending.stream[Symbol.asyncIterator]();
+      const finalResponse = pending.data.then((value) => ({ type: "response" as const, value }));
+      const commitTurn = (
+        assistantMessage: string,
+        readyForReview: boolean,
+        quickReplies: string[],
+      ) => {
+        const completedAt = new Date().toISOString();
+        updateSession({
+          schemaVersion: 4,
+          status: readyForReview ? "ready_to_map" : "collecting",
+          messages: [
+            ...transcript,
+            {
+              id: crypto.randomUUID(),
+              role: "assistant",
+              text: assistantMessage,
+              createdAt: completedAt,
+              sequence: transcript.length + 1,
+            },
+          ],
+          quickReplies: readyForReview ? [] : quickReplies,
+          userTurns: transcript.filter(({ role }) => role === "user").length,
+          updatedAt: completedAt,
+        });
+      };
+      let response: Awaited<typeof pending.data> | null = null;
+      while (!response) {
+        const event = await Promise.race([
+          streamIterator.next().then((result) => ({ type: "stream" as const, result })),
+          finalResponse,
+        ]);
+        if (event.type === "response") {
+          response = event.value;
+          void streamIterator.return?.().catch(() => undefined);
+          break;
+        }
+        if (event.result.done) {
+          response = await pending.data;
+          break;
+        }
+        const chunk = event.result.value;
         if (chunk.type !== "reply_delta" || !chunk.text) continue;
         streamedReply += chunk.text;
         if (firstReplyMs === null) firstReplyMs = Math.round(performance.now() - clientStartedAt);
         yield { content: [{ type: "text", text: streamedReply }] };
       }
 
-      const response = await pending.data;
-      const assistantMessage = response.result.reply;
+      const assistantMessage = response.result.readyForReview
+        ? COMPLETION_MESSAGE
+        : response.result.reply;
       if (!assistantMessage) throw new Error("Petey returned an empty reply. Please try again.");
-      const completedAt = new Date().toISOString();
-      updateSession({
-        schemaVersion: 4,
-        status: response.result.readyForReview ? "ready_to_map" : "collecting",
-        messages: [
-          ...transcript,
-          {
-            id: crypto.randomUUID(),
-            role: "assistant",
-            text: assistantMessage,
-            createdAt: completedAt,
-            sequence: transcript.length + 1,
-          },
-        ],
-        quickReplies: response.result.readyForReview ? [] : response.result.quickReplies,
-        userTurns: transcript.filter(({ role }) => role === "user").length,
-        updatedAt: completedAt,
-      });
+      commitTurn(assistantMessage, response.result.readyForReview, response.result.quickReplies);
       console.info("web_onboarding_latency_v4", {
         streamReadyMs,
         firstReplyMs,
@@ -258,7 +348,13 @@ function ChatOnboarding({
       ? {
           id: message.id,
           role: "assistant" as const,
-          content: [{ type: "text" as const, text: message.text }],
+          content: [{
+            type: "text" as const,
+            text: initialSession.status === "ready_to_map"
+              && message.id === initialSession.messages.at(-1)?.id
+              ? COMPLETION_MESSAGE
+              : message.text,
+          }],
           createdAt: new Date(message.createdAt),
           status: { type: "complete" as const, reason: "stop" as const },
         }
@@ -268,12 +364,16 @@ function ChatOnboarding({
           content: [{ type: "text" as const, text: message.text }],
           createdAt: new Date(message.createdAt),
         }
-  )), [initialSession.messages]);
+  )), [initialSession.messages, initialSession.status]);
 
   const runtime = useLocalRuntime(chatModel, { initialMessages });
   const progress = conversationProgress(reviewSnapshot?.status ?? session.status, session.userTurns);
-  const showingSecureDetails = Boolean(capability && reviewSnapshot?.profileMarkdown)
+  const hasSecureDetails = Boolean(capability && reviewSnapshot?.profileMarkdown)
     && (reviewSnapshot?.status === "review" || reviewSnapshot?.status === "confirmed");
+  const showingSecureDetails = hasSecureDetails
+    && handoffPhase === "matches"
+    && selectedMatchId !== null;
+  const showComposer = handoffPhase === "chat" || handoffPhase === "confirmation";
 
   const prepareDetails = useCallback(async () => {
     const current = sessionRef.current;
@@ -305,6 +405,46 @@ function ChatOnboarding({
     if (session.status === "ready_to_map" && !reviewSnapshot && !finalizationError) void prepareDetails();
   }, [finalizationError, prepareDetails, reviewSnapshot, session.status]);
 
+  useEffect(() => {
+    if (handoffPhase !== "confirmation") return;
+    const confirmationTimer = window.setTimeout(
+      () => setHandoffPhase("clearing"),
+      COMPLETION_HOLD_MS,
+    );
+    return () => window.clearTimeout(confirmationTimer);
+  }, [handoffPhase]);
+
+  useEffect(() => {
+    if (handoffPhase !== "clearing") return;
+    handoffRef.current?.scrollIntoView({
+      behavior: reducedMotion ? "auto" : "smooth",
+      block: "start",
+    });
+    const matchingTimer = window.setTimeout(() => {
+      matchingStartedAtRef.current = performance.now();
+      setHandoffPhase("matching");
+    }, reducedMotion ? 0 : CLEARING_MS);
+    return () => {
+      window.clearTimeout(matchingTimer);
+    };
+  }, [handoffPhase, reducedMotion]);
+
+  useEffect(() => {
+    if (handoffPhase !== "matching" || (!hasSecureDetails && !finalizationError)) return;
+    const minimumDuration = reducedMotion ? 300 : MINIMUM_MATCHING_MS;
+    const elapsed = performance.now() - (matchingStartedAtRef.current ?? performance.now());
+    const revealTimer = window.setTimeout(() => {
+      setHandoffPhase(finalizationError ? "error" : "matches");
+    }, Math.max(0, minimumDuration - elapsed));
+    return () => window.clearTimeout(revealTimer);
+  }, [finalizationError, handoffPhase, hasSecureDetails, reducedMotion]);
+
+  const retryPreparingDetails = useCallback(() => {
+    matchingStartedAtRef.current = performance.now();
+    setHandoffPhase("matching");
+    void prepareDetails();
+  }, [prepareDetails]);
+
   const deleteAndExit = async () => {
     if (deleting) return;
     setDeleting(true);
@@ -323,37 +463,225 @@ function ChatOnboarding({
 
   return (
     <main className="onboarding-shell onboarding-shell--chat">
-      <ChatHeader deleteError={deleteError} deleting={deleting} inactive={showingSecureDetails} onDelete={deleteAndExit} onExit={onExit} progress={progress} />
+      <ChatHeader
+        deleteError={deleteError}
+        deleting={deleting}
+        inactive={showingSecureDetails}
+        onDelete={deleteAndExit}
+        onExit={onExit}
+        progress={progress}
+        showProgress={showComposer}
+      />
       <AssistantRuntimeProvider runtime={runtime}>
         <ThreadPrimitive.Root aria-hidden={showingSecureDetails || undefined} className="chat-thread" inert={showingSecureDetails || undefined}>
-          <ThreadPrimitive.Viewport autoScroll={session.status === "collecting"} className="chat-thread__viewport">
+          <ThreadPrimitive.Viewport
+            autoScroll={false}
+            className="chat-thread__viewport"
+            ref={threadViewportRef}
+            scrollToBottomOnInitialize={false}
+            scrollToBottomOnRunStart={false}
+            scrollToBottomOnThreadSwitch={false}
+          >
+            <ChatScrollAnimator
+              enabled={handoffPhase === "chat" || handoffPhase === "confirmation"}
+              reducedMotion={reducedMotion}
+              viewportRef={threadViewportRef}
+            />
             <div aria-live="polite" className="chat-thread__messages">
               <ThreadPrimitive.Messages components={{ AssistantMessage, UserMessage }} />
             </div>
 
-            {session.status === "ready_to_map" && !reviewSnapshot ? (
-              <PreparingDetails error={finalizationError} preparing={preparingDetails} onRetry={() => void prepareDetails()} />
+            {handoffPhase !== "chat" && handoffPhase !== "confirmation" ? (
+              <PostChatHandoff
+                error={finalizationError}
+                onSelectMatch={setSelectedMatchId}
+                onRetry={retryPreparingDetails}
+                phase={handoffPhase}
+                reducedMotion={reducedMotion}
+                stageRef={handoffRef}
+              />
             ) : null}
 
             <ThreadPrimitive.ViewportFooter className="chat-thread__footer">
-              {session.status === "collecting" ? <QuickReplies prompts={session.quickReplies} /> : null}
-              {session.status === "collecting" ? <ChatComposer /> : null}
+              <AnimatePresence initial={false}>
+                {showComposer ? (
+                  <motion.div
+                    animate={{ opacity: 1, y: 0 }}
+                    aria-hidden={handoffPhase === "confirmation" || undefined}
+                    className="chat-thread__controls"
+                    exit={{ opacity: 0, y: reducedMotion ? 0 : 8 }}
+                    inert={handoffPhase === "confirmation" || undefined}
+                    initial={false}
+                    key="chat-controls"
+                    transition={{ duration: reducedMotion ? 0 : 0.32, ease: [0.22, 1, 0.36, 1] }}
+                  >
+                    {session.status === "collecting" ? <QuickReplies prompts={session.quickReplies} /> : null}
+                    <ChatComposer inactive={handoffPhase === "confirmation"} />
+                  </motion.div>
+                ) : null}
+              </AnimatePresence>
             </ThreadPrimitive.ViewportFooter>
           </ThreadPrimitive.Viewport>
         </ThreadPrimitive.Root>
       </AssistantRuntimeProvider>
-      {showingSecureDetails && capability && reviewSnapshot?.profileMarkdown ? (
-        <SecureDetailsModal
-          capability={capability}
-          identity={identity}
-          onIdentityChange={onIdentityChange}
-          onMagicLinkRequested={onMagicLinkRequested}
-          onSnapshotChange={updateReviewSnapshot}
-          profileMarkdown={reviewSnapshot.profileMarkdown}
-          snapshot={reviewSnapshot}
-        />
-      ) : null}
+      <AnimatePresence initial={false}>
+        {showingSecureDetails && capability && reviewSnapshot?.profileMarkdown ? (
+          <SecureDetailsModal
+            capability={capability}
+            identity={identity}
+            key="secure-details"
+            onIdentityChange={onIdentityChange}
+            onMagicLinkRequested={onMagicLinkRequested}
+            onSnapshotChange={updateReviewSnapshot}
+            profileMarkdown={reviewSnapshot.profileMarkdown}
+            snapshot={reviewSnapshot}
+          />
+        ) : null}
+      </AnimatePresence>
     </main>
+  );
+}
+
+function PostChatHandoff({
+  error,
+  onRetry,
+  onSelectMatch,
+  phase,
+  reducedMotion,
+  stageRef,
+}: {
+  error: string | null;
+  onRetry: () => void;
+  onSelectMatch: (trainerId: string) => void;
+  phase: HandoffPhase;
+  reducedMotion: boolean;
+  stageRef: RefObject<HTMLElement | null>;
+}) {
+  return (
+    <section className="post-chat-handoff" ref={stageRef}>
+      <AnimatePresence initial={false} mode="wait">
+        {phase === "matching" ? (
+          <motion.div
+            animate={{ opacity: 1 }}
+            className="post-chat-matching"
+            exit={{ opacity: 0 }}
+            initial={reducedMotion ? false : { opacity: 0 }}
+            key="matching"
+            transition={{ duration: reducedMotion ? 0 : 0.56, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <div className="post-chat-matching__content">
+              <span aria-hidden="true" className="post-chat-matching__loader">
+                <TwinOrbit className="post-chat-matching__orbit" />
+              </span>
+              <h2>
+                <TextDots aria-label="Finding your personal trainer">Finding your personal trainer</TextDots>
+              </h2>
+            </div>
+          </motion.div>
+        ) : null}
+
+        {phase === "matches" ? (
+          <motion.div
+            animate={{ opacity: 1 }}
+            aria-live="polite"
+            className="post-chat-results"
+            initial={reducedMotion ? false : { opacity: 0 }}
+            key="matches"
+            transition={{ duration: reducedMotion ? 0 : 0.5, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <motion.h2
+              animate={{ opacity: 1, y: 0 }}
+              initial={reducedMotion ? false : { opacity: 0, y: 52 }}
+              transition={{ duration: reducedMotion ? 0 : 0.9, ease: [0.22, 1, 0.36, 1] }}
+            >
+              We found {PREVIEW_MATCHES.length} matches
+            </motion.h2>
+            <div aria-label="Your trainer matches" className="match-preview" role="list">
+              {PREVIEW_MATCHES.map((trainer, index) => (
+                <MatchPreviewCard
+                  index={index}
+                  key={trainer.id}
+                  onSelect={onSelectMatch}
+                  reducedMotion={reducedMotion}
+                  trainer={trainer}
+                />
+              ))}
+            </div>
+          </motion.div>
+        ) : null}
+
+        {phase === "error" ? (
+          <motion.div
+            animate={{ opacity: 1, y: 0 }}
+            className="post-chat-error"
+            initial={reducedMotion ? false : { opacity: 0, y: 8 }}
+            key="error"
+            role="alert"
+            transition={{ duration: reducedMotion ? 0 : 0.24 }}
+          >
+            <h2>Your details aren’t ready yet</h2>
+            <p>{error ?? "We couldn’t prepare your details. Your conversation is kept on this device — try again."}</p>
+            <button className="secondary-button" onClick={onRetry} type="button">
+              <RotateCcw aria-hidden="true" size={16} /> Try preparing again
+            </button>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+    </section>
+  );
+}
+
+function MatchPreviewCard({
+  index,
+  onSelect,
+  reducedMotion,
+  trainer,
+}: {
+  index: number;
+  onSelect: (trainerId: string) => void;
+  reducedMotion: boolean;
+  trainer: (typeof PREVIEW_MATCHES)[number];
+}) {
+  const [focused, setFocused] = useState(false);
+  const restingPose = { scale: 1, y: 0 };
+  const raisedPose = reducedMotion ? restingPose : { scale: 1.025, y: -8 };
+
+  return (
+    <motion.div
+      animate={{ opacity: 1, y: 0 }}
+      className="match-preview__item"
+      initial={reducedMotion ? false : { opacity: 0, y: 20 }}
+      role="listitem"
+      transition={{
+        delay: reducedMotion ? 0 : 0.28 + index * 0.13,
+        duration: reducedMotion ? 0 : 0.66,
+        ease: [0.22, 1, 0.36, 1],
+      }}
+    >
+      <motion.div
+        animate={focused ? raisedPose : restingPose}
+        className="match-preview__card"
+        initial={false}
+        onBlurCapture={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setFocused(false);
+        }}
+        onFocusCapture={() => setFocused(true)}
+        transition={{ duration: reducedMotion ? 0 : 0.28, ease: [0.22, 1, 0.36, 1] }}
+        whileHover={raisedPose}
+      >
+        <div aria-hidden="true" className="match-preview__profile">
+          <TrainerCard trainer={trainer} variant="hero" />
+        </div>
+        <button
+          aria-label={`Choose match ${index + 1}, ${trainer.name}: ${trainer.specialty}, ${trainer.area}, from £${trainer.price}`}
+          className="match-preview__select"
+          onClick={() => onSelect(trainer.id)}
+          type="button"
+        >
+          <span className="match-preview__action">Choose <ArrowRight aria-hidden="true" size={15} /></span>
+        </button>
+      </motion.div>
+    </motion.div>
   );
 }
 
@@ -381,6 +709,7 @@ function ChatHeader({
   onDelete,
   onExit,
   progress,
+  showProgress,
 }: {
   deleteError: string | null;
   deleting: boolean;
@@ -388,21 +717,39 @@ function ChatHeader({
   onDelete: () => void;
   onExit: () => void;
   progress: ReturnType<typeof conversationProgress>;
+  showProgress: boolean;
 }) {
   const reducedMotion = useReducedMotion();
   return (
     <header aria-hidden={inactive || undefined} className="flow-header chat-header" inert={inactive || undefined}>
       <button aria-label="Back to home" className="icon-button" onClick={onExit} type="button"><ArrowLeft size={20} /></button>
-      <div className="chat-progress" role="progressbar" aria-label="Conversation progress" aria-valuemax={100} aria-valuemin={0} aria-valuenow={progress.percent} aria-valuetext={`${progress.percent}% complete`}>
-        <span className="sr-only">Conversation {progress.percent}% complete</span>
-        <motion.span
-          animate={{ width: `${progress.percent}%` }}
-          aria-hidden="true"
-          className="chat-progress__fill"
-          initial={false}
-          transition={{ duration: reducedMotion ? 0 : 0.45, ease: [0.22, 1, 0.36, 1] }}
-        />
-      </div>
+      <AnimatePresence initial={false}>
+        {showProgress ? (
+          <motion.div
+            animate={{ opacity: 1 }}
+            className="chat-progress"
+            exit={{ opacity: 0 }}
+            initial={false}
+            key="chat-progress"
+            role="progressbar"
+            aria-label="Conversation progress"
+            aria-valuemax={100}
+            aria-valuemin={0}
+            aria-valuenow={progress.percent}
+            aria-valuetext={`${progress.percent}% complete`}
+            transition={{ duration: reducedMotion ? 0 : 0.32, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <span className="sr-only">Conversation {progress.percent}% complete</span>
+            <motion.span
+              animate={{ scaleX: progress.percent / 100 }}
+              aria-hidden="true"
+              className="chat-progress__fill"
+              initial={false}
+              transition={{ duration: reducedMotion ? 0 : 0.45, ease: [0.22, 1, 0.36, 1] }}
+            />
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
       <button aria-label="Delete chat" className="chat-delete" disabled={deleting} onClick={onDelete} type="button">
         <Trash2 aria-hidden="true" size={17} /> <span>{deleting ? "Deleting…" : "Delete chat"}</span>
       </button>
@@ -454,35 +801,135 @@ function AssistantPending({ status }: EmptyMessagePartProps) {
   return <span aria-label="Petey is thinking" className="chat-typing" role="status"><span aria-hidden="true"><i /><i /><i /></span></span>;
 }
 
+function ChatScrollAnimator({
+  enabled,
+  reducedMotion,
+  viewportRef,
+}: {
+  enabled: boolean;
+  reducedMotion: boolean;
+  viewportRef: RefObject<HTMLDivElement | null>;
+}) {
+  const animationFrameRef = useRef<number | null>(null);
+  const measureFrameRef = useRef<number | null>(null);
+  const lastFrameAtRef = useRef<number | null>(null);
+  const targetScrollTopRef = useRef(0);
+  const followingBottomRef = useRef(true);
+
+  const cancelAnimation = useCallback(() => {
+    if (animationFrameRef.current !== null) cancelAnimationFrame(animationFrameRef.current);
+    if (measureFrameRef.current !== null) cancelAnimationFrame(measureFrameRef.current);
+    animationFrameRef.current = null;
+    measureFrameRef.current = null;
+    lastFrameAtRef.current = null;
+  }, []);
+
+  const animateToBottom = useCallback(function animateScroll(now: number) {
+    const viewport = viewportRef.current;
+    if (!viewport || !enabled || !followingBottomRef.current) {
+      animationFrameRef.current = null;
+      lastFrameAtRef.current = null;
+      return;
+    }
+
+    const current = viewport.scrollTop;
+    const distance = targetScrollTopRef.current - current;
+    if (Math.abs(distance) <= CHAT_SCROLL_SETTLE_DISTANCE_PX) {
+      viewport.scrollTop = targetScrollTopRef.current;
+      animationFrameRef.current = null;
+      lastFrameAtRef.current = null;
+      return;
+    }
+
+    const previousFrameAt = lastFrameAtRef.current ?? now - (1_000 / 60);
+    const elapsed = Math.min(34, Math.max(0, now - previousFrameAt));
+    const easing = 1 - Math.exp(-elapsed / CHAT_SCROLL_TIME_CONSTANT_MS);
+    viewport.scrollTop = current + distance * easing;
+    lastFrameAtRef.current = now;
+    animationFrameRef.current = requestAnimationFrame(animateScroll);
+  }, [enabled, viewportRef]);
+
+  const measureAndAnimate = useCallback(() => {
+    const viewport = viewportRef.current;
+    if (!viewport || !enabled || !followingBottomRef.current) return;
+    targetScrollTopRef.current = Math.max(0, viewport.scrollHeight - viewport.clientHeight);
+    if (reducedMotion) {
+      viewport.scrollTop = targetScrollTopRef.current;
+      return;
+    }
+    if (animationFrameRef.current === null) {
+      lastFrameAtRef.current = null;
+      animationFrameRef.current = requestAnimationFrame(animateToBottom);
+    }
+  }, [animateToBottom, enabled, reducedMotion, viewportRef]);
+
+  const scheduleMeasurement = useCallback(() => {
+    if (measureFrameRef.current !== null) cancelAnimationFrame(measureFrameRef.current);
+    measureFrameRef.current = requestAnimationFrame(() => {
+      measureFrameRef.current = null;
+      measureAndAnimate();
+    });
+  }, [measureAndAnimate]);
+
+  useLayoutEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    targetScrollTopRef.current = Math.max(0, viewport.scrollHeight - viewport.clientHeight);
+    viewport.scrollTop = targetScrollTopRef.current;
+  }, [viewportRef]);
+
+  useAuiEvent("thread.runStart", () => {
+    if (!enabled) return;
+    followingBottomRef.current = true;
+    scheduleMeasurement();
+  });
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+
+    const stopFollowing = () => {
+      followingBottomRef.current = false;
+      cancelAnimation();
+    };
+    viewport.addEventListener("wheel", stopFollowing, { passive: true });
+    viewport.addEventListener("touchstart", stopFollowing, { passive: true });
+    viewport.addEventListener("pointerdown", stopFollowing, { passive: true });
+
+    const resizeObserver = new ResizeObserver(() => {
+      if (followingBottomRef.current) measureAndAnimate();
+    });
+    viewport.querySelectorAll(":scope > .chat-thread__messages, :scope > .chat-thread__footer")
+      .forEach((element) => resizeObserver.observe(element));
+
+    return () => {
+      viewport.removeEventListener("wheel", stopFollowing);
+      viewport.removeEventListener("touchstart", stopFollowing);
+      viewport.removeEventListener("pointerdown", stopFollowing);
+      resizeObserver.disconnect();
+      cancelAnimation();
+    };
+  }, [cancelAnimation, measureAndAnimate, viewportRef]);
+
+  return null;
+}
+
 function UserMessage() {
   return <MessagePrimitive.Root className="chat-message chat-message--user"><div className="chat-message__content"><MessagePrimitive.Parts /></div></MessagePrimitive.Root>;
 }
 
-function ChatComposer() {
+function ChatComposer({ inactive = false }: { inactive?: boolean }) {
   const running = useAuiState((state) => state.thread.isRunning);
   return (
     <div className="chat-composer-wrap">
       <ComposerPrimitive.Root className="chat-composer">
-        <ComposerPrimitive.Input aria-label="Your answer" autoFocus className="chat-composer__input" maxLength={2_000} placeholder="Answer naturally…" rows={1} />
-        <ComposerPrimitive.Send aria-label="Send answer" className="chat-composer__send">
+        <ComposerPrimitive.Input aria-label="Your answer" autoFocus className="chat-composer__input" disabled={inactive} maxLength={2_000} placeholder="Answer naturally…" rows={1} />
+        <ComposerPrimitive.Send aria-label="Send answer" className="chat-composer__send" disabled={inactive}>
           {running ? <LoaderCircle className="status-spinner" size={18} /> : <Send size={18} />}
         </ComposerPrimitive.Send>
       </ComposerPrimitive.Root>
       <span className="sr-only" role="status">{running ? "Reading your answer" : "Ready for your answer"}</span>
     </div>
-  );
-}
-
-function PreparingDetails({ error, preparing, onRetry }: { error: string | null; preparing: boolean; onRetry: () => void }) {
-  return (
-    <section aria-live="polite" className="chat-preparing" role="status">
-      {preparing ? <LoaderCircle aria-hidden="true" className="status-spinner" size={22} /> : null}
-      <div>
-        <h2>{error ? "Your details aren’t ready yet" : "Preparing your details…"}</h2>
-        <p>{error ?? "I’m securely finishing your matching profile."}</p>
-      </div>
-      {error ? <button className="secondary-button" onClick={onRetry} type="button"><RotateCcw size={16} /> Try preparing again</button> : null}
-    </section>
   );
 }
 
@@ -566,7 +1013,14 @@ function SecureDetailsModal({
   };
 
   return (
-    <div className="secure-details-modal" role="presentation">
+    <motion.div
+      animate={{ opacity: 1 }}
+      className="secure-details-modal"
+      exit={{ opacity: 0 }}
+      initial={reducedMotion ? false : { opacity: 0 }}
+      role="presentation"
+      transition={{ delay: reducedMotion ? 0 : 0.48, duration: reducedMotion ? 0 : 0.26, ease: [0.22, 1, 0.36, 1] }}
+    >
       <motion.div
         animate={{ opacity: 1, scale: 1, y: 0 }}
         aria-describedby="secure-details-description"
@@ -577,15 +1031,15 @@ function SecureDetailsModal({
         onKeyDown={keepFocusInDialog}
         ref={dialogRef}
         role="dialog"
-        transition={{ duration: reducedMotion ? 0 : 0.24, ease: [0.22, 1, 0.36, 1] }}
+        transition={{ delay: reducedMotion ? 0 : 0.5, duration: reducedMotion ? 0 : 0.28, ease: [0.22, 1, 0.36, 1] }}
       >
         <form className="secure-identity" onSubmit={submitIdentity}>
           <div className="secure-identity__heading">
-            <span aria-hidden="true" className="secure-identity__icon"><LockKeyhole size={20} /></span>
-            <div>
-              <h2 id="secure-details-title">Secure final details</h2>
-              <p id="secure-details-description">These private details stay separate from your conversation and are only used for your account and secure sign-in.</p>
+            <div className="secure-identity__title">
+              <span aria-hidden="true" className="secure-identity__icon"><LockKeyhole size={20} /></span>
+              <h2 id="secure-details-title">Create an account</h2>
             </div>
+            <p id="secure-details-description">Add your basic details to access your matches. They stay separate from your conversation and are only used for your account and secure sign-in.</p>
           </div>
           <label className="input-field"><span>Full name</span><input autoComplete="name" maxLength={100} onChange={(event) => onIdentityChange({ ...identity, fullName: event.target.value })} placeholder="Your name" ref={firstIdentityFieldRef} value={identity.fullName} /></label>
           <label className="input-field"><span>Date of birth</span><input autoComplete="bday" inputMode="numeric" maxLength={10} onChange={(event) => onIdentityChange({ ...identity, dateOfBirth: formatDobInput(event.target.value) })} placeholder="DD/MM/YYYY" value={identity.dateOfBirth} /><small>You must be 18 or over. Your date of birth stays private.</small></label>
@@ -594,7 +1048,7 @@ function SecureDetailsModal({
           <button className="primary-button" disabled={submitting} type="submit">{submitting ? "Sending link…" : "Confirm and email my link"}{!submitting ? <ArrowRight aria-hidden="true" size={18} /> : null}</button>
         </form>
       </motion.div>
-    </div>
+    </motion.div>
   );
 }
 

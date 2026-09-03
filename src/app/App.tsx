@@ -11,6 +11,8 @@ import { LandingScreen } from "../features/discovery/components/LandingScreen";
 import { FeedScreen } from "../features/feed/components/FeedScreen";
 import { OnboardingFlow } from "../features/onboarding/components/OnboardingFlow";
 import {
+  clearDraftCapability,
+  clearLocalConversationV4,
   consumeWebOnboardingDraftV3,
   getWebClientProfileV3,
   prewarmWebOnboarding,
@@ -24,15 +26,52 @@ import { BrandMark } from "../shared/ui/BrandMark";
 type AppPhase = "landing" | "onboarding" | "check-email" | "feed" | "auth-loading" | "auth-error" | "profile-error";
 
 const hasMagicLinkReturn = () => new URLSearchParams(window.location.search).has("finishSignUp");
+const hasHandoffPreview = () => {
+  const search = new URLSearchParams(window.location.search);
+  return import.meta.env.DEV
+    && search.has("onboardingFixture")
+    && search.has("skipOnboarding");
+};
+
+const setHandoffPreviewUrl = (enabled: boolean, removeFixture = false) => {
+  const url = new URL(window.location.href);
+  if (enabled) {
+    url.searchParams.set("onboardingFixture", "1");
+    url.searchParams.set("skipOnboarding", "1");
+  } else {
+    url.searchParams.delete("skipOnboarding");
+    if (removeFixture) url.searchParams.delete("onboardingFixture");
+  }
+  window.history.replaceState({}, document.title, `${url.pathname}${url.search}${url.hash}`);
+};
 
 export function App() {
-  const [phase, setPhase] = useState<AppPhase>(() => hasMagicLinkReturn() ? "auth-loading" : "landing");
+  const [handoffPreview, setHandoffPreview] = useState(hasHandoffPreview);
+  const [phase, setPhase] = useState<AppPhase>(() => (
+    hasMagicLinkReturn() ? "auth-loading" : hasHandoffPreview() ? "onboarding" : "landing"
+  ));
   const [profileMarkdown, setProfileMarkdown] = useState("");
   const [identity, setIdentity] = useState<IdentityAnswers>(INITIAL_IDENTITY_ANSWERS);
   const [email, setEmail] = useState("");
   const [preview, setPreview] = useState(false);
   const [authResult, setAuthResult] = useState<FinishMagicLinkResult | null>(null);
   const reducedMotion = useReducedMotion();
+
+  const openOnboarding = (previewHandoff: boolean) => {
+    setHandoffPreviewUrl(previewHandoff);
+    setHandoffPreview(previewHandoff);
+    setPhase("onboarding");
+  };
+
+  const exitOnboarding = () => {
+    if (handoffPreview) {
+      clearLocalConversationV4();
+      clearDraftCapability();
+    }
+    setHandoffPreviewUrl(false, handoffPreview);
+    setHandoffPreview(false);
+    setPhase("landing");
+  };
 
   useEffect(() => {
     if (hasMagicLinkReturn()) return;
@@ -104,9 +143,10 @@ export function App() {
             key="landing"
             transition={{ duration: reducedMotion ? 0 : 0.28, ease: [0.22, 1, 0.36, 1] }}
           >
-            <LandingScreen onStart={() => {
-              setPhase("onboarding");
-            }} />
+            <LandingScreen
+              onPreviewHandoff={import.meta.env.DEV ? () => openOnboarding(true) : undefined}
+              onStart={() => openOnboarding(false)}
+            />
           </motion.div>
         ) : null}
 
@@ -121,7 +161,7 @@ export function App() {
           >
             <OnboardingFlow
               identity={identity}
-              onExit={() => setPhase("landing")}
+              onExit={exitOnboarding}
               onIdentityChange={setIdentity}
               onMagicLinkRequested={(requestedEmail, mode) => {
                 setEmail(requestedEmail);
@@ -129,6 +169,7 @@ export function App() {
                 setPhase("check-email");
               }}
               onProfileMarkdownChange={setProfileMarkdown}
+              previewHandoff={handoffPreview}
               profileMarkdown={profileMarkdown}
             />
           </motion.div>

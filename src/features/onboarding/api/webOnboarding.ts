@@ -1,3 +1,4 @@
+import { getFunctions, httpsCallable } from "firebase/functions";
 import {
   ONBOARDING_OPENING_MESSAGES,
   ONBOARDING_OPENING_QUICK_REPLIES,
@@ -46,7 +47,7 @@ export const isRemoteDraftConfigured =
   Object.values(firebaseConfig).every(Boolean)
   && Boolean(import.meta.env.VITE_FIREBASE_APPCHECK_SITE_KEY?.trim());
 
-const browserQaFixtureEnabled = import.meta.env.DEV
+const browserQaFixtureEnabled = () => import.meta.env.DEV
   && new URLSearchParams(window.location.search).has("onboardingFixture");
 const loadBrowserQaFixture = () => import("./webOnboardingQaFixture");
 const appCheckDebugToken = import.meta.env.DEV
@@ -88,7 +89,7 @@ const getCallableApp = async () => {
 };
 
 export const prewarmWebOnboarding = (): Promise<void> => {
-  if (!isRemoteDraftConfigured || browserQaFixtureEnabled) return Promise.resolve();
+  if (!isRemoteDraftConfigured || browserQaFixtureEnabled()) return Promise.resolve();
   onboardingPrewarmPromise ??= (async () => {
     const startedAt = performance.now();
     const [{ getToken }, context] = await Promise.all([
@@ -114,10 +115,7 @@ const callRemote = async <TRequest, TResponse>(
   abortSignal?: AbortSignal,
 ): Promise<TResponse> => {
   if (abortSignal?.aborted) throw abortError();
-  const [{ getFunctions, httpsCallable }, context] = await Promise.all([
-    import("firebase/functions"),
-    getCallableApp(),
-  ]);
+  const context = await getCallableApp();
   if (abortSignal?.aborted) throw abortError();
   const functions = getFunctions(context.app as Parameters<typeof getFunctions>[0], "europe-west2");
   const pending = httpsCallable<TRequest, TResponse>(functions, name)(request).then((response) => response.data);
@@ -242,7 +240,7 @@ export const createWebOnboardingDraftV3 = async (): Promise<CreateWebOnboardingD
     consentVersion: WEB_ONBOARDING_CONSENT_VERSION,
     idempotencyKey: pendingCreateKey(),
   };
-  const response = browserQaFixtureEnabled
+  const response = browserQaFixtureEnabled()
     ? await (await loadBrowserQaFixture()).createFixtureDraft()
     : await callRemote<CreateWebOnboardingDraftV3Request, CreateWebOnboardingDraftV3Response>(
         "createWebOnboardingDraftV3",
@@ -258,14 +256,14 @@ export const createWebOnboardingDraftV3 = async (): Promise<CreateWebOnboardingD
 };
 
 export const getWebOnboardingDraftV3 = (request: GetWebOnboardingDraftV3Request) =>
-  browserQaFixtureEnabled
+  browserQaFixtureEnabled()
     ? loadBrowserQaFixture().then((fixture) => fixture.getFixtureDraft(request))
     : callRemote<GetWebOnboardingDraftV3Request, GetWebOnboardingDraftV3Response>("getWebOnboardingDraftV3", request);
 
 export const runWebOnboardingTurnV3 = (
   request: RunWebOnboardingTurnV3Request,
   abortSignal?: AbortSignal,
-) => browserQaFixtureEnabled
+) => browserQaFixtureEnabled()
   ? loadBrowserQaFixture().then((fixture) => fixture.runFixtureTurn(request, abortSignal))
   : callRemote<RunWebOnboardingTurnV3Request, RunWebOnboardingTurnV3Response>(
       "runWebOnboardingTurnV3",
@@ -283,13 +281,10 @@ export const runWebOnboardingTurnV4 = async (
   abortSignal?: AbortSignal,
 ): Promise<WebOnboardingTurnStreamV4> => {
   if (abortSignal?.aborted) throw abortError();
-  if (browserQaFixtureEnabled) {
+  if (browserQaFixtureEnabled()) {
     return (await loadBrowserQaFixture()).runFixtureTurnV4(request, abortSignal);
   }
-  const [{ getFunctions, httpsCallable }, context] = await Promise.all([
-    import("firebase/functions"),
-    getCallableApp(),
-  ]);
+  const context = await getCallableApp();
   if (abortSignal?.aborted) throw abortError();
   const functions = getFunctions(context.app as Parameters<typeof getFunctions>[0], "europe-west2");
   const callable = httpsCallable<
@@ -302,7 +297,7 @@ export const runWebOnboardingTurnV4 = async (
 
 export const finalizeWebOnboardingDraftV3 = (
   request: FinalizeWebOnboardingDraftV3Request,
-) => browserQaFixtureEnabled
+) => browserQaFixtureEnabled()
   ? loadBrowserQaFixture().then((fixture) => fixture.finalizeFixtureDraft(request))
   : callRemote<FinalizeWebOnboardingDraftV3Request, FinalizeWebOnboardingDraftV3Response>(
       "finalizeWebOnboardingDraftV3",
@@ -312,7 +307,7 @@ export const finalizeWebOnboardingDraftV3 = (
 export const finalizeWebOnboardingV4 = async (
   request: FinalizeWebOnboardingV4Request,
 ): Promise<FinalizeWebOnboardingV4Response> => {
-  const response = browserQaFixtureEnabled
+  const response = browserQaFixtureEnabled()
     ? await (await loadBrowserQaFixture()).finalizeFixtureV4(request)
     : await callRemote<FinalizeWebOnboardingV4Request, FinalizeWebOnboardingV4Response>(
         "finalizeWebOnboardingDraftV3",
@@ -331,7 +326,7 @@ export const confirmWebOnboardingDraftV3 = async (
     throw new Error(profileMarkdown.error.issues[0]?.message ?? "Check the matching profile.");
   }
   const validatedRequest = { ...request, profileMarkdown: profileMarkdown.data };
-  return browserQaFixtureEnabled
+  return browserQaFixtureEnabled()
     ? (await loadBrowserQaFixture()).confirmFixtureDraft(validatedRequest)
     : callRemote("confirmWebOnboardingDraftV3", validatedRequest);
 };
@@ -341,7 +336,7 @@ export const consumeWebOnboardingDraftV3 = async (
 ): Promise<ConsumeWebOnboardingDraftV3Response | null> => {
   const capability = request ?? readDraftCapability();
   if (!capability) return null;
-  const response = browserQaFixtureEnabled
+  const response = browserQaFixtureEnabled()
     ? await (await loadBrowserQaFixture()).consumeFixtureDraft(capability)
     : await callRemote<ConsumeWebOnboardingDraftV3Request, ConsumeWebOnboardingDraftV3Response>(
         "consumeWebOnboardingDraftV3",
@@ -360,7 +355,7 @@ export const deleteWebOnboardingDraftV3 = async (
 ): Promise<DeleteWebOnboardingDraftV3Response> => {
   const capability = request ?? readDraftCapability();
   if (capability) {
-    if (browserQaFixtureEnabled) await (await loadBrowserQaFixture()).deleteFixtureDraft(capability);
+    if (browserQaFixtureEnabled()) await (await loadBrowserQaFixture()).deleteFixtureDraft(capability);
     else {
       await callRemote<DeleteWebOnboardingDraftV3Request, DeleteWebOnboardingDraftV3Response>(
         "deleteWebOnboardingDraftV3",

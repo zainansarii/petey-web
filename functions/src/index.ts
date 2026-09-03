@@ -79,14 +79,20 @@ const callableOptions = {
 } as const;
 const DRAFT_TTL_MS = 24 * 60 * 60 * 1_000;
 const CONSUMPTION_TTL_MS = 7 * 24 * 60 * 60 * 1_000;
-const MIN_MODEL_READY_TURNS = 5;
-const FALLBACK_READY_TURNS = 12;
 const MAX_MESSAGE_LENGTH = 2_000;
 const CONSENT_VERSION_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const DEVELOPMENT_PROJECT_ID = "petey-dev-getcass";
 
 export const createRateLimitForProjectV3 = (projectId: string | undefined) => (
   projectId === DEVELOPMENT_PROJECT_ID ? 50 : 5
+);
+
+export const turnRateLimitForProjectV4 = (projectId: string | undefined) => (
+  projectId === DEVELOPMENT_PROJECT_ID ? 300 : 30
+);
+
+export const finalizationRateLimitForProjectV4 = (projectId: string | undefined) => (
+  projectId === DEVELOPMENT_PROJECT_ID ? 80 : 8
 );
 
 type DraftDoc = {
@@ -261,9 +267,27 @@ const cleanModelText = (value: string) => value
   .replace(/\s*```$/, "")
   .trim();
 
+export type OnboardingThemeCoverageV4 = {
+  trainee: boolean;
+  trainer: boolean;
+  sessions: boolean;
+};
+
+type ConversationalModelTurnV4 = {
+  reply: string;
+  coverage: OnboardingThemeCoverageV4;
+  quickReplies: string[];
+};
+
+const themeCoverageV4Schema = z.object({
+  trainee: z.boolean(),
+  trainer: z.boolean(),
+  sessions: z.boolean(),
+}).strict();
+
 const conversationalModelEnvelopeSchema = z.object({
   reply: z.string().trim().min(1).max(2_000),
-  readyForReview: z.boolean().default(false),
+  coverage: themeCoverageV4Schema,
   quickReplies: z.array(z.string().min(1).max(200)).max(MAX_ONBOARDING_QUICK_REPLIES).default([]),
 }).strict();
 
@@ -271,7 +295,7 @@ const isSafeQuickReply = (value: string) => (
   value.length <= MAX_ONBOARDING_QUICK_REPLY_LENGTH
   && !value.includes("?")
   && !/[{}[\]`]/.test(value)
-  && !/\b(?:json|readyForReview|quickReplies|response schema)\b/i.test(value)
+  && !/\b(?:json|coverage|quickReplies|response schema)\b/i.test(value)
 );
 
 const addPoundSignsToBudgetNumbers = (value: string) => value
@@ -279,10 +303,12 @@ const addPoundSignsToBudgetNumbers = (value: string) => value
   .replace(/(?<![£$€\d])(\d+(?:[.,]\d{1,2})?)(?![\d%])/g, "£$1")
   .replace(/£(\d+(?:[.,]\d{1,2})?)\s*(?:pounds?|GBP)\b/gi, "£$1");
 
+const replaceEmDashes = (value: string) => value.replace(/\u2014/g, "-");
+
 const normalizeQuickReplies = (values: string[], reply: string) => {
   const seen = new Set<string>();
   return values.flatMap((value) => {
-    const cleaned = value.replace(/\s+/g, " ").trim().replace(/\.+$/, "").trim();
+    const cleaned = replaceEmDashes(value).replace(/\s+/g, " ").trim().replace(/\.+$/, "").trim();
     const normalized = /\bbudget\b/i.test(reply) ? addPoundSignsToBudgetNumbers(cleaned) : cleaned;
     const key = normalized.toLocaleLowerCase("en-GB");
     if (!isSafeQuickReply(normalized) || seen.has(key)) return [];
@@ -292,11 +318,11 @@ const normalizeQuickReplies = (values: string[], reply: string) => {
 };
 
 const normalizeConversationalReply = (value: string) => {
-  let reply = value.replace(/\s+/g, " ").trim();
+  let reply = replaceEmDashes(value).replace(/\s+/g, " ").trim();
   if (
     !reply
     || /[{}[\]`]/.test(reply)
-    || /\b(?:json|readyForReview|quickReplies|response schema)\b/i.test(reply)
+    || /\b(?:json|coverage|quickReplies|response schema)\b/i.test(reply)
   ) {
     throw new Error("The model returned metadata instead of a conversational reply.");
   }
@@ -306,7 +332,7 @@ const normalizeConversationalReply = (value: string) => {
   return reply.slice(0, 500);
 };
 
-export const parseConversationalModelOutputV3 = (raw: string): OnboardingTurnResultV3 => {
+export const parseConversationalModelOutputV3 = (raw: string): ConversationalModelTurnV4 => {
   const cleaned = cleanModelText(raw);
   if (!cleaned) throw new Error("The model returned no usable reply.");
   let parsedJson: unknown;
@@ -321,7 +347,7 @@ export const parseConversationalModelOutputV3 = (raw: string): OnboardingTurnRes
   if (!isJson) {
     return {
       reply: normalizeConversationalReply(cleaned),
-      readyForReview: false,
+      coverage: { trainee: false, trainer: false, sessions: false },
       quickReplies: [],
     };
   }
@@ -334,24 +360,23 @@ export const parseConversationalModelOutputV3 = (raw: string): OnboardingTurnRes
   const reply = normalizeConversationalReply(envelope.data.reply);
   return {
     reply,
-    readyForReview: envelope.data.readyForReview,
-    quickReplies: !envelope.data.readyForReview && reply.includes("?")
-      ? normalizeQuickReplies(envelope.data.quickReplies, reply)
-      : [],
+    coverage: envelope.data.coverage,
+    quickReplies: reply.includes("?") ? normalizeQuickReplies(envelope.data.quickReplies, reply) : [],
   };
 };
 
 export const hasReviewReadinessPhrasingV3 = (reply: string) => [
   /\b(?:i(?:'ve| have)|we(?:'ve| have))(?: now)? (?:got )?(?:everything|all|enough) (?:that )?(?:i|we) need\b/i,
+  /\b(?:i(?:'ve| have)|we(?:'ve| have)) everything needed(?: now)? to find your match\b/i,
   /\b(?:i(?:'ve| have)|we(?:'ve| have))(?: now)? (?:got )?enough to (?:prepare|put together|create|draft|generate) (?:your|the) (?:training )?(?:brief|review|notes)\b/i,
   /\b(?:i(?:'m| am)|we(?:'re| are)) ready to (?:prepare|put together|create|draft|generate) (?:your|the) (?:training )?(?:brief|review|notes)\b/i,
   /\b(?:i(?:'ll| will)|we(?:'ll| will)) (?:now )?(?:prepare|put together|create|draft|generate) (?:your|the) (?:training )?(?:brief|review|notes)\b/i,
 ].some((pattern) => pattern.test(reply));
 
-export const isExplicitFinishRequestV3 = (message: string) => /^(?:done|finish(?: now)?|let(?:'s| us) finish|can we finish(?: now)?|prepare my (?:notes|brief|review)|review(?: it| this| my answers)?|show me (?:the )?review|that(?:'s| is) enough|skip the rest)[.!?\s]*$/i.test(message.trim());
-
 export type RequiredPracticalTopicsV3 = {
+  coachingStyleAnswered: boolean;
   trainerGenderPreferenceAnswered: boolean;
+  trainingFrequencyAnswered: boolean;
   availabilityAnswered: boolean;
   budgetAnswered: boolean;
 };
@@ -365,6 +390,12 @@ const practicalTopicAskedInV3 = (message: string): RequiredPracticalTopic | null
   const replyThroughQuestion = message.slice(0, questionEnd + 1);
   const question = replyThroughQuestion.match(/[^.!?]*\?$/)?.[0] ?? replyThroughQuestion;
 
+  const coachingStyleAsked = [
+    /\b(?:training|coaching) style\b/i,
+    /\b(?:trainer|coach)(?:'s)?\b[^?]{0,45}\b(?:approach|personality)\b/i,
+    /\bpersonality\b[^?]{0,55}\b(?:trainer|coach)\b/i,
+    /\bwhat kind of (?:trainer|coach)\b[^?]{0,55}\b(?:best|prefer|motivat|accountab|support)\w*/i,
+  ].some((pattern) => pattern.test(question));
   const trainerGenderPreferenceAsked = [
     /\bgender preference\b/i,
     /\bpreference\b[^?]{0,50}\bgender\b/i,
@@ -380,6 +411,12 @@ const practicalTopicAskedInV3 = (message: string): RequiredPracticalTopic | null
     /\bwhich (?:days?|times?)\b/i,
     /\b(?:days?|times?|mornings?|afternoons?|evenings?|weekends?)\b[^?]{0,35}\b(?:work|suit|fit|best)\b/i,
   ].some((pattern) => pattern.test(question));
+  const trainingFrequencyAsked = [
+    /\btraining frequency\b/i,
+    /\bhow often\b[^?]{0,55}\b(?:train|work ?out|exercise|have sessions?|meet)\b/i,
+    /\bhow many\b[^?]{0,45}\b(?:sessions?|workouts?|times?)\b[^?]{0,30}\b(?:week|month)\b/i,
+    /\b(?:sessions?|workouts?)\b[^?]{0,30}\b(?:per|each|a) (?:week|month)\b/i,
+  ].some((pattern) => pattern.test(question));
   const budgetAsked = [
     /\bbudget\b/i,
     /\bhow much\b[^?]{0,45}\b(?:spend|pay|afford|comfortable)\b/i,
@@ -389,7 +426,9 @@ const practicalTopicAskedInV3 = (message: string): RequiredPracticalTopic | null
   ].some((pattern) => pattern.test(question));
 
   const askedTopics: RequiredPracticalTopic[] = [];
+  if (coachingStyleAsked) askedTopics.push("coachingStyleAnswered");
   if (trainerGenderPreferenceAsked) askedTopics.push("trainerGenderPreferenceAnswered");
+  if (trainingFrequencyAsked) askedTopics.push("trainingFrequencyAnswered");
   if (availabilityAsked) askedTopics.push("availabilityAnswered");
   if (budgetAsked) askedTopics.push("budgetAnswered");
 
@@ -401,7 +440,9 @@ export const requiredPracticalTopicsForTranscriptV3 = (
   messages: readonly ConversationalMessage[],
 ): RequiredPracticalTopicsV3 => {
   const answered: RequiredPracticalTopicsV3 = {
+    coachingStyleAnswered: false,
     trainerGenderPreferenceAnswered: false,
+    trainingFrequencyAnswered: false,
     availabilityAnswered: false,
     budgetAnswered: false,
   };
@@ -420,31 +461,121 @@ export const requiredPracticalTopicsForTranscriptV3 = (
 };
 
 export const shouldReadyForReviewV3 = ({
-  userTurns,
-  explicitFinish,
-  modelReadyForReview = false,
-  reply = "",
+  coverage,
+  coachingStyleAnswered = false,
   trainerGenderPreferenceAnswered = false,
+  trainingFrequencyAnswered = false,
   availabilityAnswered = false,
   budgetAnswered = false,
 }: {
-  userTurns: number;
-  explicitFinish: boolean;
-  modelReadyForReview?: boolean;
-  reply?: string;
+  coverage: OnboardingThemeCoverageV4;
+  coachingStyleAnswered?: boolean;
   trainerGenderPreferenceAnswered?: boolean;
+  trainingFrequencyAnswered?: boolean;
   availabilityAnswered?: boolean;
   budgetAnswered?: boolean;
 }) => {
-  if (!trainerGenderPreferenceAnswered || !availabilityAnswered || !budgetAnswered) return false;
-  return (
-    explicitFinish
-    || userTurns >= FALLBACK_READY_TURNS
-    || (
-      userTurns >= MIN_MODEL_READY_TURNS
-      && (modelReadyForReview || hasReviewReadinessPhrasingV3(reply))
-    )
-  );
+  if (
+    !coachingStyleAnswered
+    || !trainerGenderPreferenceAnswered
+    || !trainingFrequencyAnswered
+    || !availabilityAnswered
+    || !budgetAnswered
+  ) return false;
+  return coverage.trainee && coverage.trainer && coverage.sessions;
+};
+
+const REVIEW_READY_REPLY_V4 = "Thanks! We have everything needed now to find your match.";
+
+const incompleteReviewFollowUpV4 = (
+  required: RequiredPracticalTopicsV3,
+  coverage: OnboardingThemeCoverageV4,
+): Pick<OnboardingTurnResultV3, "reply" | "quickReplies"> => {
+  if (!required.coachingStyleAnswered) {
+    return {
+      reply: "What sort of personality would you like your trainer to have?",
+      quickReplies: [
+        "Friendly and understanding",
+        "Direct and disciplined",
+        "Calm and analytical",
+      ],
+    };
+  }
+  if (!required.trainerGenderPreferenceAnswered) {
+    return {
+      reply: "Do you have a trainer gender preference, or no preference?",
+      quickReplies: ["I'd prefer a woman", "I'd prefer a man", "No gender preference"],
+    };
+  }
+  if (!required.trainingFrequencyAnswered) {
+    return {
+      reply: "How often would you ideally like to train each week?",
+      quickReplies: ["Twice a week", "Three times a week", "I'm not sure yet"],
+    };
+  }
+  if (!required.availabilityAnswered) {
+    return {
+      reply: "What days or times do you usually prefer for your availability?",
+      quickReplies: ["Weekday evenings", "Weekend mornings", "I'm flexible"],
+    };
+  }
+  if (!required.budgetAnswered) {
+    return {
+      reply: "What is your budget for these training sessions?",
+      quickReplies: ["Around £50 per session", "Up to £300 per month", "I'm not sure yet"],
+    };
+  }
+  if (!coverage.trainee) {
+    return {
+      reply: "What else should a trainer know about your goal?",
+      quickReplies: [
+        "Where I'm starting from",
+        "The target I'm aiming for",
+        "The timeframe I have",
+      ],
+    };
+  }
+  if (!coverage.trainer) {
+    return {
+      reply: "What else matters to you in a trainer?",
+      quickReplies: [
+        "Someone encouraging and patient",
+        "Someone direct who challenges me",
+        "Someone who explains the reasoning",
+      ],
+    };
+  }
+  return {
+    reply: "What else about how your sessions need to work would help us find the right match?",
+    quickReplies: [
+      "I would like to train at a gym",
+      "I need sessions near work",
+      "I am flexible about the setting",
+    ],
+  };
+};
+
+export const reconcileConversationTurnV4 = ({
+  modelTurn,
+  requiredPracticalTopics,
+}: {
+  modelTurn: ConversationalModelTurnV4;
+  requiredPracticalTopics: RequiredPracticalTopicsV3;
+}): OnboardingTurnResultV3 => {
+  const readyForReview = shouldReadyForReviewV3({
+    coverage: modelTurn.coverage,
+    ...requiredPracticalTopics,
+  });
+  if (readyForReview) {
+    return { reply: REVIEW_READY_REPLY_V4, readyForReview: true, quickReplies: [] };
+  }
+  if (!hasReviewReadinessPhrasingV3(modelTurn.reply)) {
+    return { reply: modelTurn.reply, readyForReview: false, quickReplies: modelTurn.quickReplies };
+  }
+  return {
+    ...incompleteReviewFollowUpV4(requiredPracticalTopics, modelTurn.coverage),
+    readyForReview: false,
+  };
 };
 
 const providerSafetySettings = [
@@ -457,22 +588,39 @@ const providerSafetySettings = [
 const conversationalResponseJsonSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["reply"],
-  propertyOrdering: ["reply", "readyForReview", "quickReplies"],
+  required: ["reply", "coverage", "quickReplies"],
+  propertyOrdering: ["reply", "coverage", "quickReplies"],
   properties: {
     reply: {
       type: "string",
-      description: "The short user-facing response, with no more than one question.",
+      description: "A concise, natural UK English response. Briefly acknowledge considered, personal, or difficult answers when it feels natural, then ask a mostly open-ended question. Do not list alternatives, use scripted coaching language, or repeat the user's answer.",
     },
-    readyForReview: {
-      type: "boolean",
-      description: "Whether the app should immediately move to secure final details.",
+    coverage: {
+      type: "object",
+      additionalProperties: false,
+      required: ["trainee", "trainer", "sessions"],
+      propertyOrdering: ["trainee", "trainer", "sessions"],
+      description: "Whether each matching area is sufficiently understood from the conversation.",
+      properties: {
+        trainee: {
+          type: "boolean",
+          description: "True only when the transcript contains a distinct assistant question and user answer providing practical, goal-specific matching information after the opening goal.",
+        },
+        trainer: {
+          type: "boolean",
+          description: "True only when the transcript contains a distinct answered trainer-relationship follow-up after the opening trainer-fit answer, plus trainer gender. The trainer-fit answer itself cannot count twice.",
+        },
+        sessions: {
+          type: "boolean",
+          description: "False until frequency, availability, and budget are all confirmed in private turn state.",
+        },
+      },
     },
     quickReplies: {
       type: "array",
       minItems: 0,
       maxItems: MAX_ONBOARDING_QUICK_REPLIES,
-      description: "Concise natural answers to the exact question in reply, or empty when there is no question.",
+      description: "Two or three concise natural answers, normally six words or fewer, to illustrate the open question; empty when there is no question.",
       items: { type: "string" },
     },
   },
@@ -561,13 +709,21 @@ const runConversationModelV4 = async (
       systemInstruction: `${ONBOARDING_CONVERSATION_SYSTEM_PROMPT}
 
 Private turn state supplied by the application:
-- User answers so far, including the latest answer: ${userTurns}
+- This is the first answer to the opening goal question: ${userTurns === 1 ? "yes" : "no"}
+- General trainer fit has been explicitly asked and answered: ${requiredPracticalTopics.coachingStyleAnswered ? "yes" : "no"}
 - Trainer gender preference has been explicitly asked and answered: ${requiredPracticalTopics.trainerGenderPreferenceAnswered ? "yes" : "no"}
+- Training frequency has been explicitly asked and answered: ${requiredPracticalTopics.trainingFrequencyAnswered ? "yes" : "no"}
 - Availability has been explicitly asked and answered: ${requiredPracticalTopics.availabilityAnswered ? "yes" : "no"}
 - Budget has been explicitly asked and answered: ${requiredPracticalTopics.budgetAnswered ? "yes" : "no"}
-Treat this state as authoritative. Do not set "readyForReview" to true until all three required matching
-topics say "yes". If the conversation is approaching twelve answers, prioritise the missing required topic
-now, while still asking only one question.`,
+Treat the five explicit topic flags as authoritative. Assess trainee and trainer depth yourself from the full
+conversation according to the system prompt. Keep trainer coverage false while general trainer fit or trainer gender says "no".
+Keep sessions coverage false while a required sessions topic says "no". Ask for missing coverage naturally,
+and never use the number of messages to decide coverage or completion.
+Prompt-led sequencing, with no semantic backend gate:
+- If the transcript lacks a distinct answered practical goal follow-up after the opening answer, ask it now.
+- If general trainer fit is "yes" but the transcript lacks a distinct answered relationship follow-up after that
+  answer, ask it now before trainer gender or any sessions topic. Do not count the trainer-fit answer twice.
+- Inspect the transcript yourself and do not repeat either follow-up once it has been answered.`,
       responseMimeType: "application/json",
       responseJsonSchema: conversationalResponseJsonSchema,
       maxOutputTokens: 256,
@@ -620,13 +776,21 @@ const runConversationModel = async (
       systemInstruction: `${ONBOARDING_CONVERSATION_SYSTEM_PROMPT}
 
 Private turn state supplied by the application:
-- User answers so far, including the latest answer: ${userTurns}
+- This is the first answer to the opening goal question: ${userTurns === 1 ? "yes" : "no"}
+- General trainer fit has been explicitly asked and answered: ${requiredPracticalTopics.coachingStyleAnswered ? "yes" : "no"}
 - Trainer gender preference has been explicitly asked and answered: ${requiredPracticalTopics.trainerGenderPreferenceAnswered ? "yes" : "no"}
+- Training frequency has been explicitly asked and answered: ${requiredPracticalTopics.trainingFrequencyAnswered ? "yes" : "no"}
 - Availability has been explicitly asked and answered: ${requiredPracticalTopics.availabilityAnswered ? "yes" : "no"}
 - Budget has been explicitly asked and answered: ${requiredPracticalTopics.budgetAnswered ? "yes" : "no"}
-Treat this state as authoritative. Do not set "readyForReview" to true until all three required matching
-topics say "yes". If the conversation is approaching twelve answers, prioritise the missing required topic
-now, while still asking only one question.`,
+Treat the five explicit topic flags as authoritative. Assess trainee and trainer depth yourself from the full
+conversation according to the system prompt. Keep trainer coverage false while general trainer fit or trainer gender says "no".
+Keep sessions coverage false while a required sessions topic says "no". Ask for missing coverage naturally,
+and never use the number of messages to decide coverage or completion.
+Prompt-led sequencing, with no semantic backend gate:
+- If the transcript lacks a distinct answered practical goal follow-up after the opening answer, ask it now.
+- If general trainer fit is "yes" but the transcript lacks a distinct answered relationship follow-up after that
+  answer, ask it now before trainer gender or any sessions topic. Do not count the trainer-fit answer twice.
+- Inspect the transcript yourself and do not repeat either follow-up once it has been answered.`,
       responseMimeType: "application/json",
       responseJsonSchema: conversationalResponseJsonSchema,
       maxOutputTokens: 512,
@@ -755,12 +919,13 @@ const snapshotForFinalizedConversationV4 = (
 
 export const isTranscriptReadyForFinalizationV4 = (messages: readonly OnboardingChatMessage[]) => {
   const required = requiredPracticalTopicsForTranscriptV3(messages);
-  const userTurns = messages.filter(({ role }) => role === "user").length;
-  const latestUserMessage = [...messages].reverse().find(({ role }) => role === "user")?.text ?? "";
-  return required.trainerGenderPreferenceAnswered
+  const latestAssistantMessage = [...messages].reverse().find(({ role }) => role === "assistant")?.text ?? "";
+  return required.coachingStyleAnswered
+    && required.trainerGenderPreferenceAnswered
+    && required.trainingFrequencyAnswered
     && required.availabilityAnswered
     && required.budgetAnswered
-    && (userTurns >= MIN_MODEL_READY_TURNS || isExplicitFinishRequestV3(latestUserMessage));
+    && latestAssistantMessage === REVIEW_READY_REPLY_V4;
 };
 
 export const createWebOnboardingDraftV3 = onCall<CreateWebOnboardingDraftV3Request, Promise<CreateWebOnboardingDraftV3Response>>(
@@ -873,7 +1038,7 @@ export const runWebOnboardingTurnV3 = onCall<
       { role: "user", text: input.message },
     ]);
     const startedAt = Date.now();
-    let modelTurn: OnboardingTurnResultV3;
+    let modelTurn: ConversationalModelTurnV4;
     try {
       modelTurn = await runConversationModel(
         messages,
@@ -890,12 +1055,9 @@ export const runWebOnboardingTurnV3 = onCall<
       throw new HttpsError("unavailable", "I couldn’t reply just now. Your answer is still here — please try again.");
     }
 
-    const ready = shouldReadyForReviewV3({
-      userTurns,
-      explicitFinish: isExplicitFinishRequestV3(input.message),
-      modelReadyForReview: modelTurn.readyForReview,
-      reply: modelTurn.reply,
-      ...requiredPracticalTopics,
+    const result = reconcileConversationTurnV4({
+      modelTurn,
+      requiredPracticalTopics,
     });
     const timestamp = Timestamp.now();
     const userMessage: OnboardingChatMessage = {
@@ -908,7 +1070,7 @@ export const runWebOnboardingTurnV3 = onCall<
     const assistantMessage: OnboardingChatMessage = {
       id: randomUUID(),
       role: "assistant",
-      text: modelTurn.reply,
+      text: result.reply,
       createdAt: timestamp.toDate().toISOString(),
       sequence: doc.nextSequence + 1,
     };
@@ -916,10 +1078,10 @@ export const runWebOnboardingTurnV3 = onCall<
       ...doc,
       updatedAt: timestamp,
       version: doc.version + 1,
-      status: ready ? "ready_to_map" : "collecting",
+      status: result.readyForReview ? "ready_to_map" : "collecting",
       confirmationVersion: null,
       profileMarkdown: null,
-      quickReplies: ready ? [] : modelTurn.quickReplies,
+      quickReplies: result.quickReplies,
       userTurns,
       nextSequence: doc.nextSequence + 2,
     };
@@ -959,7 +1121,7 @@ export const runWebOnboardingTurnV3 = onCall<
 
     logger.info("web_onboarding_conversation_turn", {
       turnCount: userTurns,
-      readyForReview: ready,
+      readyForReview: result.readyForReview,
       latencyMs: Date.now() - startedAt,
     });
     const latest = await readAuthorizedDraft(input.draftId, input.capability);
@@ -984,18 +1146,20 @@ async function handleWebOnboardingTurnV4(
     ensureAppCheck(request);
     const input = parseData(turnRequestV4Schema, request.data);
     assertConversationTranscriptV4(input.messages, "user");
-
     const rateLimitStartedAt = Date.now();
-    await enforceRateLimit(`turn-v4:${requestIpKey(request)}`, 30, 60 * 60 * 1_000);
+    const projectId = process.env.GCLOUD_PROJECT ?? process.env.GOOGLE_CLOUD_PROJECT;
+    await enforceRateLimit(
+      `turn-v4:${requestIpKey(request)}`,
+      turnRateLimitForProjectV4(projectId),
+      60 * 60 * 1_000,
+    );
     const rateLimitMs = Date.now() - rateLimitStartedAt;
 
     let modelResult: Awaited<ReturnType<typeof runConversationModelV4>>;
     try {
       modelResult = await runConversationModelV4(
         input.messages,
-        request.acceptsStreaming && response
-          ? (delta) => response.sendChunk({ type: "reply_delta", text: delta }).then(() => undefined)
-          : undefined,
+        undefined,
         response?.signal,
       );
     } catch (error) {
@@ -1016,18 +1180,10 @@ async function handleWebOnboardingTurnV4(
       throw new HttpsError("unavailable", "I couldn’t reply just now. Your answer is still here — please try again.");
     }
 
-    const readyForReview = shouldReadyForReviewV3({
-      userTurns: modelResult.userTurns,
-      explicitFinish: isExplicitFinishRequestV3(input.messages.at(-1)!.text),
-      modelReadyForReview: modelResult.turn.readyForReview,
-      reply: modelResult.turn.reply,
-      ...modelResult.requiredPracticalTopics,
+    const result = reconcileConversationTurnV4({
+      modelTurn: modelResult.turn,
+      requiredPracticalTopics: modelResult.requiredPracticalTopics,
     });
-    const result: OnboardingTurnResultV3 = {
-      reply: modelResult.turn.reply,
-      readyForReview,
-      quickReplies: readyForReview ? [] : modelResult.turn.quickReplies,
-    };
     const timings = {
       rateLimitMs,
       modelFirstChunkMs: modelResult.modelFirstChunkMs,
@@ -1038,7 +1194,7 @@ async function handleWebOnboardingTurnV4(
     logger.info("web_onboarding_conversation_turn_v4", {
       model: chatGeminiModelV4.value(),
       turnCount: modelResult.userTurns,
-      readyForReview,
+      readyForReview: result.readyForReview,
       ...timings,
     });
   return { result, timings };
@@ -1155,7 +1311,12 @@ async function handleFinalizeWebOnboardingV4(
     }
 
     const rateLimitStartedAt = Date.now();
-    await enforceRateLimit(`finalize-v4:${requestIpKey(request)}`, 8, 60 * 60 * 1_000);
+    const projectId = process.env.GCLOUD_PROJECT ?? process.env.GOOGLE_CLOUD_PROJECT;
+    await enforceRateLimit(
+      `finalize-v4:${requestIpKey(request)}`,
+      finalizationRateLimitForProjectV4(projectId),
+      60 * 60 * 1_000,
+    );
     const rateLimitMs = Date.now() - rateLimitStartedAt;
     const modelStartedAt = Date.now();
     let profileMarkdown: string;

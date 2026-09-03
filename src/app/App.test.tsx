@@ -42,7 +42,19 @@ vi.mock("../features/onboarding/api/webOnboarding", async () => {
       snapshot,
     })),
     deleteWebOnboardingDraftV3: vi.fn(async () => ({ deleted: true })),
-    finalizeWebOnboardingV4: vi.fn(),
+    finalizeWebOnboardingV4: vi.fn(async ({ messages }) => ({
+      draftId: snapshot.draftId,
+      capability: "app-test-capability",
+      snapshot: {
+        ...snapshot,
+        status: "review" as const,
+        profileMarkdown: "# Training brief\n\nReady to preview the matching handoff.",
+        messages,
+        quickReplies: [],
+        userTurns: messages.filter(({ role }: { role: string }) => role === "user").length,
+      },
+      timings: { rateLimitMs: 0, modelMs: 1, writeMs: 1, totalMs: 2 },
+    })),
     finalizeWebOnboardingDraftV3: vi.fn(),
     getWebOnboardingDraftV3: vi.fn(async () => ({ snapshot })),
     getWebClientProfileV3: vi.fn(async () => ({ profileMarkdown: null })),
@@ -76,6 +88,22 @@ describe("Petey web journey", () => {
     expect(await screen.findByText("Hi, welcome to Petey!")).toBeInTheDocument();
     expect(screen.getByText(/tell us a bit about what you're hoping to achieve/i)).toBeInTheDocument();
     expect(screen.getByRole("progressbar", { name: /conversation progress/i })).toHaveAttribute("aria-valuenow", "12");
+  });
+
+  it("offers a development shortcut to the completed chat handoff", async () => {
+    const { unmount } = render(<App />);
+
+    fireEvent.click(screen.getByRole("button", { name: /skip onboarding and preview the matching flow/i }));
+
+    expect(new URLSearchParams(window.location.search).has("onboardingFixture")).toBe(true);
+    expect(new URLSearchParams(window.location.search).has("skipOnboarding")).toBe(true);
+    expect(await screen.findByText("Thanks! We have everything needed now to find your match.")).toBeInTheDocument();
+    expect(screen.getByRole("progressbar", { name: /conversation progress/i })).toHaveAttribute("aria-valuenow", "100");
+
+    unmount();
+    render(<App />);
+
+    expect(await screen.findByText("Thanks! We have everything needed now to find your match.")).toBeInTheDocument();
   });
 
   it("presents the landing profiles as a centered horizontal carousel", () => {

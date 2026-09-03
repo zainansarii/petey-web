@@ -36,5 +36,5 @@ Object.defineProperty(HTMLElement.prototype, "scrollTo", {
 
 Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
   writable: true,
-  value: () => undefined,
+  value: vi.fn(),
 });
