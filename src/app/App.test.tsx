@@ -106,6 +106,20 @@ describe("Petey web journey", () => {
     expect(await screen.findByText("Thanks! We have everything needed now to find your match.")).toBeInTheDocument();
   });
 
+  it("opens the existing-member login from the home header", async () => {
+    render(<App />);
+
+    fireEvent.click(screen.getByRole("link", { name: "Log in" }));
+
+    expect(new URLSearchParams(window.location.search).has("login")).toBe(true);
+    expect(await screen.findByRole("heading", { name: "Welcome back." })).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: /email address/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /back to home/i }));
+    expect(await screen.findByRole("heading", { name: /find your personal trainer/i })).toBeInTheDocument();
+    expect(new URLSearchParams(window.location.search).has("login")).toBe(false);
+  });
+
   it("presents the landing profiles as a centered horizontal carousel", () => {
     render(<App />);
 
@@ -118,6 +132,7 @@ describe("Petey web journey", () => {
     expect(screen.queryByRole("button", { name: /next trainer/i })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Start matching" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "I'm a personal trainer" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Log in" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Show Maya Chen" })).not.toBeInTheDocument();
     const carousel = screen.getByRole("region", { name: "Trainer previews" });
     expect(carousel.querySelectorAll(".hero-carousel__card")).toHaveLength(5);

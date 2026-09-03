@@ -18,7 +18,7 @@ export const INITIAL_IDENTITY_ANSWERS: IdentityAnswers = {
 
 export const ONBOARDING_OPENING_MESSAGES = [
   "Hi, welcome to Petey!",
-  "To get you matched with the best personal trainer for you, tell us a bit about what you're hoping to achieve.",
+  "To get you matched with the best personal trainer for you, tell us a bit about what you're hoping to achieve. The more detailed your responses, the better we'll be able to match you.",
 ] as const;
 
 export const ONBOARDING_OPENING_QUICK_REPLIES = [

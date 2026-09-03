@@ -482,7 +482,7 @@ describe("AI onboarding V3 conversational output", () => {
     const timestamp = "2026-09-01T00:00:00.000Z";
     const texts = [
       ["assistant", "Hi, welcome to Petey!"],
-      ["assistant", "To get you matched with the best personal trainer for you, tell us a bit about what you're hoping to achieve."],
+      ["assistant", "To get you matched with the best personal trainer for you, tell us a bit about what you're hoping to achieve. The more detailed your responses, the better we'll be able to match you."],
       ["user", "I want to build strength"],
       ["assistant", "What is your current training baseline for steep mountain hikes?"],
       ["user", "I manage a two-hour hike with a light pack"],

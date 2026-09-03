@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ArrowRight, LoaderCircle } from "lucide-react";
 import { CheckEmailScreen } from "../features/auth/components/CheckEmailScreen";
+import { LoginScreen } from "../features/auth/components/LoginScreen";
 import {
   finishMagicLink,
   observeFirebaseAuthSession,
@@ -23,9 +24,10 @@ import {
 } from "../features/onboarding/model/onboarding";
 import { BrandMark } from "../shared/ui/BrandMark";
 
-type AppPhase = "landing" | "onboarding" | "check-email" | "feed" | "auth-loading" | "auth-error" | "profile-error";
+type AppPhase = "landing" | "login" | "onboarding" | "check-email" | "feed" | "auth-loading" | "auth-error" | "profile-error";
 
 const hasMagicLinkReturn = () => new URLSearchParams(window.location.search).has("finishSignUp");
+const hasLoginRequest = () => new URLSearchParams(window.location.search).has("login");
 const hasHandoffPreview = () => {
   const search = new URLSearchParams(window.location.search);
   return import.meta.env.DEV
@@ -48,12 +50,13 @@ const setHandoffPreviewUrl = (enabled: boolean, removeFixture = false) => {
 export function App() {
   const [handoffPreview, setHandoffPreview] = useState(hasHandoffPreview);
   const [phase, setPhase] = useState<AppPhase>(() => (
-    hasMagicLinkReturn() ? "auth-loading" : hasHandoffPreview() ? "onboarding" : "landing"
+    hasMagicLinkReturn() ? "auth-loading" : hasLoginRequest() ? "login" : hasHandoffPreview() ? "onboarding" : "landing"
   ));
   const [profileMarkdown, setProfileMarkdown] = useState("");
   const [identity, setIdentity] = useState<IdentityAnswers>(INITIAL_IDENTITY_ANSWERS);
   const [email, setEmail] = useState("");
   const [preview, setPreview] = useState(false);
+  const [checkEmailPurpose, setCheckEmailPurpose] = useState<"login" | "onboarding">("onboarding");
   const [authResult, setAuthResult] = useState<FinishMagicLinkResult | null>(null);
   const reducedMotion = useReducedMotion();
 
@@ -61,6 +64,20 @@ export function App() {
     setHandoffPreviewUrl(previewHandoff);
     setHandoffPreview(previewHandoff);
     setPhase("onboarding");
+  };
+
+  const openLogin = () => {
+    const url = new URL(window.location.href);
+    url.searchParams.set("login", "1");
+    window.history.replaceState({}, document.title, `${url.pathname}${url.search}${url.hash}`);
+    setPhase("login");
+  };
+
+  const exitLogin = () => {
+    const url = new URL(window.location.href);
+    url.searchParams.delete("login");
+    window.history.replaceState({}, document.title, `${url.pathname}${url.search}${url.hash}`);
+    setPhase("landing");
   };
 
   const exitOnboarding = () => {
@@ -84,7 +101,13 @@ export function App() {
     try {
       const consumed = await consumeWebOnboardingDraftV3();
       const profile = consumed?.profileMarkdown ?? (await getWebClientProfileV3()).profileMarkdown;
-      if (!profile?.trim()) throw new Error("No web profile notes are available for this account.");
+      if (!profile?.trim()) {
+        clearLocalConversationV4();
+        clearDraftCapability();
+        setHandoffPreview(false);
+        setPhase("onboarding");
+        return;
+      }
       setProfileMarkdown(profile);
       setPhase("feed");
     } catch {
@@ -144,8 +167,30 @@ export function App() {
             transition={{ duration: reducedMotion ? 0 : 0.28, ease: [0.22, 1, 0.36, 1] }}
           >
             <LandingScreen
+              onLogin={openLogin}
               onPreviewHandoff={import.meta.env.DEV ? () => openOnboarding(true) : undefined}
               onStart={() => openOnboarding(false)}
+            />
+          </motion.div>
+        ) : null}
+
+        {phase === "login" ? (
+          <motion.div
+            animate={{ opacity: 1, y: 0 }}
+            className="screen-frame"
+            exit={{ opacity: 0, y: reducedMotion ? 0 : -18 }}
+            initial={{ opacity: 0, y: reducedMotion ? 0 : 24 }}
+            key="login"
+            transition={{ duration: reducedMotion ? 0 : 0.3, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <LoginScreen
+              onBack={exitLogin}
+              onLinkRequested={(requestedEmail, mode) => {
+                setEmail(requestedEmail);
+                setPreview(mode === "preview");
+                setCheckEmailPurpose("login");
+                setPhase("check-email");
+              }}
             />
           </motion.div>
         ) : null}
@@ -166,6 +211,7 @@ export function App() {
               onMagicLinkRequested={(requestedEmail, mode) => {
                 setEmail(requestedEmail);
                 setPreview(mode === "preview");
+                setCheckEmailPurpose("onboarding");
                 setPhase("check-email");
               }}
               onProfileMarkdownChange={setProfileMarkdown}
@@ -186,10 +232,11 @@ export function App() {
             <CheckEmailScreen
               email={email}
               onBack={() => {
-                setPhase("onboarding");
+                setPhase(checkEmailPurpose === "login" ? "login" : "onboarding");
               }}
               onPreviewFeed={() => void consumeDraftIntoFeed()}
               preview={preview}
+              purpose={checkEmailPurpose}
             />
           </motion.div>
         ) : null}

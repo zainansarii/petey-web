@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
-import { ArrowLeft, ArrowRight, Mail, RotateCw } from "lucide-react";
+import { ArrowLeft, ArrowRight, RotateCw } from "lucide-react";
 import { BrandMark } from "../../../shared/ui/BrandMark";
 import { requestMagicLink } from "../api/magicLink";
 
@@ -9,11 +9,13 @@ export function CheckEmailScreen({
   preview,
   onBack,
   onPreviewFeed,
+  purpose = "onboarding",
 }: {
   email: string;
   preview: boolean;
   onBack: () => void;
   onPreviewFeed: () => void;
+  purpose?: "login" | "onboarding";
 }) {
   const [cooldown, setCooldown] = useState(preview ? 0 : 30);
   const [resending, setResending] = useState(false);
@@ -46,10 +48,9 @@ export function CheckEmailScreen({
 
   return (
     <main className="check-email">
-      <header className="flow-header">
-        <button aria-label="Back to your details" className="icon-button" disabled={resending} onClick={onBack} type="button"><ArrowLeft size={20} /></button>
+      <header className="flow-header check-email__header">
         <BrandMark className="flow-header__logo" />
-        <span />
+        <button aria-label={purpose === "login" ? "Back to login" : "Back to your details"} className="icon-button check-email__back" disabled={resending} onClick={onBack} type="button"><ArrowLeft aria-hidden="true" size={20} /></button>
       </header>
 
       <motion.section
@@ -58,23 +59,20 @@ export function CheckEmailScreen({
         initial={{ opacity: 0, y: reducedMotion ? 0 : 22 }}
         transition={{ duration: reducedMotion ? 0 : 0.5, ease: [0.22, 1, 0.36, 1] }}
       >
-        <motion.div
-          animate={reducedMotion ? undefined : { y: [0, -7, 0], rotate: [0, -2, 0] }}
-          className="mail-mark"
-          transition={{ duration: 3.2, ease: "easeInOut", repeat: Infinity, repeatDelay: 0.6 }}
-        >
-          <Mail aria-hidden="true" size={48} strokeWidth={1.7} />
-          <span />
-        </motion.div>
+        <svg aria-hidden="true" className="mail-mark" viewBox="0 0 24 24">
+          <path d="M20 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2Zm0 4-8 5-8-5V6l8 5 8-5v2Z" />
+        </svg>
 
-        <h1>{preview ? "Your shortlist is ready to preview." : "Check your email."}</h1>
+        <h1>{preview && purpose === "onboarding" ? "Your shortlist is ready to preview." : "Check your email."}</h1>
         <p className="check-email__lede">
           {preview
-            ? "Firebase isn’t configured in this build, so no email was sent. Your full matching flow and feed are ready below."
-            : <>We sent a secure sign-in link to <strong>{email}</strong>. Open it on this device to save your shortlist.</>}
+            ? purpose === "login"
+              ? "Firebase isn’t configured in this build, so no login email was sent."
+              : "Firebase isn’t configured in this build, so no email was sent. Your full matching flow and feed are ready below."
+            : <>We sent a secure {purpose === "login" ? "login" : "sign-in"} link to <strong>{email}</strong>. Open it on this device to {purpose === "login" ? "sign in" : "save your shortlist"}.</>}
         </p>
 
-        {preview ? (
+        {preview && purpose === "onboarding" ? (
           <button className="primary-button" onClick={onPreviewFeed} type="button">
             Preview matched feed <ArrowRight aria-hidden="true" size={19} />
           </button>
@@ -89,8 +87,6 @@ export function CheckEmailScreen({
         )}
         <div aria-live="polite" className="check-email__status">{status}</div>
       </motion.section>
-
-      <p className="check-email__footer">One link. No password. No marketing email.</p>
     </main>
   );
 }

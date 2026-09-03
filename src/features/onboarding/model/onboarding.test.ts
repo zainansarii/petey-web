@@ -11,7 +11,7 @@ describe("onboarding V3 Markdown contract", () => {
   it("uses the requested welcome and outcome-led examples", () => {
     expect(ONBOARDING_OPENING_MESSAGES).toEqual([
       "Hi, welcome to Petey!",
-      "To get you matched with the best personal trainer for you, tell us a bit about what you're hoping to achieve.",
+      "To get you matched with the best personal trainer for you, tell us a bit about what you're hoping to achieve. The more detailed your responses, the better we'll be able to match you.",
     ]);
     expect(ONBOARDING_OPENING_QUICK_REPLIES).toEqual([
       "I want to build strength",

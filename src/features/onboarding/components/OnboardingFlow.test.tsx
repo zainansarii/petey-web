@@ -194,7 +194,7 @@ describe("web onboarding V4 local conversation and secure handoff", () => {
     render(<Harness />);
 
     expect(await screen.findByText("Hi, welcome to Petey!")).toBeInTheDocument();
-    expect(screen.getByText("To get you matched with the best personal trainer for you, tell us a bit about what you're hoping to achieve.")).toBeInTheDocument();
+    expect(screen.getByText("To get you matched with the best personal trainer for you, tell us a bit about what you're hoping to achieve. The more detailed your responses, the better we'll be able to match you.")).toBeInTheDocument();
     for (const example of ONBOARDING_OPENING_QUICK_REPLIES) {
       expect(screen.getByRole("button", { name: example })).toBeInTheDocument();
     }

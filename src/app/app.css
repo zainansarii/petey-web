@@ -138,6 +138,31 @@
   flex: 0 0 auto;
 }
 
+.landing__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.landing__login-link {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  padding: 0 4px;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration-line: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 5px;
+  transition: color 160ms ease, text-decoration-color 160ms ease;
+}
+
+.landing__login-link:hover {
+  color: var(--ink-soft);
+  text-decoration-color: var(--lime-pressed);
+}
+
 .landing__composition {
   display: grid;
   min-height: 0;
@@ -501,6 +526,7 @@
 /* Onboarding */
 
 .onboarding-shell,
+.login-screen,
 .check-email,
 .status-screen {
   height: 100svh;
@@ -970,53 +996,123 @@
 
 /* Check email and auth return */
 
-.check-email {
+.login-screen {
   display: grid;
-  grid-template-rows: 72px 1fr auto;
+  grid-template-rows: 66px minmax(0, 1fr);
+  padding: max(22px, env(safe-area-inset-top)) 46px max(24px, env(safe-area-inset-bottom));
 }
 
-.check-email__content {
+.login-screen__header {
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.login-screen__back {
+  flex: 0 0 auto;
+}
+
+.login-screen__content {
   display: flex;
-  width: min(100% - 40px, 620px);
+  width: min(100%, 680px);
   align-items: center;
   justify-content: center;
   flex-direction: column;
   margin: 0 auto;
-  padding: 30px 0;
+  padding: 30px 0 96px;
+  text-align: center;
+}
+
+.login-screen__content h1 {
+  margin: 0;
+  font-family: var(--body);
+  font-size: clamp(52px, 4.8vw, 72px);
+  font-weight: 700;
+  letter-spacing: -0.055em;
+  line-height: 1;
+}
+
+.login-screen__content > p {
+  max-width: 540px;
+  margin: 24px 0 0;
+  color: var(--ink-soft);
+  font-size: clamp(16px, 1.3vw, 19px);
+  line-height: 1.55;
+}
+
+.login-form {
+  width: min(100%, 460px);
+  margin-top: 30px;
+  text-align: left;
+}
+
+.login-form .input-field > input {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.login-form__error {
+  min-height: 20px;
+  margin: 8px 0 0;
+  color: var(--error);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.login-form__submit {
+  width: 100%;
+  margin-top: 8px;
+}
+
+.check-email {
+  display: grid;
+  grid-template-rows: 66px minmax(0, 1fr);
+  padding: max(22px, env(safe-area-inset-top)) 46px max(24px, env(safe-area-inset-bottom));
+}
+
+.check-email__header {
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.check-email__back {
+  flex: 0 0 auto;
+}
+
+.check-email__content {
+  display: flex;
+  width: min(100%, 780px);
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  margin: 0 auto;
+  padding: 30px 0 96px;
   text-align: center;
 }
 
 .mail-mark {
-  position: relative;
-  display: inline-flex;
-  width: 112px;
-  height: 112px;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 26px;
-  border-radius: 34px;
-  background: var(--lime);
-  color: var(--ink);
-  transform: rotate(-3deg);
+  display: block;
+  width: 72px;
+  height: 72px;
+  margin-bottom: 30px;
+  color: var(--ink-soft);
+  fill: currentColor;
 }
 
-.mail-mark span {
-  position: absolute;
-  right: -7px;
-  bottom: 13px;
-  width: 24px;
-  height: 24px;
-  border: 5px solid var(--cream);
-  border-radius: 50%;
-  background: var(--ink);
+.check-email__content h1 {
+  max-width: 720px;
+  font-family: var(--body);
+  font-size: clamp(52px, 4.8vw, 72px);
+  font-weight: 700;
+  letter-spacing: -0.055em;
+  line-height: 1;
 }
 
 .check-email__lede {
-  max-width: 520px;
-  margin: 18px 0 28px;
+  max-width: 600px;
+  margin: 24px 0 28px;
   color: var(--ink-soft);
-  font-size: 15px;
-  line-height: 1.65;
+  font-size: clamp(16px, 1.3vw, 19px);
+  line-height: 1.55;
 }
 
 .check-email__lede strong {
@@ -1056,17 +1152,6 @@
   margin-top: 13px;
   color: var(--ink-soft);
   font-size: 11px;
-}
-
-.check-email__footer {
-  margin: 0;
-  padding: 0 20px max(24px, env(safe-area-inset-bottom));
-  color: var(--ink-faint);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  text-align: center;
-  text-transform: uppercase;
 }
 
 .status-screen {
@@ -1648,6 +1733,14 @@
     font-size: 11px;
   }
 
+  .landing__header-actions {
+    gap: 10px;
+  }
+
+  .landing__login-link {
+    font-size: 13px;
+  }
+
   .landing__composition {
     display: flex;
     align-items: stretch;
@@ -1884,24 +1977,65 @@
     font-size: 11px;
   }
 
+  .login-screen,
   .check-email {
-    grid-template-rows: 62px 1fr auto;
+    grid-template-rows: 55px minmax(0, 1fr);
+    padding: max(14px, env(safe-area-inset-top)) 16px max(14px, env(safe-area-inset-bottom));
   }
 
+  .flow-header.login-screen__header,
+  .flow-header.check-email__header {
+    display: flex;
+    height: 55px;
+    min-height: 55px;
+    padding: 0;
+  }
+
+  .login-screen__header .flow-header__logo,
+  .check-email__header .flow-header__logo {
+    width: 96px;
+  }
+
+  .login-screen__header .login-screen__back,
+  .check-email__header .check-email__back {
+    width: 44px;
+    height: 44px;
+  }
+
+  .login-screen__content,
   .check-email__content {
-    padding: 20px 0;
+    width: min(100%, 640px);
+    padding: 20px 0 75px;
+  }
+
+  .login-screen__content h1 {
+    font-size: clamp(42px, 12vw, 56px);
+    letter-spacing: -0.055em;
+  }
+
+  .login-screen__content > p {
+    margin-top: 18px;
+    font-size: 16px;
+  }
+
+  .login-form {
+    margin-top: 24px;
   }
 
   .mail-mark {
-    width: 92px;
-    height: 92px;
-    margin-bottom: 20px;
-    border-radius: 28px;
+    width: 58px;
+    height: 58px;
+    margin-bottom: 24px;
+  }
+
+  .check-email__content h1 {
+    font-size: clamp(42px, 12vw, 56px);
+    letter-spacing: -0.055em;
   }
 
   .check-email__lede {
-    margin: 14px 0 24px;
-    font-size: 12px;
+    margin: 18px 0 24px;
+    font-size: 16px;
   }
 
   .feed-header {

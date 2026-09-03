@@ -27,11 +27,12 @@ const trainerIndexAt = (position: number) => (
 );
 
 type LandingScreenProps = {
+  onLogin: () => void;
   onPreviewHandoff?: () => void;
   onStart: () => void;
 };
 
-export function LandingScreen({ onPreviewHandoff, onStart }: LandingScreenProps) {
+export function LandingScreen({ onLogin, onPreviewHandoff, onStart }: LandingScreenProps) {
   const [carouselPosition, setCarouselPosition] = useState(0);
   const [interactionPaused, setInteractionPaused] = useState(false);
   const transitionLocked = useRef(false);
@@ -115,16 +116,22 @@ export function LandingScreen({ onPreviewHandoff, onStart }: LandingScreenProps)
     >
       <header className="landing__header">
         <BrandMark className="landing__logo" />
-        {onPreviewHandoff ? (
-          <button
-            aria-label="Skip onboarding and preview the matching flow"
-            className="quiet-button landing__skip-button"
-            onClick={onPreviewHandoff}
-            type="button"
-          >
-            Skip onboarding <FastForward aria-hidden="true" size={16} />
-          </button>
-        ) : null}
+        <div className="landing__header-actions">
+          {onPreviewHandoff ? (
+            <button
+              aria-label="Skip onboarding and preview the matching flow"
+              className="quiet-button landing__skip-button"
+              onClick={onPreviewHandoff}
+              type="button"
+            >
+              Skip onboarding <FastForward aria-hidden="true" size={16} />
+            </button>
+          ) : null}
+          <a className="landing__login-link" href="?login=1" onClick={(event) => {
+            event.preventDefault();
+            onLogin();
+          }}>Log in</a>
+        </div>
       </header>
 
       <div className="landing__composition">
