@@ -21,8 +21,9 @@ describe("matched trainer feed", () => {
     fireEvent.click(screen.getByRole("button", { name: "Show Yasmin Okafor" }));
     expect(await screen.findByRole("heading", { name: "Yasmin Okafor" })).toBeInTheDocument();
     expect(screen.getByText("A match because of strength.", { exact: false })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "View profile" }));
-    const profile = await screen.findByRole("dialog", { name: "Yasmin Okafor's demo profile" });
+    const profile = await screen.findByRole("region", { name: "Yasmin Okafor's profile details" });
+    expect(screen.queryByRole("button", { name: "View profile" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(within(profile).getByText(TRAINERS[7]!.bio)).toBeInTheDocument();
     expect(within(profile).getByRole("heading", { name: "Where you can train" })).toBeInTheDocument();
     expect(within(profile).queryByText(/miles away/i)).not.toBeInTheDocument();
@@ -34,12 +35,23 @@ describe("matched trainer feed", () => {
       score: 88,
       reason: "The sessions fit your goals.",
     }]} onEditMatch={vi.fn()} onHome={vi.fn()} />);
-    fireEvent.click(screen.getByRole("button", { name: "View profile" }));
-    const profile = await screen.findByRole("dialog", { name: "Maya Chen's profile" });
+    const profile = await screen.findByRole("region", { name: "Maya Chen's profile details" });
     expect(within(profile).getByText("Single session")).toBeInTheDocument();
     expect(within(profile).queryByText("10 sessions")).not.toBeInTheDocument();
     expect(within(profile).queryByText("Monthly coaching")).not.toBeInTheDocument();
     expect(profile).not.toHaveTextContent("£null");
+  });
+
+  it("keeps the card and details in sync in both directions and opens an intro from the details", async () => {
+    render(<FeedScreen matches={TRAINERS.slice(0, 2).map(trainer => ({ trainer, score: 90, reason: `Why ${trainer.name} fits.` }))} onEditMatch={vi.fn()} onHome={vi.fn()} />);
+    fireEvent.keyDown(window, { key: "ArrowRight" });
+    const details = await screen.findByRole("region", { name: "Marcus Adebayo's profile details" });
+    expect(screen.getByRole("heading", { name: "Marcus Adebayo" })).toBeInTheDocument();
+    expect(within(details).getByText(TRAINERS[1]!.bio)).toBeInTheDocument();
+    fireEvent.keyDown(window, { key: "ArrowLeft" });
+    expect(await screen.findByRole("region", { name: "Maya Chen's profile details" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Preview intro request" }));
+    expect(await screen.findByRole("dialog", { name: "Preview an introduction to Maya Chen" })).toBeInTheDocument();
   });
 
   it("leaves the empty shortlist usable by keyboard without cycling through demo trainers", () => {
@@ -47,7 +59,7 @@ describe("matched trainer feed", () => {
     render(<FeedScreen matches={[]} onEditMatch={onEditMatch} onHome={vi.fn()} />);
     fireEvent.keyDown(window, { key: "ArrowRight" });
     fireEvent.keyDown(window, { key: "ArrowLeft" });
-    expect(screen.getByRole("heading", { name: "No compatible trainers yet." })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "No compatible trainers yet" })).toBeInTheDocument();
     expect(screen.queryByRole("article")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Update my preferences" }));
     expect(onEditMatch).toHaveBeenCalledOnce();

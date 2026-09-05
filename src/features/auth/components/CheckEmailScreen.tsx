@@ -63,7 +63,7 @@ export function CheckEmailScreen({
           <path d="M20 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2Zm0 4-8 5-8-5V6l8 5 8-5v2Z" />
         </svg>
 
-        <h1>{preview && purpose === "onboarding" ? "Your shortlist is ready to preview." : "Check your email."}</h1>
+        <h1>{preview && purpose === "onboarding" ? "Your shortlist is ready to preview" : "Check your email"}</h1>
         <p className="check-email__lede">
           {preview
             ? purpose === "login"

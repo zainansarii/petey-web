@@ -298,7 +298,7 @@ export function App() {
 
         {phase === "auth-error" ? (
           <StatusScreen key="auth-error">
-            <h1>{authResult === "missing-email" ? "Open the link on this device." : "That link didn’t work."}</h1>
+            <h1>{authResult === "missing-email" ? "Open the link on this device" : "That link didn’t work"}</h1>
             <p>
               {authResult === "missing-email"
                 ? "For security, request a fresh link here and open it in the same browser."
@@ -315,7 +315,7 @@ export function App() {
 
         {phase === "profile-error" ? (
           <StatusScreen key="profile-error">
-            <h1>We couldn’t load your match.</h1>
+            <h1>We couldn’t load your match</h1>
             <p>Your profile has not been replaced. Check your connection and try the secure handoff again.</p>
             <button className="primary-button" onClick={() => {
               setPhase("auth-loading");

@@ -18,6 +18,15 @@
   --error: #b42318;
   --error-soft: #fff0ed;
   --success: #217a4a;
+  --text-page: clamp(48px, 4.35vw, 64px);
+  --text-heading: clamp(28px, 3vw, 40px);
+  --text-profile: clamp(32px, 3vw, 48px);
+  --text-body: clamp(15px, 1.15vw, 17px);
+  --text-label: 14px;
+  --text-caption: 12px;
+  --text-input: 16px;
+  --text-action: 15px;
+  --tracking-heading: -0.055em;
   --display: "Oxygen", system-ui, sans-serif;
   --body: "Oxygen", system-ui, sans-serif;
   --shadow-soft: 0 18px 60px rgba(31, 38, 33, 0.12);
@@ -97,4 +106,18 @@ textarea:focus-visible {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+@media (max-width: 780px) {
+  :root {
+    --text-page: clamp(38px, 10.8vw, 48px);
+    --text-heading: 30px;
+    --text-profile: clamp(32px, 9vw, 42px);
+    --text-body: 15px;
+    --text-action: 14px;
+  }
+}
+
+@media (max-height: 520px) and (orientation: landscape) {
+  :root { --text-page: 36px; --text-heading: 28px; }
 }

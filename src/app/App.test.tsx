@@ -113,7 +113,7 @@ describe("Petey web journey", () => {
     fireEvent.click(screen.getByRole("link", { name: "Log in" }));
 
     expect(new URLSearchParams(window.location.search).has("login")).toBe(true);
-    expect(await screen.findByRole("heading", { name: "Welcome back." })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Welcome back" })).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: /email address/i })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /back to home/i }));

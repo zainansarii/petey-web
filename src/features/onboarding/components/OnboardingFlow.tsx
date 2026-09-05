@@ -1130,7 +1130,7 @@ function SecureDetailsModal({
 }
 
 function ChatStartError({ error, onExit, onRetry }: { error: string | null; onExit: () => void; onRetry: () => void }) {
-  return <main className="onboarding-shell onboarding-shell--chat"><header className="flow-header chat-header chat-header--simple"><button aria-label="Back to home" className="icon-button" onClick={onExit} type="button"><ArrowLeft size={20} /></button></header><section className="chat-loading" role="alert"><h1>We couldn’t start the chat.</h1><p>{error ?? "Check your connection and try again."}</p><button className="primary-button" onClick={onRetry} type="button">Try again <ArrowRight size={18} /></button></section></main>;
+  return <main className="onboarding-shell onboarding-shell--chat"><header className="flow-header chat-header chat-header--simple"><button aria-label="Back to home" className="icon-button" onClick={onExit} type="button"><ArrowLeft size={20} /></button></header><section className="chat-loading" role="alert"><h1>We couldn’t start the chat</h1><p>{error ?? "Check your connection and try again."}</p><button className="primary-button" onClick={onRetry} type="button">Try again <ArrowRight size={18} /></button></section></main>;
 }
 
 function LoadingShell({ onExit }: { onExit: () => void }) {

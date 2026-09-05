@@ -50,7 +50,7 @@ export function LoginScreen({ onBack, onLinkRequested }: LoginScreenProps) {
         initial={{ opacity: 0, y: reducedMotion ? 0 : 22 }}
         transition={{ duration: reducedMotion ? 0 : 0.5, ease: [0.22, 1, 0.36, 1] }}
       >
-        <h1>Welcome back.</h1>
+        <h1>Welcome back</h1>
         <p>Enter the email linked to your Petey account and we’ll send you a secure login link.</p>
 
         <form className="login-form" noValidate onSubmit={submit}>

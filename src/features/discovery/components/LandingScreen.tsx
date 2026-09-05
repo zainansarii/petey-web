@@ -141,7 +141,7 @@ export function LandingScreen({ onLogin, onPreviewHandoff, onStart }: LandingScr
           initial={{ opacity: 0, y: 24 }}
           transition={{ duration: reducedMotion ? 0 : 0.65, ease: [0.22, 1, 0.36, 1] }}
         >
-          <h1>Find your personal trainer.</h1>
+          <h1>Find your personal trainer</h1>
           <p className="landing__lede">We find the best match for your goals, schedule and the way you like to be coached.</p>
           <div className="landing__cta-row">
             <button className="primary-button" onClick={start} type="button">

@@ -1,0 +1,136 @@
+/* Shared type roles across every screen. Layout styles do not redefine these. */
+
+.landing__copy h1,
+.login-screen__content h1,
+.check-email__content h1,
+.feed-intro h1,
+.feed-empty h1,
+.status-screen h1,
+.onboarding-step__heading h1 {
+  font-family: var(--body);
+  font-size: var(--text-page);
+  font-weight: 700;
+  letter-spacing: var(--tracking-heading);
+  line-height: 1.08;
+  text-transform: none;
+}
+
+.request-dialog h2,
+.secure-identity__heading h2,
+.chat-loading h1,
+.post-chat-results h2,
+.post-chat-error h2,
+.trainer-details h2 {
+  font-family: var(--body);
+  font-size: var(--text-heading);
+  font-weight: 700;
+  letter-spacing: var(--tracking-heading);
+  line-height: 1.08;
+  text-transform: none;
+}
+
+.trainer-card__name-row h2,
+.trainer-card--feed .trainer-card__name-row h2,
+.match-preview__card .trainer-card__name-row h2 {
+  font-family: var(--body);
+  font-size: var(--text-profile);
+  font-weight: 700;
+  letter-spacing: var(--tracking-heading);
+  line-height: 1.08;
+  text-transform: none;
+}
+
+.chat-message__content > p,
+.chat-message--user .chat-message__content > p,
+.landing__lede,
+.login-screen__content > p,
+.check-email__lede,
+.status-screen p,
+.request-dialog > p,
+.secure-identity__heading p,
+.chat-loading p,
+.trainer-details__bio,
+.feed-intro > p,
+.feed-empty p,
+.post-chat-results__empty p,
+.post-chat-error p,
+.trainer-details__match p {
+  font-family: var(--body);
+  font-size: var(--text-body);
+  font-weight: 400;
+  letter-spacing: normal;
+  line-height: 1.55;
+  text-transform: none;
+}
+
+.chat-suggestion,
+.input-field > span,
+.textarea-field > span,
+.field-group legend,
+.range-field > span:first-child,
+.request-dialog__trainer strong,
+.trainer-details h3,
+.feed-header__title {
+  font-family: var(--body);
+  font-size: var(--text-label);
+  font-weight: 700;
+  letter-spacing: normal;
+  line-height: 1.45;
+  text-transform: none;
+}
+
+.chat-message__failure p,
+.chat-message__retry,
+.input-field small,
+.secure-identity .input-field small,
+.field-hint,
+.textarea-field > small,
+.request-dialog__trainer small,
+.trainer-details__disclosure,
+.trainer-details__pricing dt,
+.feed-header__title small,
+.check-email__status,
+.check-email__resend,
+.login-form__error,
+.chat-delete-error {
+  font-family: var(--body);
+  font-size: var(--text-caption);
+  font-weight: 400;
+  letter-spacing: normal;
+  line-height: 1.45;
+  text-transform: none;
+}
+
+.input-field > input,
+.input-field__control input,
+.login-form .input-field > input,
+.textarea-field textarea,
+.chat-composer__input {
+  font-family: var(--body);
+  font-size: var(--text-input);
+  font-weight: 400;
+  letter-spacing: normal;
+  line-height: 1.45;
+  text-transform: none;
+}
+
+.primary-button,
+.quiet-button,
+.text-button,
+.secondary-button,
+.feed-header .quiet-button,
+.landing__cta-row .primary-button,
+.secure-identity .primary-button,
+.chat-delete,
+.landing__login-link {
+  font-family: var(--body);
+  font-size: var(--text-action);
+  font-weight: 700;
+  letter-spacing: normal;
+  line-height: 1.45;
+  text-transform: none;
+}
+
+@media (max-width: 780px) {
+  .match-preview__card { --text-profile: 24px; }
+}

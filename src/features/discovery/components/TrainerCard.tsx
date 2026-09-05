@@ -1,4 +1,4 @@
-import { ArrowUpRight, BadgeCheck, MapPin, MessageCircle, Target } from "lucide-react";
+import { BadgeCheck, MapPin, Target } from "lucide-react";
 import { trainerCardName, type TrainerCardPreview } from "../model/trainer";
 
 type TrainerCardProps = {
@@ -6,8 +6,6 @@ type TrainerCardProps = {
   variant?: "hero" | "feed";
   decorative?: boolean;
   matchReason?: string;
-  onView?: (trigger: HTMLButtonElement) => void;
-  onRequest?: (trigger: HTMLButtonElement) => void;
 };
 
 export function TrainerCard({
@@ -15,8 +13,6 @@ export function TrainerCard({
   variant = "hero",
   decorative = false,
   matchReason,
-  onView,
-  onRequest,
 }: TrainerCardProps) {
   const isFeed = variant === "feed";
   const isDemo = trainer.isDemo === true;
@@ -59,22 +55,6 @@ export function TrainerCard({
             <span>From £{trainer.price}</span>
           </div>
         </div>
-
-        {isFeed ? (
-          <div className="trainer-card__actions">
-            <button className="trainer-card__secondary" onClick={(event) => onView?.(event.currentTarget)} type="button">
-              View profile <ArrowUpRight aria-hidden="true" size={18} />
-            </button>
-            <button
-              className="trainer-card__primary"
-              onClick={(event) => onRequest?.(event.currentTarget)}
-              type="button"
-            >
-              <MessageCircle aria-hidden="true" size={17} />
-              Preview intro
-            </button>
-          </div>
-        ) : null}
       </div>
     </article>
   );
