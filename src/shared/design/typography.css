@@ -15,6 +15,10 @@
   text-transform: none;
 }
 
+.feed-intro h1 {
+  font-size: clamp(32px, 3.3vw, 48px);
+}
+
 .request-dialog h2,
 .secure-identity__heading h2,
 .chat-loading h1,
@@ -47,12 +51,10 @@
 .request-dialog > p,
 .secure-identity__heading p,
 .chat-loading p,
-.trainer-details__bio,
 .feed-intro > p,
 .feed-empty p,
 .post-chat-results__empty p,
-.post-chat-error p,
-.trainer-details__match p {
+.post-chat-error p {
   font-family: var(--body);
   font-size: var(--text-body);
   font-weight: 400;
@@ -62,7 +64,9 @@
 }
 
 .chat-message__content > p,
-.chat-message--user .chat-message__content > p {
+.chat-message--user .chat-message__content > p,
+.trainer-details__bio,
+.trainer-details__match p {
   font-family: var(--body);
   font-size: 15px;
   font-weight: 400;
