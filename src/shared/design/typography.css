@@ -16,7 +16,7 @@
 }
 
 .feed-intro h1 {
-  font-size: clamp(32px, 3.3vw, 48px);
+  font-size: clamp(34px, 3.65vw, 52px);
 }
 
 .request-dialog h2,
@@ -31,6 +31,10 @@
   letter-spacing: var(--tracking-heading);
   line-height: 1.08;
   text-transform: none;
+}
+
+.trainer-details h2 {
+  font-size: clamp(28px, 2.5vw, 36px);
 }
 
 .trainer-card__name-row h2,
