@@ -1,7 +1,7 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { App } from "./App";
 import { DEMO_TRAINER_FIXTURES as TRAINERS } from "../features/discovery/data/demoTrainerFixture";
-import type { ConsumeWebOnboardingDraftV3Response, MatchedTrainer } from "../features/onboarding/model/onboarding";
+import type { ConsumeWebOnboardingDraftV3Response, DraftCapability, MatchedTrainer } from "../features/onboarding/model/onboarding";
 
 const authMocks = vi.hoisted(() => ({
   finishMagicLink: vi.fn(),
@@ -10,7 +10,7 @@ const authMocks = vi.hoisted(() => ({
 }));
 
 const onboardingMocks = vi.hoisted(() => ({
-  consumeWebOnboardingDraftV3: vi.fn<() => Promise<ConsumeWebOnboardingDraftV3Response | null>>(async () => null),
+  consumeWebOnboardingDraftV3: vi.fn<(draft?: DraftCapability) => Promise<ConsumeWebOnboardingDraftV3Response | null>>(async () => null),
   getWebClientProfileV3: vi.fn(async () => ({
     profileMarkdown: "# Training brief\n\n## The trainee\nWants to improve general fitness." as string | null,
     matches: [] as MatchedTrainer[],
@@ -30,7 +30,9 @@ vi.mock("../features/onboarding/api/webOnboarding", async (importOriginal) => ({
 }));
 
 vi.mock("../features/onboarding/components/OnboardingFlow", () => ({
-  OnboardingFlow: () => <main><h1>Sign-up flow chat</h1></main>,
+  OnboardingFlow: ({ onMatchesReady }: { onMatchesReady?: (draft: DraftCapability) => Promise<void> }) => (
+    <main><h1>Sign-up flow chat</h1>{onMatchesReady ? <button onClick={() => void onMatchesReady({ draftId: "retuned-draft", capability: "retuned-capability" })}>Complete retune</button> : <p>Basic details required</p>}</main>
+  ),
 }));
 
 describe("App auth restoration", () => {
@@ -83,6 +85,24 @@ describe("App auth restoration", () => {
     expect(screen.queryByRole("heading", { name: "Maya Chen" })).not.toBeInTheDocument();
   });
 
+  it("returns an authenticated client from an empty feed through retuning to their new matches", async () => {
+    onboardingMocks.getWebClientProfileV3.mockResolvedValue({
+      profileMarkdown: "# Training brief\n\nA training plan for specialist goals.", matches: [],
+    });
+    render(<App />);
+    await screen.findByRole("heading", { name: "No compatible trainers yet." });
+    fireEvent.click(screen.getByRole("button", { name: "Update my preferences" }));
+    const finishRetune = await screen.findByRole("button", { name: "Complete retune" });
+    onboardingMocks.consumeWebOnboardingDraftV3.mockResolvedValue({
+      profileMarkdown: "# Training brief\n\nUpdated running preferences.",
+      matches: [{ trainer: TRAINERS[5]!, score: 90, reason: "Your updated running goals fit." }],
+    });
+    fireEvent.click(finishRetune);
+    expect(await screen.findByRole("heading", { name: "John Kim" })).toBeInTheDocument();
+    expect(onboardingMocks.consumeWebOnboardingDraftV3).toHaveBeenLastCalledWith({ draftId: "retuned-draft", capability: "retuned-capability" });
+    expect(authMocks.requestMagicLink).not.toHaveBeenCalled();
+  });
+
   it("sends a new email-link user into the signup chat", async () => {
     window.history.replaceState({}, "", "/?finishSignUp=1&mode=signIn&oobCode=code");
     authMocks.finishMagicLink.mockResolvedValue("signed-in");
@@ -91,6 +111,7 @@ describe("App auth restoration", () => {
     render(<App />);
 
     expect(await screen.findByRole("heading", { name: "Sign-up flow chat" })).toBeInTheDocument();
+    expect(screen.getByText("Basic details required")).toBeInTheDocument();
     expect(onboardingMocks.getWebClientProfileV3).toHaveBeenCalledOnce();
   });
 

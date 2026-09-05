@@ -60,6 +60,7 @@ import {
   ensureWebMatching, readSavedMatching, webMatchedProfiles, webMatchPreviews,
   type SavedMatching,
 } from "./webMatching.js";
+import { assertProfileConsumption } from "./webProfileConsumption.js";
 import type { TrainerMatchingRequest } from "./trainerMatching.js";
 import type { DraftCapability, MatchPreviewResult } from "../../src/features/onboarding/model/onboardingContract.js";
 
@@ -1541,22 +1542,17 @@ export const consumeWebOnboardingDraftV3 = onCall<ConsumeWebOnboardingDraftV3Req
     }
 
     const { ref, doc } = await readAuthorizedDraft(input.draftId, input.capability);
-    if (doc.status !== "confirmed" || !doc.identity || !doc.profileMarkdown) {
-      throw new HttpsError("failed-precondition", "Confirm the draft before consuming it.");
-    }
-    if (doc.identity.email.toLowerCase() !== authenticatedEmail) {
-      throw new HttpsError("permission-denied", "The signed-in email does not match this draft.");
-    }
-
-    const matching = await matchingForProfile(ref, doc.profileMarkdown);
-
     const profileRef = profiles.doc(uid);
+    assertProfileConsumption(doc, (await profileRef.get()).data(), authenticatedEmail);
+    if (!doc.profileMarkdown) throw new HttpsError("failed-precondition", "Prepare your training brief first.");
+    const matching = await matchingForProfile(ref, doc.profileMarkdown);
     const timestamp = Timestamp.now();
 
     await db.runTransaction(async (transaction) => {
-      const [fresh, existingMarker] = await Promise.all([
+      const [fresh, existingMarker, existingProfile] = await Promise.all([
         transaction.get(ref),
         transaction.get(markerRef),
+        transaction.get(profileRef),
       ]);
       if (existingMarker.exists) {
         const markerData = existingMarker.data();
@@ -1569,7 +1565,7 @@ export const consumeWebOnboardingDraftV3 = onCall<ConsumeWebOnboardingDraftV3Req
       if (
         !freshDoc
         || freshDoc.capabilityHash !== hash(input.capability)
-        || freshDoc.status !== "confirmed"
+        || freshDoc.status !== doc.status
         || !freshDoc.profileMarkdown
       ) {
         throw new HttpsError("failed-precondition", "This confirmed draft is no longer available.");
@@ -1577,24 +1573,30 @@ export const consumeWebOnboardingDraftV3 = onCall<ConsumeWebOnboardingDraftV3Req
       if (freshDoc.version !== doc.version || freshDoc.confirmationVersion !== doc.confirmationVersion) {
         throw new HttpsError("aborted", "The confirmed draft changed. Retry with the latest version.");
       }
-      if (freshDoc.identity?.email.toLowerCase() !== authenticatedEmail) {
-        throw new HttpsError("permission-denied", "The signed-in email no longer matches this draft.");
-      }
+      const isRetune = assertProfileConsumption(freshDoc, existingProfile.data(), authenticatedEmail);
       assertLiveDraft(freshDoc);
       if (!readSavedMatching(freshDoc.matching, freshDoc.profileMarkdown)) {
         throw new HttpsError("failed-precondition", "Finish finding your trainers before completing signup.");
       }
 
-      transaction.set(profileRef, {
+      const profileUpdate = {
         profileFormat: "markdown-v1",
         profileMarkdown: freshDoc.profileMarkdown,
         source: "web-onboarding-v3",
-        identity: freshDoc.identity,
         matching: freshDoc.matching,
         consentVersion: freshDoc.consentVersion,
-        signupCompletedAt: timestamp,
         updatedAt: timestamp,
-      });
+      };
+      if (isRetune) {
+        // Preserve identity, original signup time, and other account fields.
+        transaction.update(profileRef, profileUpdate);
+      } else {
+        transaction.set(profileRef, {
+          ...profileUpdate,
+          identity: freshDoc.identity,
+          signupCompletedAt: timestamp,
+        });
+      }
       transaction.set(markerRef, {
         uid,
         capabilityHash: hash(input.capability),

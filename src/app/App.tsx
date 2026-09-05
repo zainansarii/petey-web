@@ -21,6 +21,7 @@ import {
 import {
   INITIAL_IDENTITY_ANSWERS,
   type IdentityAnswers,
+  type DraftCapability,
   type MatchedTrainer,
 } from "../features/onboarding/model/onboarding";
 import { BrandMark } from "../shared/ui/BrandMark";
@@ -54,6 +55,8 @@ export function App() {
     hasMagicLinkReturn() ? "auth-loading" : hasLoginRequest() ? "login" : hasHandoffPreview() ? "onboarding" : "landing"
   ));
   const [profileMarkdown, setProfileMarkdown] = useState("");
+  const [signedIn, setSignedIn] = useState(false);
+  const [hasSavedProfile, setHasSavedProfile] = useState(false);
   const [matches, setMatches] = useState<MatchedTrainer[]>([]);
   const [identity, setIdentity] = useState<IdentityAnswers>(INITIAL_IDENTITY_ANSWERS);
   const [email, setEmail] = useState("");
@@ -107,10 +110,12 @@ export function App() {
       if (!profile?.trim()) {
         clearLocalConversationV4();
         clearDraftCapability();
+        setHasSavedProfile(false);
         setHandoffPreview(false);
         setPhase("onboarding");
         return;
       }
+      setHasSavedProfile(true);
       setProfileMarkdown(profile);
       setMatches(result.matches);
       setPhase("feed");
@@ -126,7 +131,10 @@ export function App() {
     let unsubscribe: (() => void) | undefined;
 
     void observeFirebaseAuthSession((isSignedIn) => {
-      if (active && isSignedIn) void consumeDraftIntoFeed();
+      if (!active) return;
+      setSignedIn(isSignedIn);
+      if (isSignedIn) void consumeDraftIntoFeed();
+      else setHasSavedProfile(false);
     }).then((stopObserving) => {
       if (active) unsubscribe = stopObserving;
       else stopObserving();
@@ -147,7 +155,10 @@ export function App() {
     void finishMagicLink().then(async (result) => {
       if (cancelled) return;
       setAuthResult(result);
-      if (result === "signed-in") await consumeDraftIntoFeed();
+      if (result === "signed-in") {
+        setSignedIn(true);
+        await consumeDraftIntoFeed();
+      }
       else if (result === "ignored") {
         window.history.replaceState({}, document.title, window.location.pathname);
         setPhase("landing");
@@ -159,6 +170,15 @@ export function App() {
       cancelled = true;
     };
   }, [consumeDraftIntoFeed, phase]);
+
+  const saveRetunedMatches = useCallback(async (capability: DraftCapability) => {
+    const result = await consumeWebOnboardingDraftV3(capability);
+    if (!result) throw new Error("Your updated matches could not be saved. Try again.");
+    setProfileMarkdown(result.profileMarkdown);
+    setMatches(result.matches);
+    setHasSavedProfile(true);
+    setPhase("feed");
+  }, []);
 
   return (
     <div className="app-shell">
@@ -212,6 +232,7 @@ export function App() {
               identity={identity}
               onExit={exitOnboarding}
               onIdentityChange={setIdentity}
+              onMatchesReady={signedIn && hasSavedProfile ? saveRetunedMatches : undefined}
               onMagicLinkRequested={(requestedEmail, mode) => {
                 setEmail(requestedEmail);
                 setPreview(mode === "preview");
@@ -256,6 +277,10 @@ export function App() {
             <FeedScreen
               matches={matches}
               onEditMatch={() => {
+                clearLocalConversationV4();
+                clearDraftCapability();
+                setHandoffPreviewUrl(false, handoffPreview);
+                setHandoffPreview(false);
                 setPhase("onboarding");
               }}
               onHome={() => setPhase("landing")}

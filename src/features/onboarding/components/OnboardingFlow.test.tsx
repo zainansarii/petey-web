@@ -157,7 +157,7 @@ const reviewSnapshot = (overrides: Partial<OnboardingDraftSnapshotV3> = {}) => c
 const onMagicLinkRequested = vi.fn();
 const onExit = vi.fn();
 
-function Harness() {
+function Harness({ onMatchesReady }: { onMatchesReady?: (draft: typeof capability) => Promise<void> } = {}) {
   const [profileMarkdown, setProfileMarkdown] = useState("");
   const [identity, setIdentity] = useState<IdentityAnswers>(INITIAL_IDENTITY_ANSWERS);
   return (
@@ -167,6 +167,7 @@ function Harness() {
         onExit={onExit}
         onIdentityChange={setIdentity}
         onMagicLinkRequested={onMagicLinkRequested}
+        onMatchesReady={onMatchesReady}
         onProfileMarkdownChange={setProfileMarkdown}
         profileMarkdown={profileMarkdown}
       />
@@ -386,6 +387,36 @@ describe("web onboarding V4 local conversation and secure handoff", () => {
     expect(dialog).not.toHaveTextContent(/warm and friendly/i);
     expect(screen.queryByRole("textbox", { name: /your answer/i, hidden: true })).not.toBeInTheDocument();
     expect(screen.queryByRole("progressbar", { name: /conversation progress/i, hidden: true })).not.toBeInTheDocument();
+  });
+
+  it.each([0, 2])("saves %i retuned matches for an existing account without opening signup", async (count) => {
+    api.readDraftCapability.mockReturnValue(capability);
+    api.getWebOnboardingDraftV3.mockResolvedValue({
+      snapshot: reviewSnapshot({ matching: { totalMatches: count, previews: TRAINERS.slice(0, count) } }),
+    });
+    const onMatchesReady = vi.fn(async () => undefined);
+    render(<Harness onMatchesReady={onMatchesReady} />);
+
+    await waitFor(() => expect(onMatchesReady).toHaveBeenCalledExactlyOnceWith(capability));
+    expect(screen.queryByRole("dialog", { name: /create an account/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /create an account/i })).not.toBeInTheDocument();
+    expect(onMagicLinkRequested).not.toHaveBeenCalled();
+  });
+
+  it("retries saving a retune without asking for identity or rerunning matching", async () => {
+    api.readDraftCapability.mockReturnValue(capability);
+    api.getWebOnboardingDraftV3.mockResolvedValue({
+      snapshot: reviewSnapshot({ matching: { totalMatches: 2, previews: TRAINERS.slice(0, 2) } }),
+    });
+    const onMatchesReady = vi.fn()
+      .mockRejectedValueOnce(new Error("Could not save your updated matches."))
+      .mockResolvedValue(undefined);
+    render(<Harness onMatchesReady={onMatchesReady} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /^try again$/i }));
+    await waitFor(() => expect(onMatchesReady).toHaveBeenCalledTimes(2), { timeout: 3000 });
+    expect(api.matchWebOnboardingDraftV1).not.toHaveBeenCalled();
+    expect(screen.queryByRole("dialog", { name: /create an account/i })).not.toBeInTheDocument();
   });
 
   it("preserves the transcript and offers a reliable finalization retry", async () => {

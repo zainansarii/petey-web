@@ -58,6 +58,7 @@ type OnboardingFlowProps = {
   onExit: () => void;
   onIdentityChange: (identity: IdentityAnswers) => void;
   onMagicLinkRequested: (email: string, mode: "sent" | "preview") => void;
+  onMatchesReady?: (capability: DraftCapability) => Promise<void>;
   onProfileMarkdownChange: (profileMarkdown: string) => void;
 };
 
@@ -212,6 +213,7 @@ function ChatOnboarding({
   onExit,
   onIdentityChange,
   onMagicLinkRequested,
+  onMatchesReady,
   onProfileMarkdownChange,
 }: OnboardingFlowProps & {
   initialCapability: DraftCapability | null;
@@ -236,6 +238,7 @@ function ChatOnboarding({
   const handoffRef = useRef<HTMLElement | null>(null);
   const matchingStartedAtRef = useRef<number | null>(null);
   const matchingRequestActiveRef = useRef(false);
+  const savedRetuneAttemptRef = useRef<string | null>(null);
   const matchingAttemptedDraftRef = useRef<string | null>(null);
   const threadViewportRef = useRef<HTMLDivElement | null>(null);
   const reducedMotion = Boolean(useReducedMotion());
@@ -375,6 +378,7 @@ function ChatOnboarding({
     && (reviewSnapshot?.status === "review" || reviewSnapshot?.status === "confirmed");
   const hasMatchingResults = hasSecureDetails && Boolean(reviewSnapshot?.matching);
   const showingSecureDetails = hasMatchingResults
+    && !onMatchesReady
     && handoffPhase === "matches"
     && selectedMatchId !== null;
   const showComposer = handoffPhase === "chat" || handoffPhase === "confirmation";
@@ -482,15 +486,27 @@ function ChatOnboarding({
     return () => window.clearTimeout(revealTimer);
   }, [finalizationError, handoffPhase, hasMatchingResults, reducedMotion]);
 
+  useEffect(() => {
+    if (handoffPhase !== "matches" || !hasMatchingResults || !capability || !onMatchesReady
+      || savedRetuneAttemptRef.current === capability.draftId) return;
+    savedRetuneAttemptRef.current = capability.draftId;
+    void onMatchesReady(capability).catch((saveError) => {
+      setFinalizationError(readableError(saveError, "We couldn’t save your updated matches. Your answers are saved — try again."));
+      setHandoffPhase("error");
+    });
+  }, [capability, handoffPhase, hasMatchingResults, onMatchesReady]);
+
   const retryPreparingDetails = useCallback(() => {
+    savedRetuneAttemptRef.current = null;
     setFinalizationError(null);
     matchingStartedAtRef.current = performance.now();
     setHandoffPhase("matching");
+    if (reviewSnapshot?.matching) return;
     if (reviewSnapshot?.profileMarkdown) {
       matchingAttemptedDraftRef.current = null;
       void prepareMatches();
     } else void prepareDetails();
-  }, [prepareDetails, prepareMatches, reviewSnapshot?.profileMarkdown]);
+  }, [prepareDetails, prepareMatches, reviewSnapshot?.matching, reviewSnapshot?.profileMarkdown]);
 
   const deleteAndExit = async () => {
     if (deleting) return;
@@ -546,7 +562,7 @@ function ChatOnboarding({
                 onCreateAccount={() => setSelectedMatchId("account")}
                 onSelectMatch={setSelectedMatchId}
                 onRetry={retryPreparingDetails}
-                phase={handoffPhase}
+                phase={onMatchesReady && handoffPhase === "matches" ? "matching" : handoffPhase}
                 reducedMotion={reducedMotion}
                 stageRef={handoffRef}
               />
