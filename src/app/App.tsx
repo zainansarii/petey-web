@@ -21,6 +21,7 @@ import {
 import {
   INITIAL_IDENTITY_ANSWERS,
   type IdentityAnswers,
+  type MatchedTrainer,
 } from "../features/onboarding/model/onboarding";
 import { BrandMark } from "../shared/ui/BrandMark";
 
@@ -53,6 +54,7 @@ export function App() {
     hasMagicLinkReturn() ? "auth-loading" : hasLoginRequest() ? "login" : hasHandoffPreview() ? "onboarding" : "landing"
   ));
   const [profileMarkdown, setProfileMarkdown] = useState("");
+  const [matches, setMatches] = useState<MatchedTrainer[]>([]);
   const [identity, setIdentity] = useState<IdentityAnswers>(INITIAL_IDENTITY_ANSWERS);
   const [email, setEmail] = useState("");
   const [preview, setPreview] = useState(false);
@@ -100,7 +102,8 @@ export function App() {
   const consumeDraftIntoFeed = useCallback(async () => {
     try {
       const consumed = await consumeWebOnboardingDraftV3();
-      const profile = consumed?.profileMarkdown ?? (await getWebClientProfileV3()).profileMarkdown;
+      const result = consumed ?? await getWebClientProfileV3();
+      const profile = result.profileMarkdown;
       if (!profile?.trim()) {
         clearLocalConversationV4();
         clearDraftCapability();
@@ -109,6 +112,7 @@ export function App() {
         return;
       }
       setProfileMarkdown(profile);
+      setMatches(result.matches);
       setPhase("feed");
     } catch {
       setPhase("profile-error");
@@ -250,6 +254,7 @@ export function App() {
             transition={{ duration: reducedMotion ? 0 : 0.24 }}
           >
             <FeedScreen
+              matches={matches}
               onEditMatch={() => {
                 setPhase("onboarding");
               }}

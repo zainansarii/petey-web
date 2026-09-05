@@ -7,7 +7,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest --run && node --test scripts/reset-user-data.test.mjs",
+    "test": "vitest --run && node --test scripts/*.test.mjs",
     "reset:user-data": "node scripts/reset-user-data.mjs"
   },
   "dependencies": {

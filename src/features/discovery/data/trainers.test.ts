@@ -1,12 +1,16 @@
-import { matchReasonFor, orderTrainersFor, TRAINERS } from "./trainers";
+import { orderTrainersFor, TRAINERS } from "./trainers";
 
 describe("demo trainer catalogue", () => {
-  it("keeps all four demo profiles in a stable, neutral order", () => {
+  it("keeps all eight demo profiles in a stable, neutral order", () => {
     expect(orderTrainersFor().map(({ id }) => id)).toEqual([
       "maya-chen",
       "marcus-adebayo",
       "aliyah-rahman",
       "rohan-kapoor",
+      "leanne-brooks",
+      "john-kim",
+      "aleem-malik",
+      "yasmin-okafor",
     ]);
   });
 
@@ -16,9 +20,8 @@ describe("demo trainer catalogue", () => {
     expect(orderTrainersFor()).toEqual(TRAINERS);
   });
 
-  it("describes only catalogue facts rather than claiming a personalised match", () => {
-    const marcus = TRAINERS.find(({ id }) => id === "marcus-adebayo")!;
-    expect(matchReasonFor(marcus)).toBe("Strength · Data-driven");
-    expect(matchReasonFor(marcus)).not.toMatch(/match|goal|budget|schedule/i);
+  it("bundles only public demo card data in the landing carousel", () => {
+    expect(TRAINERS.every((trainer) => trainer.isDemo === true)).toBe(true);
+    expect(TRAINERS.every((trainer) => !("bio" in trainer) && !("availability" in trainer))).toBe(true);
   });
 });

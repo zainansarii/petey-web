@@ -1,0 +1,342 @@
+[
+  {
+    "id": "petey-demo-trainer-maya-chen",
+    "name": "Maya Chen",
+    "photo": "onboarding/petey-demo-trainer-maya-chen/profile/11111111-1111-4111-8111-111111111111.png",
+    "specialty": "Running and endurance",
+    "specialties": [
+      "General fitness",
+      "Mobility",
+      "Fat loss",
+      "Functional fitness"
+    ],
+    "area": "Battersea · SW11",
+    "price": 70,
+    "tenPackPrice": 630,
+    "monthlyPrice": 360,
+    "coachingStyles": [
+      "Encouraging",
+      "Friendly",
+      "Educational"
+    ],
+    "venues": [
+      "Outdoors",
+      "Your home",
+      "Private studio",
+      "Remote"
+    ],
+    "qualifications": [
+      "Level 3 Personal Training",
+      "Leader in Running Fitness",
+      "Emergency First Aid at Work"
+    ],
+    "availability": [
+      "Weekday mornings",
+      "Weekday evenings",
+      "Weekend mornings"
+    ],
+    "bio": "Maya makes movement feel achievable. Her sessions blend practical strength, running confidence and steady encouragement for people building a routine that lasts.",
+    "isDemo": true
+  },
+  {
+    "id": "petey-demo-trainer-marcus-adebayo",
+    "name": "Marcus Adebayo",
+    "photo": "onboarding/petey-demo-trainer-marcus-adebayo/profile/22222222-2222-4222-8222-222222222222.png",
+    "specialty": "Strength",
+    "specialties": [
+      "Muscle building",
+      "Powerlifting",
+      "Body recomposition",
+      "Functional fitness"
+    ],
+    "area": "Shoreditch · E1",
+    "price": 80,
+    "tenPackPrice": 720,
+    "monthlyPrice": 480,
+    "coachingStyles": [
+      "Data-driven",
+      "Accountable",
+      "Educational"
+    ],
+    "venues": [
+      "Commercial gym",
+      "Private studio",
+      "Your office",
+      "Remote"
+    ],
+    "qualifications": [
+      "Level 3 Personal Training",
+      "Level 4 Strength & Conditioning",
+      "Emergency First Aid at Work"
+    ],
+    "availability": [
+      "Weekday lunchtimes",
+      "Weekday evenings",
+      "Weekend lunchtimes"
+    ],
+    "bio": "Marcus combines clear technique with measurable progress. Expect focused sessions, honest feedback and a plan that makes every hour in the gym count.",
+    "isDemo": true
+  },
+  {
+    "id": "petey-demo-trainer-aliyah-rahman",
+    "name": "Aliyah Rahman",
+    "photo": "onboarding/petey-demo-trainer-aliyah-rahman/profile/77777777-7777-4777-8777-777777777777.png",
+    "specialty": "Pilates",
+    "specialties": [
+      "Mobility",
+      "Body recomposition",
+      "General fitness",
+      "Functional fitness"
+    ],
+    "area": "Islington · N1",
+    "price": 65,
+    "tenPackPrice": 590,
+    "monthlyPrice": 340,
+    "coachingStyles": [
+      "Calm",
+      "Friendly",
+      "Educational"
+    ],
+    "venues": [
+      "Commercial gym",
+      "Outdoors",
+      "Your home",
+      "Your office",
+      "Private studio",
+      "Remote"
+    ],
+    "qualifications": [
+      "Level 3 Personal Training",
+      "Level 3 Mat Pilates",
+      "Emergency First Aid at Work"
+    ],
+    "availability": [
+      "Weekday mornings",
+      "Weekday lunchtimes",
+      "Weekday evenings",
+      "Weekend mornings",
+      "Weekend lunchtimes"
+    ],
+    "bio": "Aliyah brings calm, precise coaching to Pilates-led strength and mobility. Her sessions build confidence, control and everyday ease from wherever you are starting.",
+    "isDemo": true
+  },
+  {
+    "id": "petey-demo-trainer-rohan-kapoor",
+    "name": "Rohan Kapoor",
+    "photo": "onboarding/petey-demo-trainer-rohan-kapoor/profile/88888888-8888-4888-8888-888888888888.png",
+    "specialty": "Boxing & combat fitness",
+    "specialties": [
+      "HIIT",
+      "Strength",
+      "Body recomposition",
+      "General fitness"
+    ],
+    "area": "Bethnal Green · E2",
+    "price": 75,
+    "tenPackPrice": 680,
+    "monthlyPrice": 420,
+    "coachingStyles": [
+      "High-energy",
+      "Accountable",
+      "Educational"
+    ],
+    "venues": [
+      "Commercial gym",
+      "Outdoors",
+      "Your home",
+      "Your office",
+      "Private studio",
+      "Remote"
+    ],
+    "qualifications": [
+      "Level 3 Personal Training",
+      "Level 2 Boxing Coach",
+      "Emergency First Aid at Work"
+    ],
+    "availability": [
+      "Weekday mornings",
+      "Weekday lunchtimes",
+      "Weekday evenings",
+      "Weekend mornings"
+    ],
+    "bio": "Rohan blends boxing technique, conditioning and focused accountability. His high-energy sessions turn hard work into clear progress without losing sight of good form.",
+    "isDemo": true
+  },
+  {
+    "id": "petey-demo-trainer-leanne-brooks",
+    "name": "Leanne Brooks",
+    "photo": "onboarding/petey-demo-trainer-leanne-brooks/profile/99999999-9999-4999-8999-999999999999.png",
+    "specialty": "Calisthenics",
+    "specialties": [
+      "Strength",
+      "Functional fitness",
+      "Mobility",
+      "General fitness"
+    ],
+    "area": "Greenwich · SE10",
+    "price": 68,
+    "tenPackPrice": 610,
+    "monthlyPrice": 350,
+    "coachingStyles": [
+      "Encouraging",
+      "High-energy",
+      "Friendly"
+    ],
+    "venues": [
+      "Commercial gym",
+      "Outdoors",
+      "Your home",
+      "Your office",
+      "Private studio",
+      "Remote"
+    ],
+    "qualifications": [
+      "Level 3 Personal Training",
+      "Climbing Wall Instructor",
+      "Emergency First Aid at Work"
+    ],
+    "availability": [
+      "Weekday mornings",
+      "Weekday lunchtimes",
+      "Weekday afternoons",
+      "Weekday evenings",
+      "Weekend mornings",
+      "Weekend afternoons"
+    ],
+    "bio": "Leanne brings a climber's love of movement to approachable strength coaching. Her sessions build bodyweight skills, mobility and confidence, with plenty of encouragement along the way.",
+    "isDemo": true
+  },
+  {
+    "id": "petey-demo-trainer-john-kim",
+    "name": "John Kim",
+    "photo": "onboarding/petey-demo-trainer-john-kim/profile/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa.png",
+    "specialty": "Running and endurance",
+    "specialties": [
+      "General fitness",
+      "Fat loss",
+      "Mobility",
+      "Functional fitness"
+    ],
+    "area": "Richmond · TW9",
+    "price": 72,
+    "tenPackPrice": 650,
+    "monthlyPrice": 390,
+    "coachingStyles": [
+      "Data-driven",
+      "Encouraging",
+      "Educational"
+    ],
+    "venues": [
+      "Commercial gym",
+      "Outdoors",
+      "Your home",
+      "Your office",
+      "Private studio",
+      "Remote"
+    ],
+    "qualifications": [
+      "Level 3 Personal Training",
+      "Coach in Running Fitness",
+      "Emergency First Aid at Work"
+    ],
+    "availability": [
+      "Weekday mornings",
+      "Weekday lunchtimes",
+      "Weekday afternoons",
+      "Weekday evenings",
+      "Weekend mornings",
+      "Weekend lunchtimes"
+    ],
+    "bio": "John helps runners find a pace and routine they can sustain. From a first 5K to a faster race, he combines practical strength work, clear progress tracking and patient coaching.",
+    "isDemo": true
+  },
+  {
+    "id": "petey-demo-trainer-aleem-malik",
+    "name": "Aleem Malik",
+    "photo": "onboarding/petey-demo-trainer-aleem-malik/profile/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb.png",
+    "specialty": "Sport-specific training",
+    "specialties": [
+      "Mobility",
+      "Strength",
+      "Functional fitness",
+      "General fitness"
+    ],
+    "area": "Wembley · HA0",
+    "price": 76,
+    "tenPackPrice": 690,
+    "monthlyPrice": 430,
+    "coachingStyles": [
+      "Educational",
+      "Data-driven",
+      "Friendly"
+    ],
+    "venues": [
+      "Commercial gym",
+      "Outdoors",
+      "Your home",
+      "Your office",
+      "Private studio",
+      "Remote"
+    ],
+    "qualifications": [
+      "Level 3 Personal Training",
+      "LTA Level 2 Instructor",
+      "Emergency First Aid at Work"
+    ],
+    "availability": [
+      "Weekday mornings",
+      "Weekday lunchtimes",
+      "Weekday afternoons",
+      "Weekday evenings",
+      "Weekend mornings",
+      "Weekend afternoons"
+    ],
+    "bio": "Aleem connects gym work with the sports you love. Drawing on his tennis coaching background, he builds strength, agility and mobility through focused sessions with a clear purpose.",
+    "isDemo": true
+  },
+  {
+    "id": "petey-demo-trainer-yasmin-okafor",
+    "name": "Yasmin Okafor",
+    "photo": "onboarding/petey-demo-trainer-yasmin-okafor/profile/cccccccc-cccc-4ccc-8ccc-cccccccccccc.png",
+    "specialty": "Strength",
+    "specialties": [
+      "Muscle building",
+      "Olympic weightlifting",
+      "Body recomposition",
+      "Functional fitness"
+    ],
+    "area": "Stratford · E15",
+    "price": 85,
+    "tenPackPrice": 760,
+    "monthlyPrice": 490,
+    "coachingStyles": [
+      "Accountable",
+      "Encouraging",
+      "Educational"
+    ],
+    "venues": [
+      "Commercial gym",
+      "Outdoors",
+      "Your home",
+      "Your office",
+      "Private studio",
+      "Remote"
+    ],
+    "qualifications": [
+      "Level 3 Personal Training",
+      "Level 2 Weightlifting Coach",
+      "Emergency First Aid at Work"
+    ],
+    "availability": [
+      "Weekday mornings",
+      "Weekday lunchtimes",
+      "Weekday afternoons",
+      "Weekday evenings",
+      "Weekend mornings",
+      "Weekend lunchtimes",
+      "Weekend afternoons"
+    ],
+    "bio": "Yasmin makes the weights room feel welcoming and purposeful. She pairs careful technique with progressive strength training, clear accountability and encouragement at every experience level.",
+    "isDemo": true
+  }
+]

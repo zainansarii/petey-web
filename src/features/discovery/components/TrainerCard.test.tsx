@@ -13,6 +13,18 @@ describe("TrainerCard", () => {
     expect(screen.getByAltText(/Demo portrait for Aliyah Rahman's trainer profile/i)).toBeInTheDocument();
   });
 
+  it("renders a real trainer preview without a demo label or invented availability", () => {
+    render(<TrainerCard trainer={{
+      id: "real-trainer", name: "Alex Smith", photo: "/alex.jpg", specialty: "Strength",
+      area: "Battersea", price: 70, isDemo: false,
+    }} />);
+
+    expect(screen.getByRole("article", { name: "Alex Smith, trainer profile, Strength" })).toBeInTheDocument();
+    expect(screen.queryByText("Demo profile")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Example availability")).not.toBeInTheDocument();
+    expect(screen.getByText("Battersea")).toBeInTheDocument();
+  });
+
   it("keeps the full name on shortlist cards outside the home carousel", () => {
     render(<TrainerCard trainer={aliyah} variant="feed" />);
 

@@ -20,6 +20,8 @@ import {
   type GetWebOnboardingDraftV3Response,
   type GetWebClientProfileV3Response,
   type OnboardingConversationSessionV4,
+  type MatchWebOnboardingDraftV1Request,
+  type MatchWebOnboardingDraftV1Response,
   type RunWebOnboardingTurnV4Request,
   type RunWebOnboardingTurnV4Response,
   type RunWebOnboardingTurnV4StreamChunk,
@@ -49,7 +51,9 @@ export const isRemoteDraftConfigured =
 
 const browserQaFixtureEnabled = () => import.meta.env.DEV
   && new URLSearchParams(window.location.search).has("onboardingFixture");
-const loadBrowserQaFixture = () => import("./webOnboardingQaFixture");
+const loadBrowserQaFixture = () => import.meta.env.DEV
+  ? import("./webOnboardingQaFixture")
+  : Promise.reject(new Error("The onboarding fixture is only available in development."));
 const appCheckDebugToken = import.meta.env.DEV
   ? import.meta.env.VITE_FIREBASE_APPCHECK_DEBUG_TOKEN?.trim()
   : undefined;
@@ -118,7 +122,10 @@ const callRemote = async <TRequest, TResponse>(
   const context = await getCallableApp();
   if (abortSignal?.aborted) throw abortError();
   const functions = getFunctions(context.app as Parameters<typeof getFunctions>[0], "europe-west2");
-  const pending = httpsCallable<TRequest, TResponse>(functions, name)(request).then((response) => response.data);
+  const timeout = ["matchWebOnboardingDraftV1", "consumeWebOnboardingDraftV3", "getWebClientProfileV3"].includes(name)
+    ? 330_000
+    : 180_000;
+  const pending = httpsCallable<TRequest, TResponse>(functions, name, { timeout })(request).then((response) => response.data);
   if (!abortSignal) return pending;
   let rejectOnAbort: (() => void) | null = null;
   const aborted = new Promise<never>((_, reject) => {
@@ -318,6 +325,14 @@ export const finalizeWebOnboardingV4 = async (
   return response;
 };
 
+export const matchWebOnboardingDraftV1 = (request: MatchWebOnboardingDraftV1Request) =>
+  browserQaFixtureEnabled()
+    ? loadBrowserQaFixture().then((fixture) => fixture.matchFixtureDraft(request))
+    : callRemote<MatchWebOnboardingDraftV1Request, MatchWebOnboardingDraftV1Response>(
+        "matchWebOnboardingDraftV1",
+        request,
+      );
+
 export const confirmWebOnboardingDraftV3 = async (
   request: ConfirmWebOnboardingDraftV3Request,
 ): Promise<ConfirmWebOnboardingDraftV3Response> => {
@@ -346,9 +361,9 @@ export const consumeWebOnboardingDraftV3 = async (
   return response;
 };
 
-export const getWebClientProfileV3 = () => (
-  callRemote<Record<string, never>, GetWebClientProfileV3Response>("getWebClientProfileV3", {})
-);
+export const getWebClientProfileV3 = () => browserQaFixtureEnabled()
+  ? loadBrowserQaFixture().then((fixture) => fixture.getFixtureClientProfile())
+  : callRemote<Record<string, never>, GetWebClientProfileV3Response>("getWebClientProfileV3", {});
 
 export const deleteWebOnboardingDraftV3 = async (
   request?: DeleteWebOnboardingDraftV3Request,

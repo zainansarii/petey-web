@@ -57,7 +57,8 @@ vi.mock("../features/onboarding/api/webOnboarding", async () => {
     })),
     finalizeWebOnboardingDraftV3: vi.fn(),
     getWebOnboardingDraftV3: vi.fn(async () => ({ snapshot })),
-    getWebClientProfileV3: vi.fn(async () => ({ profileMarkdown: null })),
+    getWebClientProfileV3: vi.fn(async () => ({ profileMarkdown: null, matches: [] })),
+    matchWebOnboardingDraftV1: vi.fn(async () => ({ matching: { totalMatches: 0, previews: [] } })),
     prewarmWebOnboarding: vi.fn(async () => undefined),
     readLocalConversationV4: vi.fn(() => null),
     readDraftCapability: vi.fn(() => null),
@@ -142,7 +143,7 @@ describe("Petey web journey", () => {
       .map(({ dataset }) => dataset.carouselSlot)).toEqual(["-2", "-1", "0", "1", "2"]);
     expect(screen.getByRole("heading", { name: /^Maya$/ })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: /^Maya Chen$/ })).not.toBeInTheDocument();
-    expect(screen.getByText(/showing maya chen, running & endurance, 1 of 4/i)).toBeInTheDocument();
+    expect(screen.getByText(/showing maya chen, running and endurance, 1 of 8/i)).toBeInTheDocument();
 
     fireEvent.touchStart(screen.getByRole("main"), { touches: [{ clientX: 240, clientY: 240 }] });
     fireEvent.touchEnd(screen.getByRole("main"), { changedTouches: [{ clientX: 150, clientY: 242 }] });
@@ -150,28 +151,40 @@ describe("Petey web journey", () => {
     expect(carousel.querySelector<HTMLElement>('[data-carousel-slot="0"]')?.textContent)
       .toContain("Marcus");
     expect(screen.getByRole("heading", { name: /^Marcus$/ })).toBeInTheDocument();
-    expect(screen.getByText(/showing marcus adebayo, strength, 2 of 4/i)).toBeInTheDocument();
+    expect(screen.getByText(/showing marcus adebayo, strength, 2 of 8/i)).toBeInTheDocument();
   });
 
   it("automatically rotates the trainer deck every five seconds", () => {
     vi.useFakeTimers();
     const { unmount } = render(<App />);
 
-    expect(screen.getByText(/showing maya chen, running & endurance, 1 of 4/i)).toBeInTheDocument();
+    expect(screen.getByText(/showing maya chen, running and endurance, 1 of 8/i)).toBeInTheDocument();
     act(() => vi.advanceTimersByTime(4_999));
-    expect(screen.getByText(/showing maya chen, running & endurance, 1 of 4/i)).toBeInTheDocument();
+    expect(screen.getByText(/showing maya chen, running and endurance, 1 of 8/i)).toBeInTheDocument();
 
     act(() => vi.advanceTimersByTime(1));
-    expect(screen.getByText(/showing marcus adebayo, strength, 2 of 4/i)).toBeInTheDocument();
+    expect(screen.getByText(/showing marcus adebayo, strength, 2 of 8/i)).toBeInTheDocument();
 
     act(() => vi.advanceTimersByTime(5_000));
-    expect(screen.getByText(/showing aliyah rahman, pilates, 3 of 4/i)).toBeInTheDocument();
+    expect(screen.getByText(/showing aliyah rahman, pilates, 3 of 8/i)).toBeInTheDocument();
 
     act(() => vi.advanceTimersByTime(5_000));
-    expect(screen.getByText(/showing rohan kapoor, boxing & combat fitness, 4 of 4/i)).toBeInTheDocument();
+    expect(screen.getByText(/showing rohan kapoor, boxing & combat fitness, 4 of 8/i)).toBeInTheDocument();
 
     act(() => vi.advanceTimersByTime(5_000));
-    expect(screen.getByText(/showing maya chen, running & endurance, 1 of 4/i)).toBeInTheDocument();
+    expect(screen.getByText(/showing leanne brooks, calisthenics, 5 of 8/i)).toBeInTheDocument();
+
+    act(() => vi.advanceTimersByTime(5_000));
+    expect(screen.getByText(/showing john kim, running and endurance, 6 of 8/i)).toBeInTheDocument();
+
+    act(() => vi.advanceTimersByTime(5_000));
+    expect(screen.getByText(/showing aleem malik, sport-specific training, 7 of 8/i)).toBeInTheDocument();
+
+    act(() => vi.advanceTimersByTime(5_000));
+    expect(screen.getByText(/showing yasmin okafor, strength, 8 of 8/i)).toBeInTheDocument();
+
+    act(() => vi.advanceTimersByTime(5_000));
+    expect(screen.getByText(/showing maya chen, running and endurance, 1 of 8/i)).toBeInTheDocument();
 
     unmount();
     vi.useRealTimers();

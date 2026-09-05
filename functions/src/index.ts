@@ -56,6 +56,12 @@ import {
   ONBOARDING_CONVERSATION_SYSTEM_PROMPT,
   ONBOARDING_MARKDOWN_PROFILE_SYSTEM_PROMPT,
 } from "./onboardingConversationPrompt.js";
+import {
+  ensureWebMatching, readSavedMatching, webMatchedProfiles, webMatchPreviews,
+  type SavedMatching,
+} from "./webMatching.js";
+import type { TrainerMatchingRequest } from "./trainerMatching.js";
+import type { DraftCapability, MatchPreviewResult } from "../../src/features/onboarding/model/onboardingContract.js";
 
 initializeApp();
 const db = getFirestore();
@@ -69,6 +75,7 @@ const health = db.collection("webClientHealth");
 const geminiModel = defineString("WEB_ONBOARDING_GEMINI_MODEL_V3", { default: "gemini-3.7-flash" });
 const chatGeminiModelV4 = defineString("WEB_ONBOARDING_CHAT_MODEL_V4", { default: "gemini-3.5-flash-lite" });
 const summaryGeminiModelV4 = defineString("WEB_ONBOARDING_SUMMARY_MODEL_V4", { default: "gemini-3.7-flash" });
+const matchingGeminiModel = defineString("WEB_MATCHING_GEMINI_MODEL_V1", { default: "gemini-3.7-flash" });
 const runtimeServiceAccount = defineString("WEB_ONBOARDING_SERVICE_ACCOUNT_V3");
 const REGION = "europe-west2";
 const GEMINI_LOCATION = "global";
@@ -111,6 +118,7 @@ type DraftDoc = {
   userTurns: number;
   nextSequence: number;
   identity?: IdentityAnswers;
+  matching?: SavedMatching;
 };
 
 const hash = (value: string) => createHash("sha256").update(value).digest("hex");
@@ -180,15 +188,13 @@ const parseData = <T>(schema: z.ZodType<T>, data: unknown): T => {
   return parsed.data;
 };
 
-const assertConversationTranscriptV4 = (
+export const validateAndCanonicalizeConversationTranscriptV4 = (
   messages: readonly OnboardingChatMessage[],
   endingRole: OnboardingChatMessage["role"],
 ) => {
   if (
     messages[0]?.role !== "assistant"
-    || messages[0].text !== ONBOARDING_OPENING_MESSAGES[0]
     || messages[1]?.role !== "assistant"
-    || messages[1].text !== ONBOARDING_OPENING_MESSAGES[1]
   ) {
     throw new HttpsError("invalid-argument", "The conversation opening is invalid.");
   }
@@ -215,6 +221,9 @@ const assertConversationTranscriptV4 = (
       }
     }
   });
+  return messages.map((message, index) => index < ONBOARDING_OPENING_MESSAGES.length
+    ? { ...message, text: ONBOARDING_OPENING_MESSAGES[index]! }
+    : message);
 };
 
 const ensureAppCheck = (request: CallableRequest<unknown>) => {
@@ -1145,7 +1154,7 @@ async function handleWebOnboardingTurnV4(
     const handlerStartedAt = Date.now();
     ensureAppCheck(request);
     const input = parseData(turnRequestV4Schema, request.data);
-    assertConversationTranscriptV4(input.messages, "user");
+    const messages = validateAndCanonicalizeConversationTranscriptV4(input.messages, "user");
     const rateLimitStartedAt = Date.now();
     const projectId = process.env.GCLOUD_PROJECT ?? process.env.GOOGLE_CLOUD_PROJECT;
     await enforceRateLimit(
@@ -1158,7 +1167,7 @@ async function handleWebOnboardingTurnV4(
     let modelResult: Awaited<ReturnType<typeof runConversationModelV4>>;
     try {
       modelResult = await runConversationModelV4(
-        input.messages,
+        messages,
         undefined,
         response?.signal,
       );
@@ -1288,8 +1297,8 @@ async function handleFinalizeWebOnboardingV4(
     const handlerStartedAt = Date.now();
     ensureAppCheck(request);
     const input = parseData(finalizeRequestV4Schema, request.data);
-    assertConversationTranscriptV4(input.messages, "assistant");
-    if (!isTranscriptReadyForFinalizationV4(input.messages)) {
+    const messages = validateAndCanonicalizeConversationTranscriptV4(input.messages, "assistant");
+    if (!isTranscriptReadyForFinalizationV4(messages)) {
       throw new HttpsError("failed-precondition", "Continue the conversation before preparing the matching profile.");
     }
 
@@ -1321,7 +1330,7 @@ async function handleFinalizeWebOnboardingV4(
     const modelStartedAt = Date.now();
     let profileMarkdown: string;
     try {
-      profileMarkdown = await runMarkdownProfileGeneration(input.messages);
+      profileMarkdown = await runMarkdownProfileGeneration(messages);
     } catch (error) {
       logger.error("web_onboarding_finalization_failed_v4", {
         turnCount: input.messages.filter(({ role }) => role === "user").length,
@@ -1336,7 +1345,7 @@ async function handleFinalizeWebOnboardingV4(
 
     const timestamp = Timestamp.now();
     const expiresAt = Timestamp.fromMillis(timestamp.toMillis() + DRAFT_TTL_MS);
-    const userTurns = input.messages.filter(({ role }) => role === "user").length;
+    const userTurns = messages.filter(({ role }) => role === "user").length;
     const doc: DraftDoc = {
       schemaVersion: 3,
       profileFormat: "markdown-v1",
@@ -1394,8 +1403,50 @@ async function handleFinalizeWebOnboardingV4(
   };
 }
 
+const runMatchingModel = async (input: TrainerMatchingRequest) => {
+  const response = await geminiClient().models.generateContent({
+    model: matchingGeminiModel.value(),
+    contents: input.contents,
+    config: {
+      systemInstruction: input.systemInstruction,
+      responseMimeType: "application/json",
+      responseJsonSchema: input.responseJsonSchema,
+      maxOutputTokens: 4_096,
+      thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
+      safetySettings: providerSafetySettings,
+      httpOptions: { timeout: 60_000 },
+    },
+  });
+  if (!response.text) throw new Error("The model returned no matching decisions.");
+  return response.text;
+};
+
+const matchingForProfile = (ref: DocumentReference, profileMarkdown: string) => ensureWebMatching({
+  db, ref, profileMarkdown, model: matchingGeminiModel.value(), generateContent: runMatchingModel,
+});
+
+export const matchWebOnboardingDraftV1 = onCall<DraftCapability, Promise<{ matching: MatchPreviewResult }>>(
+  { ...callableOptions, timeoutSeconds: 300, memory: "512MiB" },
+  async (request) => {
+    ensureAppCheck(request);
+    const input = parseData(capabilityRequestSchema, request.data);
+    const { ref, doc } = await readAuthorizedDraft(input.draftId, input.capability);
+    if (!["review", "confirmed"].includes(doc.status) || !doc.profileMarkdown) {
+      throw new HttpsError("failed-precondition", "Prepare your matching details first.");
+    }
+    if (!readSavedMatching(doc.matching, doc.profileMarkdown)) {
+      await enforceRateLimit(`matching:${input.draftId}`, 8, 60 * 60 * 1_000);
+      await enforceRateLimit(`matching-ip:${requestIpKey(request)}`, 30, 60 * 60 * 1_000);
+    }
+    const matching = await matchingForProfile(ref, doc.profileMarkdown);
+    // Re-check the capability/lifecycle after the potentially slow model run.
+    await readAuthorizedDraft(input.draftId, input.capability);
+    return { matching: await webMatchPreviews(db, matching) };
+  },
+);
+
 export const confirmWebOnboardingDraftV3 = onCall<ConfirmWebOnboardingDraftV3Request, Promise<ConfirmWebOnboardingDraftV3Response>>(
-  callableOptions,
+  { ...callableOptions, timeoutSeconds: 300, memory: "512MiB" },
   async (request) => {
     ensureAppCheck(request);
     const input = parseData(confirmRequestSchema, request.data);
@@ -1408,7 +1459,19 @@ export const confirmWebOnboardingDraftV3 = onCall<ConfirmWebOnboardingDraftV3Req
     }
     const identity = identityAnswersSchema.safeParse(input.identity);
     if (!identity.success) throw new HttpsError("invalid-argument", identity.error.issues[0]?.message ?? "Check the private details.");
-    const { ref } = await readAuthorizedDraft(input.draftId, input.capability);
+    const { ref, doc: initialDoc } = await readAuthorizedDraft(input.draftId, input.capability);
+    if (!["review", "confirmed"].includes(initialDoc.status)
+      || initialDoc.profileMarkdown !== profileMarkdown.data) {
+      throw new HttpsError("failed-precondition", "Confirm the current training brief before signing up.");
+    }
+    // Previously opened clients may still confirm without calling the new
+    // preview endpoint. Complete their matching server-side before accepting
+    // signup, while keeping the normal new-client path a cached read.
+    if (!readSavedMatching(initialDoc.matching, profileMarkdown.data)) {
+      await enforceRateLimit(`matching:${input.draftId}`, 8, 60 * 60 * 1_000);
+      await enforceRateLimit(`matching-ip:${requestIpKey(request)}`, 30, 60 * 60 * 1_000);
+      await matchingForProfile(ref, profileMarkdown.data);
+    }
     await db.runTransaction(async (transaction) => {
       const snapshot = await transaction.get(ref);
       const doc = snapshot.data() as DraftDoc | undefined;
@@ -1416,6 +1479,10 @@ export const confirmWebOnboardingDraftV3 = onCall<ConfirmWebOnboardingDraftV3Req
       if (doc.version !== input.expectedVersion) throw new HttpsError("aborted", "The matching details changed. Check the latest version.");
       if (!["review", "confirmed"].includes(doc.status) || !doc.profileMarkdown) {
         throw new HttpsError("failed-precondition", "Prepare the matching details before confirming them.");
+      }
+      assertLiveDraft(doc);
+      if (profileMarkdown.data !== doc.profileMarkdown || !readSavedMatching(doc.matching, doc.profileMarkdown)) {
+        throw new HttpsError("failed-precondition", "Finish matching the current training brief before signing up.");
       }
       const version = doc.version + 1;
       transaction.set(ref, {
@@ -1439,12 +1506,14 @@ export const confirmWebOnboardingDraftV3 = onCall<ConfirmWebOnboardingDraftV3Req
 );
 
 export const consumeWebOnboardingDraftV3 = onCall<ConsumeWebOnboardingDraftV3Request, Promise<ConsumeWebOnboardingDraftV3Response>>(
-  callableOptions,
+  { ...callableOptions, timeoutSeconds: 300, memory: "512MiB" },
   async (request) => {
     ensureAppCheck(request);
     const input = parseData(capabilityRequestSchema, request.data);
     const authenticatedEmail = typeof request.auth?.token.email === "string" ? request.auth.token.email.toLowerCase() : null;
-    if (!request.auth || !authenticatedEmail) throw new HttpsError("unauthenticated", "Sign in with the confirmed email first.");
+    if (!request.auth || !authenticatedEmail || request.auth.token.email_verified !== true) {
+      throw new HttpsError("unauthenticated", "Verify and sign in with the confirmed email first.");
+    }
     const uid = request.auth.uid;
     const markerRef = consumptions.doc(input.draftId);
     const marker = await markerRef.get();
@@ -1454,6 +1523,7 @@ export const consumeWebOnboardingDraftV3 = onCall<ConsumeWebOnboardingDraftV3Req
         capabilityHash?: string;
         profileFormat?: string;
         profileMarkdown?: unknown;
+        matching?: unknown;
       };
       const profileMarkdown = profileMarkdownSchema.safeParse(data.profileMarkdown);
       if (
@@ -1465,7 +1535,9 @@ export const consumeWebOnboardingDraftV3 = onCall<ConsumeWebOnboardingDraftV3Req
         throw new HttpsError("permission-denied", "This consumption capability is invalid.");
       }
       await db.recursiveDelete(drafts.doc(input.draftId));
-      return { profileMarkdown: profileMarkdown.data };
+      const matching = readSavedMatching(data.matching, profileMarkdown.data)
+        ?? await matchingForProfile(profiles.doc(uid), profileMarkdown.data);
+      return { profileMarkdown: profileMarkdown.data, matches: await webMatchedProfiles(db, matching, uid) };
     }
 
     const { ref, doc } = await readAuthorizedDraft(input.draftId, input.capability);
@@ -1475,6 +1547,8 @@ export const consumeWebOnboardingDraftV3 = onCall<ConsumeWebOnboardingDraftV3Req
     if (doc.identity.email.toLowerCase() !== authenticatedEmail) {
       throw new HttpsError("permission-denied", "The signed-in email does not match this draft.");
     }
+
+    const matching = await matchingForProfile(ref, doc.profileMarkdown);
 
     const profileRef = profiles.doc(uid);
     const timestamp = Timestamp.now();
@@ -1506,11 +1580,19 @@ export const consumeWebOnboardingDraftV3 = onCall<ConsumeWebOnboardingDraftV3Req
       if (freshDoc.identity?.email.toLowerCase() !== authenticatedEmail) {
         throw new HttpsError("permission-denied", "The signed-in email no longer matches this draft.");
       }
+      assertLiveDraft(freshDoc);
+      if (!readSavedMatching(freshDoc.matching, freshDoc.profileMarkdown)) {
+        throw new HttpsError("failed-precondition", "Finish finding your trainers before completing signup.");
+      }
 
       transaction.set(profileRef, {
         profileFormat: "markdown-v1",
         profileMarkdown: freshDoc.profileMarkdown,
         source: "web-onboarding-v3",
+        identity: freshDoc.identity,
+        matching: freshDoc.matching,
+        consentVersion: freshDoc.consentVersion,
+        signupCompletedAt: timestamp,
         updatedAt: timestamp,
       });
       transaction.set(markerRef, {
@@ -1518,6 +1600,7 @@ export const consumeWebOnboardingDraftV3 = onCall<ConsumeWebOnboardingDraftV3Req
         capabilityHash: hash(input.capability),
         profileFormat: "markdown-v1",
         profileMarkdown: freshDoc.profileMarkdown,
+        matching: freshDoc.matching,
         consumedAt: timestamp,
         expiresAt: Timestamp.fromMillis(Date.now() + CONSUMPTION_TTL_MS),
       });
@@ -1525,24 +1608,28 @@ export const consumeWebOnboardingDraftV3 = onCall<ConsumeWebOnboardingDraftV3Req
     });
 
     await db.recursiveDelete(ref);
-    return { profileMarkdown: doc.profileMarkdown };
+    return { profileMarkdown: doc.profileMarkdown, matches: await webMatchedProfiles(db, matching, uid) };
   },
 );
 
 export const getWebClientProfileV3 = onCall<Record<string, never>, Promise<GetWebClientProfileV3Response>>(
-  callableOptions,
+  { ...callableOptions, timeoutSeconds: 300, memory: "512MiB" },
   async (request) => {
     ensureAppCheck(request);
     if (!request.auth) throw new HttpsError("unauthenticated", "Sign in to load your matching profile.");
     const snapshot = await profiles.doc(request.auth.uid).get();
-    if (!snapshot.exists) return { profileMarkdown: null };
+    if (!snapshot.exists) return { profileMarkdown: null, matches: [] };
     const data = snapshot.data();
     if (!data) throw new HttpsError("data-loss", "The stored matching profile is invalid.");
     const profileMarkdown = profileMarkdownSchema.safeParse(data.profileMarkdown);
     if (data.profileFormat !== "markdown-v1" || !profileMarkdown.success) {
-      return { profileMarkdown: null };
+      return { profileMarkdown: null, matches: [] };
     }
-    return { profileMarkdown: profileMarkdown.data };
+    if (!readSavedMatching(data.matching, profileMarkdown.data)) {
+      await enforceRateLimit(`matching-user:${request.auth.uid}`, 8, 60 * 60 * 1_000);
+    }
+    const matching = await matchingForProfile(snapshot.ref, profileMarkdown.data);
+    return { profileMarkdown: profileMarkdown.data, matches: await webMatchedProfiles(db, matching, request.auth.uid) };
   },
 );
 

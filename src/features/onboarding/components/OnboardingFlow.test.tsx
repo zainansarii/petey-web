@@ -11,6 +11,7 @@ import {
   type OnboardingTurnResultV3,
 } from "../model/onboarding";
 import { OnboardingFlow } from "./OnboardingFlow";
+import { TRAINERS } from "../../discovery/data/trainers";
 
 const api = vi.hoisted(() => ({
   clearLocalConversationV4: vi.fn(),
@@ -21,6 +22,7 @@ const api = vi.hoisted(() => ({
   deleteWebOnboardingDraftV3: vi.fn(),
   finalizeWebOnboardingV4: vi.fn(),
   getWebOnboardingDraftV3: vi.fn(),
+  matchWebOnboardingDraftV1: vi.fn(),
   readLocalConversationV4: vi.fn(),
   readDraftCapability: vi.fn<() => DraftCapability | null>(() => null),
   runWebOnboardingTurnV4: vi.fn(),
@@ -185,6 +187,9 @@ describe("web onboarding V4 local conversation and secure handoff", () => {
     window.sessionStorage.clear();
     vi.clearAllMocks();
     api.createIdempotencyKey.mockReturnValue("turn-key");
+    api.matchWebOnboardingDraftV1.mockReset().mockResolvedValue({
+      matching: { totalMatches: 5, previews: TRAINERS.slice(0, 3) },
+    });
     api.readDraftCapability.mockReturnValue(null);
     api.readLocalConversationV4.mockReturnValue(null);
     api.createLocalConversationV4.mockImplementation(() => createSession());
@@ -341,17 +346,21 @@ describe("web onboarding V4 local conversation and secure handoff", () => {
     expect(matching.closest(".post-chat-matching")?.querySelector(".twin-orbit")).toBeInTheDocument();
     expect(matching.querySelectorAll(".text-dots__dot")).toHaveLength(3);
     expect(matching).toHaveTextContent("Finding your personal trainer...");
+    expect(screen.getByText("Hi, welcome to Petey!")).not.toBeVisible();
+    expect(document.querySelector(".chat-thread__viewport")).toHaveAttribute("data-handoff-phase", "matching");
     expect(document.querySelector(".chat-composer")).not.toBeInTheDocument();
     expect(screen.queryByRole("progressbar", { name: /conversation progress/i, hidden: true })).not.toBeInTheDocument();
     expect(HTMLElement.prototype.scrollIntoView).toHaveBeenCalledWith({ behavior: "auto", block: "start" });
     expect(screen.queryByRole("dialog", { name: /create an account/i })).not.toBeInTheDocument();
 
     await act(async () => completeFinalization());
+    await waitFor(() => expect(api.matchWebOnboardingDraftV1).toHaveBeenCalledWith(capability));
 
-    expect(await screen.findByRole("heading", { name: /we found 3 matches/i })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: /we found 5 matches/i })).toBeInTheDocument();
+    expect(screen.getByText("Hi, welcome to Petey!")).not.toBeVisible();
     const matchButtons = screen.getAllByRole("button", { name: /choose match \d/i });
     expect(matchButtons).toHaveLength(3);
-    expect(matchButtons[0]).toHaveAccessibleName(/maya chen: running & endurance, battersea · sw11, from £70/i);
+    expect(matchButtons[0]).toHaveAccessibleName(/maya chen: running and endurance, battersea · sw11, from £70/i);
     expect(document.querySelectorAll(".match-preview__profile[aria-hidden='true']")).toHaveLength(3);
     expect(screen.queryByRole("dialog", { name: /create an account/i })).not.toBeInTheDocument();
 
@@ -392,14 +401,14 @@ describe("web onboarding V4 local conversation and secure handoff", () => {
 
     const retry = await screen.findByRole(
       "button",
-      { name: /try preparing again/i },
+      { name: /^try again$/i },
       { timeout: 3_000 },
     );
     expect(screen.getByText("Hi, welcome to Petey!")).toBeInTheDocument();
     fireEvent.click(retry);
 
     expect(await screen.findByRole("status", { name: /finding your personal trainer/i })).toBeInTheDocument();
-    expect(await screen.findByRole("heading", { name: /we found 3 matches/i })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: /we found 5 matches/i })).toBeInTheDocument();
     fireEvent.click(screen.getAllByRole("button", { name: /choose match \d/i })[0]!);
     expect(await screen.findByRole(
       "dialog",
@@ -424,7 +433,7 @@ describe("web onboarding V4 local conversation and secure handoff", () => {
     api.getWebOnboardingDraftV3.mockResolvedValue({ snapshot: reviewSnapshot() });
     render(<Harness />);
 
-    expect(await screen.findByRole("heading", { name: /we found 3 matches/i })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: /we found 5 matches/i })).toBeInTheDocument();
     expect(screen.queryByRole("dialog", { name: /create an account/i })).not.toBeInTheDocument();
     fireEvent.click(screen.getAllByRole("button", { name: /choose match \d/i })[0]!);
 
@@ -438,6 +447,53 @@ describe("web onboarding V4 local conversation and secure handoff", () => {
     expect(document.querySelectorAll(".match-preview__card")).toHaveLength(3);
   });
 
+
+  it("keeps the finding state until matching returns, and retries without regenerating the brief", async () => {
+    api.readDraftCapability.mockReturnValue(capability);
+    api.getWebOnboardingDraftV3.mockResolvedValue({ snapshot: reviewSnapshot() });
+    let rejectMatching: (error: Error) => void = () => {};
+    api.matchWebOnboardingDraftV1.mockImplementationOnce(() => new Promise((_, reject) => {
+      rejectMatching = reject;
+    }));
+    render(<Harness />);
+
+    expect(await screen.findByRole("status", { name: /finding your personal trainer/i })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: /we found/i })).not.toBeInTheDocument();
+    await act(async () => rejectMatching(new Error("Matching is unavailable. Try again.")));
+    fireEvent.click(await screen.findByRole("button", { name: /^try again$/i }));
+
+    expect(await screen.findByRole("heading", { name: "We found 5 matches" })).toBeInTheDocument();
+    expect(api.matchWebOnboardingDraftV1).toHaveBeenCalledTimes(2);
+    expect(api.finalizeWebOnboardingV4).not.toHaveBeenCalled();
+  });
+
+  it("shows one matched trainer with singular copy", async () => {
+    api.readDraftCapability.mockReturnValue(capability);
+    api.getWebOnboardingDraftV3.mockResolvedValue({ snapshot: reviewSnapshot({
+      matching: { totalMatches: 1, previews: [TRAINERS[3]!] },
+    }) });
+    render(<Harness />);
+
+    expect(await screen.findByRole("heading", { name: "We found 1 match" })).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /choose match/i })).toHaveLength(1);
+    expect(screen.getByRole("button", { name: /choose match 1, rohan kapoor/i })).toBeInTheDocument();
+    expect(api.matchWebOnboardingDraftV1).not.toHaveBeenCalled();
+  });
+
+  it("lets someone save their account when no trainers are compatible", async () => {
+    api.readDraftCapability.mockReturnValue(capability);
+    api.getWebOnboardingDraftV3.mockResolvedValue({ snapshot: reviewSnapshot({
+      matching: { totalMatches: 0, previews: [] },
+    }) });
+    render(<Harness />);
+
+    expect(await screen.findByRole("heading", { name: "We found 0 matches" })).toBeInTheDocument();
+    expect(screen.queryByRole("list", { name: "Your trainer matches" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /choose match/i })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Create an account" }));
+    expect(await screen.findByRole("dialog", { name: "Create an account" })).toBeInTheDocument();
+  });
+
   it("confirms the Markdown profile with identity kept separate", async () => {
     const review = reviewSnapshot();
     api.readDraftCapability.mockReturnValue(capability);
@@ -447,7 +503,7 @@ describe("web onboarding V4 local conversation and secure handoff", () => {
     });
     render(<Harness />);
 
-    expect(await screen.findByRole("heading", { name: /we found 3 matches/i })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: /we found 5 matches/i })).toBeInTheDocument();
     fireEvent.click(screen.getAllByRole("button", { name: /choose match \d/i })[0]!);
     expect(await screen.findByRole("dialog", { name: /create an account/i })).toBeInTheDocument();
     expect(screen.getByText(/stay separate from your conversation/i)).toBeInTheDocument();

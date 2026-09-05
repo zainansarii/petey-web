@@ -13,6 +13,7 @@ import {
   requiredPracticalTopicsForTranscriptV3,
   shouldReadyForReviewV3,
   turnRateLimitForProjectV4,
+  validateAndCanonicalizeConversationTranscriptV4,
 } from "./index.js";
 import {
   ONBOARDING_CONVERSATION_SYSTEM_PROMPT,
@@ -20,6 +21,37 @@ import {
 } from "./onboardingConversationPrompt.js";
 
 describe("AI onboarding V3 conversational output", () => {
+  it("accepts copy-only opening changes and replaces them with the server canonical opening", () => {
+    const timestamp = "2026-09-01T00:00:00.000Z";
+    const messages = [
+      { id: "opening-1", role: "assistant", text: "Hi, welcome to Petey!", createdAt: timestamp, sequence: 1 },
+      {
+        id: "opening-2",
+        role: "assistant",
+        text: "To get you matched with the best personal trainer for you, tell us a bit about what you're hoping to achieve.",
+        createdAt: timestamp,
+        sequence: 2,
+      },
+      { id: "answer-1", role: "user", text: "I want to build strength", createdAt: timestamp, sequence: 3 },
+    ] as const;
+
+    const canonical = validateAndCanonicalizeConversationTranscriptV4(messages, "user");
+
+    expect(canonical[1]?.text).toBe(
+      "To get you matched with the best personal trainer for you, tell us a bit about what you're hoping to achieve. The more detailed your responses, the better we'll be able to match you.",
+    );
+    expect(messages[1].text).not.toBe(canonical[1]?.text);
+  });
+
+  it("still rejects a transcript that does not begin with two assistant messages", () => {
+    const timestamp = "2026-09-01T00:00:00.000Z";
+    expect(() => validateAndCanonicalizeConversationTranscriptV4([
+      { id: "opening-1", role: "user", text: "Hi", createdAt: timestamp, sequence: 1 },
+      { id: "opening-2", role: "assistant", text: "What is your goal?", createdAt: timestamp, sequence: 2 },
+      { id: "answer-1", role: "user", text: "Build strength", createdAt: timestamp, sequence: 3 },
+    ], "user")).toThrow(/conversation opening is invalid/i);
+  });
+
   it("allows development QA headroom without relaxing production limits", () => {
     expect(createRateLimitForProjectV3("petey-dev-getcass")).toBe(50);
     expect(createRateLimitForProjectV3("petey-prod-getcass")).toBe(5);

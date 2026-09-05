@@ -19,7 +19,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ArrowLeft, ArrowRight, LoaderCircle, LockKeyhole, RotateCcw, Send, Trash2 } from "lucide-react";
 import { requestMagicLink } from "../../auth/api/magicLink";
 import { TrainerCard } from "../../discovery/components/TrainerCard";
-import { TRAINERS } from "../../discovery/data/trainers";
+import type { TrainerCardPreview } from "../../discovery/model/trainer";
 import { TextDots } from "../../../shared/ui/TextDots";
 import { TwinOrbit } from "../../../shared/ui/TwinOrbit";
 import {
@@ -31,6 +31,7 @@ import {
   deleteWebOnboardingDraftV3,
   finalizeWebOnboardingV4,
   getWebOnboardingDraftV3,
+  matchWebOnboardingDraftV1,
   readLocalConversationV4,
   readDraftCapability,
   runWebOnboardingTurnV4,
@@ -44,6 +45,7 @@ import {
   profileMarkdownSchema,
   type DraftCapability,
   type IdentityAnswers,
+  type MatchPreviewResult,
   type OnboardingChatMessage,
   type OnboardingConversationSessionV4,
   type OnboardingDraftSnapshotV3,
@@ -68,7 +70,6 @@ const CLEARING_MS = 500;
 const MINIMUM_MATCHING_MS = 2_500;
 const CHAT_SCROLL_TIME_CONSTANT_MS = 180;
 const CHAT_SCROLL_SETTLE_DISTANCE_PX = 0.5;
-const PREVIEW_MATCHES = TRAINERS.slice(0, 3);
 
 const createHandoffPreviewSessionV4 = (): OnboardingConversationSessionV4 => {
   const opening = createLocalConversationV4();
@@ -226,7 +227,7 @@ function ChatOnboarding({
   const [preparingDetails, setPreparingDetails] = useState(false);
   const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null);
   const [handoffPhase, setHandoffPhase] = useState<HandoffPhase>(() => {
-    if (initialReviewSnapshot?.profileMarkdown) return "matches";
+    if (initialReviewSnapshot?.profileMarkdown) return initialReviewSnapshot.matching ? "matches" : "matching";
     if (initialSession.status === "ready_to_map") return "confirmation";
     return "chat";
   });
@@ -234,6 +235,8 @@ function ChatOnboarding({
   const finalizationKeyRef = useRef<string | null>(null);
   const handoffRef = useRef<HTMLElement | null>(null);
   const matchingStartedAtRef = useRef<number | null>(null);
+  const matchingRequestActiveRef = useRef(false);
+  const matchingAttemptedDraftRef = useRef<string | null>(null);
   const threadViewportRef = useRef<HTMLDivElement | null>(null);
   const reducedMotion = Boolean(useReducedMotion());
 
@@ -370,10 +373,18 @@ function ChatOnboarding({
   const progress = conversationProgress(reviewSnapshot?.status ?? session.status, session.userTurns);
   const hasSecureDetails = Boolean(capability && reviewSnapshot?.profileMarkdown)
     && (reviewSnapshot?.status === "review" || reviewSnapshot?.status === "confirmed");
-  const showingSecureDetails = hasSecureDetails
+  const hasMatchingResults = hasSecureDetails && Boolean(reviewSnapshot?.matching);
+  const showingSecureDetails = hasMatchingResults
     && handoffPhase === "matches"
     && selectedMatchId !== null;
   const showComposer = handoffPhase === "chat" || handoffPhase === "confirmation";
+  const chatRetired = !showComposer && handoffPhase !== "clearing";
+
+  useLayoutEffect(() => {
+    // Once the downward transition finishes, the transcript leaves the scroll
+    // layout. Start the handoff at the top, including when restoring a draft.
+    if (chatRetired && threadViewportRef.current) threadViewportRef.current.scrollTop = 0;
+  }, [chatRetired]);
 
   const prepareDetails = useCallback(async () => {
     const current = sessionRef.current;
@@ -394,7 +405,7 @@ function ChatOnboarding({
     } catch (prepareError) {
       setFinalizationError(readableError(
         prepareError,
-        "We couldn’t prepare your details. Your conversation is kept on this device — try again.",
+        "We couldn’t prepare your matches. Your progress is saved — try again.",
       ));
     } finally {
       setPreparingDetails(false);
@@ -404,6 +415,36 @@ function ChatOnboarding({
   useEffect(() => {
     if (session.status === "ready_to_map" && !reviewSnapshot && !finalizationError) void prepareDetails();
   }, [finalizationError, prepareDetails, reviewSnapshot, session.status]);
+
+  const prepareMatches = useCallback(async () => {
+    if (!capability || !reviewSnapshot?.profileMarkdown || matchingRequestActiveRef.current
+      || matchingAttemptedDraftRef.current === capability.draftId) return;
+    // Keep the attempt recorded after it settles: an already queued effect may
+    // still hold a snapshot without matching results until React commits them.
+    matchingAttemptedDraftRef.current = capability.draftId;
+    matchingRequestActiveRef.current = true;
+    try {
+      const { matching } = await matchWebOnboardingDraftV1(capability);
+      updateReviewSnapshot({ ...reviewSnapshot, matching });
+    } catch (matchingError) {
+      setFinalizationError(readableError(
+        matchingError,
+        "We couldn’t find your matches just now. Your training brief is saved — try again.",
+      ));
+    } finally {
+      matchingRequestActiveRef.current = false;
+    }
+  }, [capability, reviewSnapshot, updateReviewSnapshot]);
+
+  useEffect(() => {
+    let active = true;
+    if (hasSecureDetails && !reviewSnapshot?.matching && !finalizationError) {
+      void Promise.resolve().then(() => {
+        if (active) return prepareMatches();
+      });
+    }
+    return () => { active = false; };
+  }, [finalizationError, hasSecureDetails, prepareMatches, reviewSnapshot?.matching]);
 
   useEffect(() => {
     if (handoffPhase !== "confirmation") return;
@@ -430,20 +471,26 @@ function ChatOnboarding({
   }, [handoffPhase, reducedMotion]);
 
   useEffect(() => {
-    if (handoffPhase !== "matching" || (!hasSecureDetails && !finalizationError)) return;
+    if (handoffPhase !== "matching") return;
+    matchingStartedAtRef.current ??= performance.now();
+    if (!hasMatchingResults && !finalizationError) return;
     const minimumDuration = reducedMotion ? 300 : MINIMUM_MATCHING_MS;
     const elapsed = performance.now() - (matchingStartedAtRef.current ?? performance.now());
     const revealTimer = window.setTimeout(() => {
       setHandoffPhase(finalizationError ? "error" : "matches");
     }, Math.max(0, minimumDuration - elapsed));
     return () => window.clearTimeout(revealTimer);
-  }, [finalizationError, handoffPhase, hasSecureDetails, reducedMotion]);
+  }, [finalizationError, handoffPhase, hasMatchingResults, reducedMotion]);
 
   const retryPreparingDetails = useCallback(() => {
+    setFinalizationError(null);
     matchingStartedAtRef.current = performance.now();
     setHandoffPhase("matching");
-    void prepareDetails();
-  }, [prepareDetails]);
+    if (reviewSnapshot?.profileMarkdown) {
+      matchingAttemptedDraftRef.current = null;
+      void prepareMatches();
+    } else void prepareDetails();
+  }, [prepareDetails, prepareMatches, reviewSnapshot?.profileMarkdown]);
 
   const deleteAndExit = async () => {
     if (deleting) return;
@@ -477,6 +524,7 @@ function ChatOnboarding({
           <ThreadPrimitive.Viewport
             autoScroll={false}
             className="chat-thread__viewport"
+            data-handoff-phase={handoffPhase}
             ref={threadViewportRef}
             scrollToBottomOnInitialize={false}
             scrollToBottomOnRunStart={false}
@@ -487,13 +535,15 @@ function ChatOnboarding({
               reducedMotion={reducedMotion}
               viewportRef={threadViewportRef}
             />
-            <div aria-live="polite" className="chat-thread__messages">
+            <div aria-live="polite" className="chat-thread__messages" hidden={chatRetired} inert={!showComposer || undefined}>
               <ThreadPrimitive.Messages components={{ AssistantMessage, UserMessage }} />
             </div>
 
             {handoffPhase !== "chat" && handoffPhase !== "confirmation" ? (
               <PostChatHandoff
                 error={finalizationError}
+                matching={reviewSnapshot?.matching}
+                onCreateAccount={() => setSelectedMatchId("account")}
                 onSelectMatch={setSelectedMatchId}
                 onRetry={retryPreparingDetails}
                 phase={handoffPhase}
@@ -502,7 +552,7 @@ function ChatOnboarding({
               />
             ) : null}
 
-            <ThreadPrimitive.ViewportFooter className="chat-thread__footer">
+            <ThreadPrimitive.ViewportFooter className="chat-thread__footer" hidden={chatRetired}>
               <AnimatePresence initial={false}>
                 {showComposer ? (
                   <motion.div
@@ -544,6 +594,8 @@ function ChatOnboarding({
 
 function PostChatHandoff({
   error,
+  matching,
+  onCreateAccount,
   onRetry,
   onSelectMatch,
   phase,
@@ -551,6 +603,8 @@ function PostChatHandoff({
   stageRef,
 }: {
   error: string | null;
+  matching: MatchPreviewResult | undefined;
+  onCreateAccount: () => void;
   onRetry: () => void;
   onSelectMatch: (trainerId: string) => void;
   phase: HandoffPhase;
@@ -580,7 +634,7 @@ function PostChatHandoff({
           </motion.div>
         ) : null}
 
-        {phase === "matches" ? (
+        {phase === "matches" && matching ? (
           <motion.div
             animate={{ opacity: 1 }}
             aria-live="polite"
@@ -594,10 +648,10 @@ function PostChatHandoff({
               initial={reducedMotion ? false : { opacity: 0, y: 52 }}
               transition={{ duration: reducedMotion ? 0 : 0.9, ease: [0.22, 1, 0.36, 1] }}
             >
-              We found {PREVIEW_MATCHES.length} matches
+              We found {matching.totalMatches} {matching.totalMatches === 1 ? "match" : "matches"}
             </motion.h2>
-            <div aria-label="Your trainer matches" className="match-preview" role="list">
-              {PREVIEW_MATCHES.map((trainer, index) => (
+            {matching.totalMatches > 0 ? <div aria-label="Your trainer matches" className="match-preview" data-preview-count={Math.min(3, matching.previews.length)} role="list">
+              {matching.previews.slice(0, 3).map((trainer, index) => (
                 <MatchPreviewCard
                   index={index}
                   key={trainer.id}
@@ -606,7 +660,14 @@ function PostChatHandoff({
                   trainer={trainer}
                 />
               ))}
-            </div>
+            </div> : (
+              <div className="post-chat-results__empty">
+                <p>We couldn’t find a compatible trainer in the current selection. You can still save your training brief by creating an account.</p>
+                <button className="primary-button" onClick={onCreateAccount} type="button">
+                  Create an account <ArrowRight aria-hidden="true" size={18} />
+                </button>
+              </div>
+            )}
           </motion.div>
         ) : null}
 
@@ -619,10 +680,10 @@ function PostChatHandoff({
             role="alert"
             transition={{ duration: reducedMotion ? 0 : 0.24 }}
           >
-            <h2>Your details aren’t ready yet</h2>
-            <p>{error ?? "We couldn’t prepare your details. Your conversation is kept on this device — try again."}</p>
+            <h2>Your matches aren’t ready yet</h2>
+            <p>{error ?? "We couldn’t prepare your matches. Your progress is saved — try again."}</p>
             <button className="secondary-button" onClick={onRetry} type="button">
-              <RotateCcw aria-hidden="true" size={16} /> Try preparing again
+              <RotateCcw aria-hidden="true" size={16} /> Try again
             </button>
           </motion.div>
         ) : null}
@@ -640,7 +701,7 @@ function MatchPreviewCard({
   index: number;
   onSelect: (trainerId: string) => void;
   reducedMotion: boolean;
-  trainer: (typeof PREVIEW_MATCHES)[number];
+  trainer: TrainerCardPreview;
 }) {
   const [focused, setFocused] = useState(false);
   const restingPose = { scale: 1, y: 0 };

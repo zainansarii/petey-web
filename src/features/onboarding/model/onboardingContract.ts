@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { Trainer, TrainerCardPreview } from "../../discovery/model/trainer.js";
 
 export const MAX_PROFILE_MARKDOWN_LENGTH = 12_000;
 export const MAX_ONBOARDING_QUICK_REPLIES = 3;
@@ -141,6 +142,15 @@ export type FinalizeWebOnboardingV4Response = DraftCapability & {
   };
 };
 
+export type MatchPreviewResult = {
+  totalMatches: number;
+  previews: TrainerCardPreview[];
+};
+
+export type MatchedTrainer = { trainer: Trainer; score: number; reason: string };
+export type MatchWebOnboardingDraftV1Request = DraftCapability;
+export type MatchWebOnboardingDraftV1Response = { matching: MatchPreviewResult };
+
 export type OnboardingDraftSnapshotV3 = {
   schemaVersion: 3;
   draftId: string;
@@ -151,6 +161,7 @@ export type OnboardingDraftSnapshotV3 = {
   quickReplies: string[];
   expiresAt: string;
   confirmationVersion: number | null;
+  matching?: MatchPreviewResult;
   userTurns: number;
 };
 
@@ -178,8 +189,8 @@ export type ConfirmWebOnboardingDraftV3Request = DraftCapability & {
 };
 export type ConfirmWebOnboardingDraftV3Response = { snapshot: OnboardingDraftSnapshotV3 };
 export type ConsumeWebOnboardingDraftV3Request = DraftCapability;
-export type ConsumeWebOnboardingDraftV3Response = { profileMarkdown: string };
-export type GetWebClientProfileV3Response = { profileMarkdown: string | null };
+export type ConsumeWebOnboardingDraftV3Response = { profileMarkdown: string; matches: MatchedTrainer[] };
+export type GetWebClientProfileV3Response = { profileMarkdown: string | null; matches: MatchedTrainer[] };
 export type DeleteWebOnboardingDraftV3Request = DraftCapability;
 export type DeleteWebOnboardingDraftV3Response = { deleted: true };
 export type WithdrawWebHealthConsentV3Request = { consentVersion: string };

@@ -23,20 +23,19 @@ import {
 } from "lucide-react";
 import { BrandMark } from "../../../shared/ui/BrandMark";
 import { TrainerCard } from "../../discovery/components/TrainerCard";
-import {
-  matchReasonFor,
-  orderTrainersFor,
-  type Trainer,
-} from "../../discovery/data/trainers";
+import type { Trainer } from "../../discovery/model/trainer";
+import type { MatchedTrainer } from "../../onboarding/model/onboarding";
 
 export function FeedScreen({
+  matches,
   onEditMatch,
   onHome,
 }: {
+  matches: MatchedTrainer[];
   onEditMatch: () => void;
   onHome: () => void;
 }) {
-  const trainers = orderTrainersFor();
+  const trainers = matches.map(({ trainer }) => trainer);
   const [activeIndex, setActiveIndex] = useState(0);
   const [profileTrainer, setProfileTrainer] = useState<Trainer | null>(null);
   const [requestTrainer, setRequestTrainer] = useState<Trainer | null>(null);
@@ -44,9 +43,12 @@ export function FeedScreen({
   const [dialogTrigger, setDialogTrigger] = useState<HTMLButtonElement | null>(null);
   const reducedMotion = useReducedMotion();
   const prefersReducedMotion = Boolean(reducedMotion);
-  const activeTrainer = trainers[activeIndex];
+  const visibleIndex = Math.min(activeIndex, Math.max(0, matches.length - 1));
+  const activeMatch = matches[visibleIndex];
+  const activeTrainer = activeMatch?.trainer;
 
   const move = (direction: number) => {
+    if (trainers.length < 2) return;
     setActiveIndex((current) => (current + direction + trainers.length) % trainers.length);
   };
 
@@ -66,6 +68,22 @@ export function FeedScreen({
     return () => window.clearTimeout(timer);
   }, [toast]);
 
+  if (!activeTrainer) {
+    return (
+      <main className="feed feed--empty">
+        <header className="feed-header">
+          <button aria-label="Petey home" className="feed-header__brand" onClick={onHome} type="button"><BrandMark /></button>
+          <div className="feed-header__title"><span>Your shortlist</span><small>0 matches</small></div>
+        </header>
+        <section className="feed-empty" aria-live="polite">
+          <h1>No compatible trainers yet.</h1>
+          <p>Your training brief is saved. You can update your preferences and search the current selection again.</p>
+          <button className="primary-button" onClick={onEditMatch} type="button">Update my preferences <ArrowRight aria-hidden="true" size={18} /></button>
+        </section>
+      </main>
+    );
+  }
+
   return (
     <main className="feed">
       <div
@@ -79,18 +97,18 @@ export function FeedScreen({
         </button>
         <div className="feed-header__title">
           <span>Your shortlist</span>
-          <small>{activeIndex + 1} of {trainers.length}</small>
+          <small>{visibleIndex + 1} of {trainers.length}</small>
         </div>
         <button className="quiet-button" onClick={onEditMatch} type="button">Retune match</button>
         </header>
 
         <div className="feed-layout">
         <aside className="feed-intro">
-          <h1>Four demo trainers to explore.</h1>
-          <p>A neutral demo list while personalised matching is being prepared. Nothing is sent.</p>
+          <h1>Your trainer matches.</h1>
+          <p>{matches.length === 1 ? "One trainer fits" : `${matches.length} trainers fit`} your training preferences. Explore your shortlist.</p>
           <div className="feed-intro__signal">
             <Sparkles aria-hidden="true" size={18} />
-            <span><strong>Trainer snapshot</strong>{matchReasonFor(activeTrainer)}</span>
+            <span><strong>Why you match</strong>{activeMatch.reason}</span>
           </div>
           <div className="feed-intro__controls">
             <button aria-label="Previous trainer" onClick={() => move(-1)} type="button"><ChevronLeft size={21} /></button>
@@ -98,8 +116,8 @@ export function FeedScreen({
               {trainers.map((trainer, index) => (
                 <button
                   aria-label={`Show ${trainer.name}`}
-                  aria-current={index === activeIndex ? "true" : undefined}
-                  className={index === activeIndex ? "is-active" : ""}
+                  aria-current={index === visibleIndex ? "true" : undefined}
+                  className={index === visibleIndex ? "is-active" : ""}
                   key={trainer.id}
                   onClick={() => setActiveIndex(index)}
                   type="button"
@@ -111,7 +129,7 @@ export function FeedScreen({
         </aside>
 
         <section className="feed-stage" aria-live="polite">
-          <div aria-hidden="true" className="feed-stage__count">0{activeIndex + 1}</div>
+          <div aria-hidden="true" className="feed-stage__count">0{visibleIndex + 1}</div>
           <AnimatePresence initial={false} mode="wait">
             <motion.div
               animate={{ opacity: 1, scale: 1, x: 0 }}
@@ -128,7 +146,7 @@ export function FeedScreen({
               transition={{ duration: reducedMotion ? 0 : 0.3, ease: [0.22, 1, 0.36, 1] }}
             >
               <TrainerCard
-                matchReason={matchReasonFor(activeTrainer)}
+                matchReason="Matched for you"
                 onRequest={(trigger) => {
                   setDialogTrigger(trigger);
                   setRequestTrainer(activeTrainer);
@@ -146,7 +164,7 @@ export function FeedScreen({
 
         <div className="feed-mobile-controls">
           <button aria-label="Previous trainer" onClick={() => move(-1)} type="button"><ChevronLeft size={20} /></button>
-          <span>{activeIndex + 1} / {trainers.length}</span>
+          <span>{visibleIndex + 1} / {trainers.length}</span>
           <button aria-label="Next trainer" onClick={() => move(1)} type="button"><ChevronRight size={20} /></button>
         </div>
         </div>
@@ -302,7 +320,7 @@ function ProfileDialog({
 }) {
   return (
     <DialogShell
-      label={`${trainer.name}'s demo profile`}
+      label={`${trainer.name}'s ${trainer.isDemo ? "demo " : ""}profile`}
       onClose={onClose}
       reducedMotion={reducedMotion}
       returnFocusTo={returnFocusTo}
@@ -316,29 +334,30 @@ function ProfileDialog({
       >
         <button aria-label="Close profile" autoFocus className="dialog-close" onClick={onClose} type="button"><X size={20} /></button>
         <div className="profile-dialog__photo">
-          <img alt={`Demo portrait for ${trainer.name}'s trainer profile`} src={trainer.photo} />
-          <span><BadgeCheck aria-hidden="true" size={16} /> Demo profile</span>
+          <img alt={`${trainer.isDemo ? "Demo portrait for" : "Portrait of"} ${trainer.name}`} src={trainer.photo} />
+          <span><BadgeCheck aria-hidden="true" size={16} /> {trainer.isDemo ? "Demo profile" : "Trainer profile"}</span>
         </div>
         <div className="profile-dialog__body">
           <h2>{trainer.name}</h2>
           <p className="profile-dialog__bio">{trainer.bio}</p>
           <div className="profile-dialog__quick">
-            <span><MapPin size={16} /><strong>{trainer.area}</strong>{trainer.distanceMiles} miles away</span>
+            <span><MapPin size={16} /><strong>{trainer.area}</strong>Training area</span>
             <span><CirclePoundSterling size={16} /><strong>From £{trainer.price}</strong>per session</span>
           </div>
           <ProfileSection icon={<Target size={17} />} title="Specialises in" items={[trainer.specialty, ...trainer.specialties]} />
           <ProfileSection icon={<Sparkles size={17} />} title="Coaching style" items={trainer.coachingStyles} />
           <ProfileSection icon={<CalendarDays size={17} />} title="Usually available" items={trainer.availability} />
+          <ProfileSection icon={<MapPin size={17} />} title="Where you can train" items={trainer.venues} />
           <ProfileSection icon={<ShieldCheck size={17} />} title="Qualifications" items={trainer.qualifications} />
           <div className="profile-dialog__pricing">
             <span><small>Single session</small><strong>£{trainer.price}</strong></span>
-            <span><small>10 sessions</small><strong>£{trainer.tenPackPrice}</strong></span>
-            <span><small>Monthly coaching</small><strong>£{trainer.monthlyPrice}</strong></span>
+            {trainer.tenPackPrice !== null ? <span><small>10 sessions</small><strong>£{trainer.tenPackPrice}</strong></span> : null}
+            {trainer.monthlyPrice !== null ? <span><small>Monthly coaching</small><strong>£{trainer.monthlyPrice}</strong></span> : null}
           </div>
           <button className="primary-button profile-dialog__cta" onClick={onRequest} type="button">
             Preview intro request <ArrowRight aria-hidden="true" size={18} />
           </button>
-          <p className="demo-disclosure">Illustrative profile, pricing and availability. No trainer is contacted from this prototype.</p>
+          <p className="demo-disclosure">{trainer.isDemo ? "Illustrative profile, pricing and availability. " : ""}Intro requests are a preview; no trainer is contacted.</p>
         </div>
       </motion.div>
     </DialogShell>
@@ -402,7 +421,7 @@ function RequestDialog({
           <span><small>Preview with</small><strong>{trainer.name}</strong></span>
         </div>
         <h2>Draft your hello.</h2>
-        <p>Try the introduction flow with demo data. Nothing you write or select is sent or saved.</p>
+        <p>Preview your introduction. Nothing you write or select is sent or saved.</p>
         <label className="textarea-field">
           <span>Your introduction</span>
           <textarea

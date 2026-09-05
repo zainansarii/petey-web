@@ -1,8 +1,8 @@
 import { ArrowUpRight, BadgeCheck, MapPin, MessageCircle, Target } from "lucide-react";
-import { trainerCardName, type Trainer } from "../data/trainers";
+import { trainerCardName, type TrainerCardPreview } from "../model/trainer";
 
 type TrainerCardProps = {
-  trainer: Trainer;
+  trainer: TrainerCardPreview;
   variant?: "hero" | "feed";
   decorative?: boolean;
   matchReason?: string;
@@ -19,6 +19,7 @@ export function TrainerCard({
   onRequest,
 }: TrainerCardProps) {
   const isFeed = variant === "feed";
+  const isDemo = trainer.isDemo === true;
   const cardName = isFeed ? trainer.name : trainerCardName(trainer);
 
   if (decorative) {
@@ -31,14 +32,14 @@ export function TrainerCard({
   }
 
   return (
-    <article className={`trainer-card trainer-card--${variant}`} aria-label={`${trainer.name}, demo trainer profile, ${trainer.specialty}`}>
-      <img className="trainer-card__photo" src={trainer.photo} alt={`Demo portrait for ${trainer.name}'s trainer profile`} />
+    <article className={`trainer-card trainer-card--${variant}`} aria-label={`${trainer.name}, ${isDemo ? "demo " : ""}trainer profile, ${trainer.specialty}`}>
+      <img className="trainer-card__photo" src={trainer.photo} alt={`${isDemo ? "Demo portrait for" : "Portrait of"} ${trainer.name}'s trainer profile`} />
       <div className="trainer-card__shade" />
 
       <div className="trainer-card__topline">
         <span className="trainer-card__verified">
           <BadgeCheck aria-hidden="true" size={16} strokeWidth={2.5} />
-          Demo profile
+          {isDemo ? "Demo profile" : "Trainer profile"}
         </span>
         {isFeed && matchReason ? <span className="trainer-card__match">{matchReason}</span> : null}
       </div>
@@ -46,15 +47,17 @@ export function TrainerCard({
       <div className="trainer-card__content">
         <div className="trainer-card__name-row">
           <h2>{cardName}</h2>
-          <span aria-label="Example availability" className="trainer-card__status">
-            <span />
-          </span>
+          {isDemo ? <span aria-label="Example availability" className="trainer-card__status"><span /></span> : null}
         </div>
 
         <div className="trainer-card__facts">
-          <span><Target aria-hidden="true" size={14} />{trainer.specialty}</span>
-          <span><MapPin aria-hidden="true" size={14} />{isFeed ? `${trainer.distanceMiles} mi` : trainer.area}</span>
-          <span>From £{trainer.price}</span>
+          <div className="trainer-card__facts-row">
+            <span><Target aria-hidden="true" size={14} />{trainer.specialty}</span>
+          </div>
+          <div className="trainer-card__facts-row">
+            <span><MapPin aria-hidden="true" size={14} />{trainer.area}</span>
+            <span>From £{trainer.price}</span>
+          </div>
         </div>
 
         {isFeed ? (

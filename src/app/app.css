@@ -366,10 +366,6 @@
   object-fit: cover;
 }
 
-.trainer-card--hero .trainer-card__photo {
-  object-fit: contain;
-}
-
 .trainer-card__shade {
   z-index: -1;
   background: linear-gradient(to bottom, rgba(14, 18, 16, 0.15) 0%, rgba(14, 18, 16, 0.01) 38%, rgba(14, 18, 16, 0.88) 100%);
@@ -468,12 +464,18 @@
 
 .trainer-card__facts {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 7px;
   margin-top: 15px;
 }
 
-.trainer-card__facts > span {
+.trainer-card__facts-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: inherit;
+}
+
+.trainer-card__facts-row > span {
   display: inline-flex;
   min-height: 31px;
   align-items: center;
@@ -1503,7 +1505,7 @@
 
 .profile-dialog__pricing {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
   gap: 8px;
   margin-top: 24px;
 }
@@ -1825,7 +1827,7 @@
     margin-top: 10px;
   }
 
-  .trainer-card__facts > span {
+  .trainer-card__facts-row > span {
     min-height: 27px;
     padding: 0 8px;
     font-size: 9px;
@@ -2279,7 +2281,7 @@
     margin-top: 8px;
   }
 
-  .trainer-card__facts > span {
+  .trainer-card__facts-row > span {
     min-height: 25px;
     padding: 0 7px;
     font-size: 8px;
@@ -2482,6 +2484,18 @@
   scroll-behavior: auto;
   scrollbar-width: none;
   will-change: scroll-position;
+}
+
+/* Keep the automatic handoff scroll, but prevent user input reversing it. */
+.chat-thread__viewport[data-handoff-phase="clearing"],
+.chat-thread__viewport[data-handoff-phase="matching"] {
+  overflow-y: hidden;
+  touch-action: none;
+}
+
+.chat-thread__messages[hidden],
+.chat-thread__footer[hidden] {
+  display: none;
 }
 
 .chat-thread__viewport::-webkit-scrollbar {
@@ -3243,7 +3257,7 @@
     margin-top: 6px;
   }
 
-  .match-preview__card .trainer-card__facts > span {
+  .match-preview__card .trainer-card__facts-row > span {
     min-height: 24px;
     padding: 0 7px;
     font-size: 8px;
@@ -3390,5 +3404,48 @@
 
   .feed-intro h1 {
     font-size: 28px;
+  }
+}
+
+
+.post-chat-results__empty,
+.feed-empty {
+  width: min(100%, 500px);
+  margin: clamp(24px, 5vh, 64px) auto;
+  color: var(--ink);
+  text-align: center;
+}
+
+.post-chat-results__empty p,
+.feed-empty p {
+  margin: 0 0 24px;
+  color: var(--ink-soft);
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.feed-empty {
+  padding: 32px 24px;
+}
+
+.feed-empty h1 {
+  margin: 0 0 20px;
+  font-size: clamp(28px, 4vw, 42px);
+  line-height: 1.1;
+}
+
+.match-preview[data-preview-count="1"] {
+  max-width: 350px;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.match-preview[data-preview-count="1"] .match-preview__item {
+  left: 0;
+}
+
+@media (min-width: 761px) {
+  .match-preview[data-preview-count="2"] {
+    max-width: 720px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

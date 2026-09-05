@@ -1,3 +1,4 @@
+import { DEMO_TRAINER_FIXTURES as TRAINERS } from "../../discovery/data/demoTrainerFixture";
 import {
   ONBOARDING_OPENING_MESSAGES,
   type ConfirmWebOnboardingDraftV3Request,
@@ -14,6 +15,9 @@ import {
   type GetWebOnboardingDraftV3Request,
   type GetWebOnboardingDraftV3Response,
   type OnboardingChatMessage,
+  type MatchWebOnboardingDraftV1Request,
+  type MatchWebOnboardingDraftV1Response,
+  type GetWebClientProfileV3Response,
   type OnboardingDraftSnapshotV3,
   type RunWebOnboardingTurnV3Request,
   type RunWebOnboardingTurnV3Response,
@@ -179,6 +183,36 @@ export const finalizeFixtureV4 = async (
   };
 };
 
+const fixtureMatches = () => {
+  const count = Number(new URLSearchParams(window.location.search).get("fixtureMatchCount") ?? 5);
+  return TRAINERS.slice(0, Number.isFinite(count) ? Math.max(0, count) : 5).map((trainer, index) => ({
+    trainer,
+    score: 92 - index * 4,
+    reason: "Their encouraging coaching and session options fit your training brief.",
+  }));
+};
+
+export const matchFixtureDraft = async (
+  request: MatchWebOnboardingDraftV1Request,
+): Promise<MatchWebOnboardingDraftV1Response> => {
+  assertCapability(request);
+  const matches = fixtureMatches();
+  const matching = {
+    totalMatches: matches.length,
+    previews: matches.slice(0, 3).map(({ trainer }) => {
+      const { id, name, photo, specialty, area, price, isDemo } = trainer;
+      return { id, name, photo, specialty, area, price, isDemo };
+    }),
+  };
+  snapshot = { ...snapshot!, matching };
+  return { matching: structuredClone(matching) };
+};
+
+export const getFixtureClientProfile = async (): Promise<GetWebClientProfileV3Response> => ({
+  profileMarkdown: snapshot?.profileMarkdown ?? null,
+  matches: snapshot?.profileMarkdown ? fixtureMatches() : [],
+});
+
 export const confirmFixtureDraft = async (
   request: ConfirmWebOnboardingDraftV3Request,
 ): Promise<ConfirmWebOnboardingDraftV3Response> => {
@@ -198,7 +232,7 @@ export const consumeFixtureDraft = async (
   request: ConsumeWebOnboardingDraftV3Request,
 ): Promise<ConsumeWebOnboardingDraftV3Response> => {
   assertCapability(request);
-  return { profileMarkdown: snapshot!.profileMarkdown! };
+  return { profileMarkdown: snapshot!.profileMarkdown!, matches: fixtureMatches() };
 };
 
 export const deleteFixtureDraft = async (
