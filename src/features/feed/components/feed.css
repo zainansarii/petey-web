@@ -33,8 +33,9 @@
   display: grid;
   min-height: calc(100svh - 112px);
   max-width: 1600px;
-  grid-template-columns: minmax(240px, 0.7fr) minmax(0, 2fr);
+  grid-template-columns: minmax(240px, 340px) minmax(0, max(680px, calc((100svh - 196px) * 1.6 + 24px)));
   align-items: center;
+  justify-content: center;
   gap: clamp(28px, 3vw, 48px);
   margin: 0 auto;
   padding: 28px 46px 54px;
@@ -69,7 +70,7 @@
 .feed-intro__controls .carousel-dots { flex-wrap: wrap; }
 .feed-mobile-controls { display: none; }
 
-.feed-stage { min-width: 0; width: 100%; max-width: max(680px, calc((100svh - 196px) * 1.6 + 24px)); }
+.feed-stage { min-width: 0; width: 100%; }
 .feed-stage__pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; align-items: stretch; }
 .feed-stage__card { min-width: 0; aspect-ratio: 4 / 5; cursor: grab; touch-action: pan-y; }
 .feed-stage__card:active { cursor: grabbing; }
@@ -113,7 +114,6 @@
 
 @media (max-width: 1180px) {
   .feed-layout { max-width: 1000px; grid-template-columns: minmax(0, 1fr); gap: 32px; align-content: center; }
-  .feed-stage { max-width: none; }
   .feed-intro { position: relative; padding-right: 190px; }
   .feed-intro > p { margin-top: 16px; }
   .feed-intro__controls { position: absolute; right: 0; bottom: 0; max-width: 180px; margin: 0; }
