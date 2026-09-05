@@ -40,8 +40,6 @@
   text-transform: none;
 }
 
-.chat-message__content > p,
-.chat-message--user .chat-message__content > p,
 .landing__lede,
 .login-screen__content > p,
 .check-email__lede,
@@ -61,6 +59,15 @@
   letter-spacing: normal;
   line-height: 1.55;
   text-transform: none;
+}
+
+.chat-message__content > p,
+.chat-message--user .chat-message__content > p {
+  font-family: var(--body);
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: normal;
+  line-height: 1.55;
 }
 
 .chat-suggestion,
