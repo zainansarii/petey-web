@@ -4,7 +4,8 @@
 }
 
 .trainer-availability__table {
-  width: calc(100% - 12px);
+  width: calc(100% - 20px);
+  margin: 8px 0 0 8px;
   border-collapse: separate;
   border-spacing: 0;
   table-layout: fixed;
@@ -40,7 +41,7 @@
   display: flex;
   align-items: center;
   gap: 5px;
-  margin: 9px 0 0;
+  margin: 9px 0 0 8px;
   color: var(--ink-soft);
   font-size: 0.6875rem;
   line-height: 1.5;
@@ -54,4 +55,9 @@
   .trainer-availability__day-column { width: 2rem; }
   .trainer-availability__day-full { display: none; }
   .trainer-availability__day-short { display: inline; }
+}
+
+@container (max-width: 260px) {
+  .trainer-availability__table thead th,
+  .trainer-availability__table tbody td { padding-left: 4px; }
 }
