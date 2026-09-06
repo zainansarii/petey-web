@@ -5,7 +5,7 @@
 
 .trainer-availability__table {
   width: calc(100% - 20px);
-  margin: 0 0 0 8px;
+  margin: 8px 0 0 8px;
   border-collapse: separate;
   border-spacing: 0;
   table-layout: fixed;
@@ -15,7 +15,7 @@
 
 .trainer-availability__day-column { width: 6rem; }
 .trainer-availability__table th { font-weight: 400; }
-.trainer-availability__table thead th { padding: 12px 0 8px 6px; text-align: center; font-size: 0.75rem; }
+.trainer-availability__table thead th { padding: 0 0 8px 6px; text-align: center; font-size: 0.75rem; }
 .trainer-availability__table tbody th { padding: 3px 0; color: var(--ink-soft); text-align: left; }
 .trainer-availability__table tbody td { padding: 3px 0 3px 6px; }
 .trainer-availability__hours { display: block; margin-top: 3px; color: var(--ink-soft); font-size: 0.6875rem; white-space: nowrap; }
