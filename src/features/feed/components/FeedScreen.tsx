@@ -8,7 +8,6 @@ import {
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
   ArrowRight,
-  CalendarDays,
   Check,
   ChevronLeft,
   ChevronRight,
@@ -22,6 +21,7 @@ import {
 import "./feed.css";
 import { BrandMark } from "../../../shared/ui/BrandMark";
 import { TrainerCard } from "../../discovery/components/TrainerCard";
+import { TrainerAvailability } from "./TrainerAvailability";
 import type { Trainer } from "../../discovery/model/trainer";
 import type { MatchedTrainer } from "../../onboarding/model/onboarding";
 
@@ -310,7 +310,7 @@ function TrainerDetails({ trainer, matchReason, onRequest }: {
         </div>
         <ProfileSection icon={<Target aria-hidden="true" size={17} />} title="Specialises in" items={[...new Set([trainer.specialty, ...trainer.specialties])]} />
         <ProfileSection icon={<Sparkles aria-hidden="true" size={17} />} title="Coaching style" items={trainer.coachingStyles} />
-        <ProfileSection icon={<CalendarDays aria-hidden="true" size={17} />} title="Usually available" items={trainer.availability} />
+        <TrainerAvailability availability={trainer.availability} />
         <ProfileSection icon={<MapPin aria-hidden="true" size={17} />} title="Where you can train" items={[trainer.area, ...trainer.venues]} />
         <ProfileSection icon={<ShieldCheck aria-hidden="true" size={17} />} title="Qualifications" items={trainer.qualifications} />
         <dl className="trainer-details__pricing">
