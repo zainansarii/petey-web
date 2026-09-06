@@ -316,13 +316,13 @@ const addPoundSignsToBudgetNumbers = (value: string) => value
 const replaceEmDashes = (value: string) => value.replace(/\u2014/g, "-");
 
 const normalizeQuickReplies = (values: string[], reply: string) => {
-  const seen = new Set<string>();
+  if (practicalTopicAskedInV3(reply) === "trainingSettingAnswered") {
+    return ["Home", "Online", "Commercial gym", "Private studio"];
+  }
   return values.flatMap((value) => {
     const cleaned = replaceEmDashes(value).replace(/\s+/g, " ").trim().replace(/\.+$/, "").trim();
     const normalized = /\bbudget\b/i.test(reply) ? addPoundSignsToBudgetNumbers(cleaned) : cleaned;
-    const key = normalized.toLocaleLowerCase("en-GB");
-    if (!isSafeQuickReply(normalized) || seen.has(key)) return [];
-    seen.add(key);
+    if (!isSafeQuickReply(normalized)) return [];
     return [normalized];
   });
 };
@@ -339,6 +339,10 @@ const normalizeConversationalReply = (value: string) => {
 
   const firstQuestionMark = reply.indexOf("?");
   if (firstQuestionMark >= 0) reply = reply.slice(0, firstQuestionMark + 1);
+  const question = firstQuestionIn(reply);
+  if (isTrainingFrequencyQuestion(question) && !/\bwith (?:your|a|the) (?:personal )?(?:trainer|coach)\b/i.test(question)) {
+    return "How often would you like to train with your trainer?";
+  }
   return reply.slice(0, 500);
 };
 
@@ -386,6 +390,8 @@ export const hasReviewReadinessPhrasingV3 = (reply: string) => [
 export type RequiredPracticalTopicsV3 = {
   coachingStyleAnswered: boolean;
   trainerGenderPreferenceAnswered: boolean;
+  trainingSettingAnswered: boolean;
+  locationAnswered: boolean;
   trainingFrequencyAnswered: boolean;
   availabilityAnswered: boolean;
   budgetAnswered: boolean;
@@ -394,11 +400,27 @@ export type RequiredPracticalTopicsV3 = {
 type ConversationalMessage = Pick<OnboardingChatMessage, "role" | "text">;
 type RequiredPracticalTopic = keyof RequiredPracticalTopicsV3;
 
+const firstQuestionIn = (message: string) => {
+  const end = message.indexOf("?");
+  return end < 0 ? "" : message.slice(0, end + 1).match(/[^.!?]*\?$/)?.[0] ?? "";
+};
+
+const isTrainingFrequencyQuestion = (question: string) => !/\b(?:currently|at the moment|on your own|independently|solo|already)\b/i.test(question) && [
+  /\btraining frequency\b/i,
+  /\bhow often\b[^?]{0,75}\b(?:train|work ?out|exercise|have sessions?|meet)\b/i,
+  /\bhow many\b[^?]{0,65}\b(?:sessions?|workouts?|times?)\b/i,
+].some((pattern) => pattern.test(question));
+
+const isOnlineOnlyQuestion = (question: string) => /\b(?:online|remote)[ -]only\b|\bonly (?:be )?(?:online|remote)\b/i.test(question);
+
+const confirmsOnlineOnly = (answer: string) => (
+  /^(?:yes|yeah|yep|correct|exactly)\b|\b(?:online|remote) only\b|\bonly(?: want| do| have)? (?:online|remote)\b/i.test(answer.trim())
+  && !/\b(?:no|not|except|but|also|maybe|sometimes|in[ -]person|gym|studio)\b/i.test(answer)
+);
+
 const practicalTopicAskedInV3 = (message: string): RequiredPracticalTopic | null => {
-  const questionEnd = message.indexOf("?");
-  if (questionEnd < 0) return null;
-  const replyThroughQuestion = message.slice(0, questionEnd + 1);
-  const question = replyThroughQuestion.match(/[^.!?]*\?$/)?.[0] ?? replyThroughQuestion;
+  const question = firstQuestionIn(message);
+  if (!question) return null;
 
   const coachingStyleAsked = [
     /\b(?:training|coaching) style\b/i,
@@ -421,12 +443,18 @@ const practicalTopicAskedInV3 = (message: string): RequiredPracticalTopic | null
     /\bwhich (?:days?|times?)\b/i,
     /\b(?:days?|times?|mornings?|afternoons?|evenings?|weekends?)\b[^?]{0,35}\b(?:work|suit|fit|best)\b/i,
   ].some((pattern) => pattern.test(question));
-  const trainingFrequencyAsked = [
-    /\btraining frequency\b/i,
-    /\bhow often\b[^?]{0,55}\b(?:train|work ?out|exercise|have sessions?|meet)\b/i,
-    /\bhow many\b[^?]{0,45}\b(?:sessions?|workouts?|times?)\b[^?]{0,30}\b(?:week|month)\b/i,
-    /\b(?:sessions?|workouts?)\b[^?]{0,30}\b(?:per|each|a) (?:week|month)\b/i,
-  ].some((pattern) => pattern.test(question));
+  const trainingFrequencyAsked = isTrainingFrequencyQuestion(question)
+    && /\bwith (?:your|a|the) (?:personal )?(?:trainer|coach)\b/i.test(question);
+  if (isTrainingFrequencyQuestion(question) && !trainingFrequencyAsked) return null;
+  const locationAsked = /\b(?:rough area|local area|neighbourhood|neighborhood|town|borough|city|location)\b/i.test(question)
+    || /\b(?:what|which) area\b/i.test(question) && !/\barea of (?:fitness|training|your|the)\b/i.test(question)
+    || /\bwhere\b[^?]{0,45}\b(?:live|based)\b/i.test(question)
+    || isOnlineOnlyQuestion(question);
+  const trainingSettingAsked = !locationAsked && (
+    /\b(?:setting|venue|session format)\b/i.test(question)
+    || /\bwhere\b[^?]{0,65}\b(?:train|work ?out|sessions?)\b/i.test(question)
+    || /\b(?:home|online|gym|studio)\b[^?]{0,55}\b(?:prefer|train)\b/i.test(question)
+  );
   const budgetAsked = [
     /\bbudget\b/i,
     /\bhow much\b[^?]{0,45}\b(?:spend|pay|afford|comfortable)\b/i,
@@ -438,6 +466,8 @@ const practicalTopicAskedInV3 = (message: string): RequiredPracticalTopic | null
   const askedTopics: RequiredPracticalTopic[] = [];
   if (coachingStyleAsked) askedTopics.push("coachingStyleAnswered");
   if (trainerGenderPreferenceAsked) askedTopics.push("trainerGenderPreferenceAnswered");
+  if (trainingSettingAsked) askedTopics.push("trainingSettingAnswered");
+  if (locationAsked) askedTopics.push("locationAnswered");
   if (trainingFrequencyAsked) askedTopics.push("trainingFrequencyAnswered");
   if (availabilityAsked) askedTopics.push("availabilityAnswered");
   if (budgetAsked) askedTopics.push("budgetAnswered");
@@ -452,18 +482,32 @@ export const requiredPracticalTopicsForTranscriptV3 = (
   const answered: RequiredPracticalTopicsV3 = {
     coachingStyleAnswered: false,
     trainerGenderPreferenceAnswered: false,
+    trainingSettingAnswered: false,
+    locationAnswered: false,
     trainingFrequencyAnswered: false,
     availabilityAnswered: false,
     budgetAnswered: false,
   };
   let pendingTopic: RequiredPracticalTopic | null = null;
+  let pendingOnlineOnly = false;
+  let roughAreaAnswered = false;
 
   for (const message of messages) {
     if (message.role === "assistant") {
       pendingTopic = practicalTopicAskedInV3(message.text);
+      pendingOnlineOnly = pendingTopic === "locationAnswered" && isOnlineOnlyQuestion(message.text);
       continue;
     }
-    if (pendingTopic && message.text.trim()) answered[pendingTopic] = true;
+    if (pendingTopic && message.text.trim()) {
+      if (pendingOnlineOnly) {
+        // A mixed/negative/uncertain answer still needs a rough-area question.
+        answered.locationAnswered = roughAreaAnswered || confirmsOnlineOnly(message.text);
+      } else {
+        answered[pendingTopic] = true;
+        if (pendingTopic === "locationAnswered") roughAreaAnswered = true;
+        if (pendingTopic === "trainingSettingAnswered") answered.locationAnswered = roughAreaAnswered;
+      }
+    }
     pendingTopic = null;
   }
 
@@ -474,6 +518,8 @@ export const shouldReadyForReviewV3 = ({
   coverage,
   coachingStyleAnswered = false,
   trainerGenderPreferenceAnswered = false,
+  trainingSettingAnswered = false,
+  locationAnswered = false,
   trainingFrequencyAnswered = false,
   availabilityAnswered = false,
   budgetAnswered = false,
@@ -481,6 +527,8 @@ export const shouldReadyForReviewV3 = ({
   coverage: OnboardingThemeCoverageV4;
   coachingStyleAnswered?: boolean;
   trainerGenderPreferenceAnswered?: boolean;
+  trainingSettingAnswered?: boolean;
+  locationAnswered?: boolean;
   trainingFrequencyAnswered?: boolean;
   availabilityAnswered?: boolean;
   budgetAnswered?: boolean;
@@ -488,6 +536,8 @@ export const shouldReadyForReviewV3 = ({
   if (
     !coachingStyleAnswered
     || !trainerGenderPreferenceAnswered
+    || !trainingSettingAnswered
+    || !locationAnswered
     || !trainingFrequencyAnswered
     || !availabilityAnswered
     || !budgetAnswered
@@ -519,8 +569,20 @@ const incompleteReviewFollowUpV4 = (
   }
   if (!required.trainingFrequencyAnswered) {
     return {
-      reply: "How often would you ideally like to train each week?",
+      reply: "How often would you like to train with your trainer?",
       quickReplies: ["Twice a week", "Three times a week", "I'm not sure yet"],
+    };
+  }
+  if (!required.trainingSettingAnswered) {
+    return {
+      reply: "Where would you like to train with your trainer?",
+      quickReplies: ["Home", "Online", "Commercial gym", "Private studio"],
+    };
+  }
+  if (!required.locationAnswered) {
+    return {
+      reply: "What area would you like your sessions in?",
+      quickReplies: ["Near London Bridge", "Shoreditch", "Online only"],
     };
   }
   if (!required.availabilityAnswered) {
@@ -532,7 +594,7 @@ const incompleteReviewFollowUpV4 = (
   if (!required.budgetAnswered) {
     return {
       reply: "What is your budget for these training sessions?",
-      quickReplies: ["Around £50 per session", "Up to £300 per month", "I'm not sure yet"],
+      quickReplies: ["Around £70 per session", "Up to £300 per month", "I'm not sure yet"],
     };
   }
   if (!coverage.trainee) {
@@ -622,7 +684,7 @@ const conversationalResponseJsonSchema = {
         },
         sessions: {
           type: "boolean",
-          description: "False until frequency, availability, and budget are all confirmed in private turn state.",
+          description: "False until training setting, location (rough area or confirmed online-only), frequency with the trainer, availability, and budget are all confirmed in private turn state.",
         },
       },
     },
@@ -630,7 +692,7 @@ const conversationalResponseJsonSchema = {
       type: "array",
       minItems: 0,
       maxItems: MAX_ONBOARDING_QUICK_REPLIES,
-      description: "Two or three concise natural answers, normally six words or fewer, to illustrate the open question; empty when there is no question.",
+      description: "Two or three meaningfully different answers, never paraphrases of the same idea. For training setting return Home, Online, Commercial gym, Private studio. Empty when there is no question.",
       items: { type: "string" },
     },
   },
@@ -722,10 +784,12 @@ Private turn state supplied by the application:
 - This is the first answer to the opening goal question: ${userTurns === 1 ? "yes" : "no"}
 - General trainer fit has been explicitly asked and answered: ${requiredPracticalTopics.coachingStyleAnswered ? "yes" : "no"}
 - Trainer gender preference has been explicitly asked and answered: ${requiredPracticalTopics.trainerGenderPreferenceAnswered ? "yes" : "no"}
-- Training frequency has been explicitly asked and answered: ${requiredPracticalTopics.trainingFrequencyAnswered ? "yes" : "no"}
+- Training setting has been explicitly asked and answered: ${requiredPracticalTopics.trainingSettingAnswered ? "yes" : "no"}
+- Location (rough area or confirmed online-only) has been explicitly asked and answered: ${requiredPracticalTopics.locationAnswered ? "yes" : "no"}
+- Training frequency with the trainer has been explicitly asked and answered: ${requiredPracticalTopics.trainingFrequencyAnswered ? "yes" : "no"}
 - Availability has been explicitly asked and answered: ${requiredPracticalTopics.availabilityAnswered ? "yes" : "no"}
 - Budget has been explicitly asked and answered: ${requiredPracticalTopics.budgetAnswered ? "yes" : "no"}
-Treat the five explicit topic flags as authoritative. Assess trainee and trainer depth yourself from the full
+Treat the seven explicit topic flags as authoritative. Assess trainee and trainer depth yourself from the full
 conversation according to the system prompt. Keep trainer coverage false while general trainer fit or trainer gender says "no".
 Keep sessions coverage false while a required sessions topic says "no". Ask for missing coverage naturally,
 and never use the number of messages to decide coverage or completion.
@@ -789,10 +853,12 @@ Private turn state supplied by the application:
 - This is the first answer to the opening goal question: ${userTurns === 1 ? "yes" : "no"}
 - General trainer fit has been explicitly asked and answered: ${requiredPracticalTopics.coachingStyleAnswered ? "yes" : "no"}
 - Trainer gender preference has been explicitly asked and answered: ${requiredPracticalTopics.trainerGenderPreferenceAnswered ? "yes" : "no"}
-- Training frequency has been explicitly asked and answered: ${requiredPracticalTopics.trainingFrequencyAnswered ? "yes" : "no"}
+- Training setting has been explicitly asked and answered: ${requiredPracticalTopics.trainingSettingAnswered ? "yes" : "no"}
+- Location (rough area or confirmed online-only) has been explicitly asked and answered: ${requiredPracticalTopics.locationAnswered ? "yes" : "no"}
+- Training frequency with the trainer has been explicitly asked and answered: ${requiredPracticalTopics.trainingFrequencyAnswered ? "yes" : "no"}
 - Availability has been explicitly asked and answered: ${requiredPracticalTopics.availabilityAnswered ? "yes" : "no"}
 - Budget has been explicitly asked and answered: ${requiredPracticalTopics.budgetAnswered ? "yes" : "no"}
-Treat the five explicit topic flags as authoritative. Assess trainee and trainer depth yourself from the full
+Treat the seven explicit topic flags as authoritative. Assess trainee and trainer depth yourself from the full
 conversation according to the system prompt. Keep trainer coverage false while general trainer fit or trainer gender says "no".
 Keep sessions coverage false while a required sessions topic says "no". Ask for missing coverage naturally,
 and never use the number of messages to decide coverage or completion.
@@ -932,6 +998,8 @@ export const isTranscriptReadyForFinalizationV4 = (messages: readonly Onboarding
   const latestAssistantMessage = [...messages].reverse().find(({ role }) => role === "assistant")?.text ?? "";
   return required.coachingStyleAnswered
     && required.trainerGenderPreferenceAnswered
+    && required.trainingSettingAnswered
+    && required.locationAnswered
     && required.trainingFrequencyAnswered
     && required.availabilityAnswered
     && required.budgetAnswered

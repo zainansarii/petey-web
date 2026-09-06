@@ -511,14 +511,27 @@ describe("web onboarding V4 local conversation and secure handoff", () => {
     expect(api.matchWebOnboardingDraftV1).not.toHaveBeenCalled();
   });
 
-  it("lets someone save their account when no trainers are compatible", async () => {
+  it("shows closest options without describing them as compatible matches", async () => {
+    api.readDraftCapability.mockReturnValue(capability);
+    api.getWebOnboardingDraftV3.mockResolvedValue({ snapshot: reviewSnapshot({
+      matching: { totalMatches: 1, previews: [TRAINERS[3]!], matchKind: "closest" },
+    }) });
+    render(<Harness />);
+    expect(await screen.findByRole("heading", { name: "Explore your closest options" })).toBeInTheDocument();
+    expect(screen.getByRole("list", { name: "Your closest trainer options" })).toBeInTheDocument();
+    expect(screen.queryByText("We found 1 match")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /choose match 1/i }));
+    expect(await screen.findByRole("dialog", { name: "Create an account" })).toBeInTheDocument();
+  });
+
+  it("lets someone save their account when no trainers are available", async () => {
     api.readDraftCapability.mockReturnValue(capability);
     api.getWebOnboardingDraftV3.mockResolvedValue({ snapshot: reviewSnapshot({
       matching: { totalMatches: 0, previews: [] },
     }) });
     render(<Harness />);
 
-    expect(await screen.findByRole("heading", { name: "We found 0 matches" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "No trainers available yet" })).toBeInTheDocument();
     expect(screen.queryByRole("list", { name: "Your trainer matches" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /choose match/i })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Create an account" }));

@@ -45,8 +45,8 @@ const draftPath = `webOnboardingDraftsV3/${capability.draftId}`;
 const profilePath = "webClientProfiles/client-one";
 const markerPath = `_webOnboardingConsumptionsV3/${capability.draftId}`;
 const matching = {
-  version: 1, profileHash: digest(markdown), catalogHash: digest("catalog"), evaluatedCount: 2, model: "test-model",
-  matches: [{ trainerId: "trainer-one", score: 90, reason: "Running and schedule fit.", profileVersion: 1 }],
+  version: 2, matchKind: "compatible", profileHash: digest(markdown), catalogHash: digest("catalog"), evaluatedCount: 2, model: "test-model",
+  matches: [{ trainerId: "trainer-one", score: 90, reason: "Running and schedule fit.", profileVersion: 1, dealbreakers: { budget: "not_required", venue: "not_required", location: "not_required", availability: "met", trainerGender: "not_required", otherRequirements: "not_required" }, tradeoffs: [] }],
 };
 const identity = { fullName: "Existing Client", dateOfBirth: "1990-01-01", email: "client@example.test" };
 const request = () => ({

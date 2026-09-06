@@ -15,6 +15,7 @@ import {
   type GetWebOnboardingDraftV3Request,
   type GetWebOnboardingDraftV3Response,
   type OnboardingChatMessage,
+  type MatchedTrainer,
   type MatchWebOnboardingDraftV1Request,
   type MatchWebOnboardingDraftV1Response,
   type GetWebClientProfileV3Response,
@@ -183,12 +184,16 @@ export const finalizeFixtureV4 = async (
   };
 };
 
-const fixtureMatches = () => {
+const fixtureMatches = (): MatchedTrainer[] => {
+  const closest = new URLSearchParams(window.location.search).has("fixtureClosest");
   const count = Number(new URLSearchParams(window.location.search).get("fixtureMatchCount") ?? 5);
   return TRAINERS.slice(0, Number.isFinite(count) ? Math.max(0, count) : 5).map((trainer, index) => ({
     trainer,
-    score: 92 - index * 4,
-    reason: "Their encouraging coaching and session options fit your training brief.",
+    score: closest ? 65 - index * 4 : 92 - index * 4,
+    matchKind: closest ? "closest" : "compatible",
+    reason: closest ? "Their strength coaching could suit your goal, but the session price exceeds your maximum." : "Their encouraging coaching and session options fit your training brief.",
+    dealbreakers: { budget: closest ? "not_met" : "met", venue: "met", location: "met", availability: closest ? "unconfirmed" : "met", trainerGender: "not_required", otherRequirements: "not_required" },
+    tradeoffs: closest ? ["Their conversational style may be more talkative than you prefer."] : [],
   }));
 };
 
@@ -199,6 +204,7 @@ export const matchFixtureDraft = async (
   const matches = fixtureMatches();
   const matching = {
     totalMatches: matches.length,
+    matchKind: matches[0]?.matchKind ?? "compatible",
     previews: matches.slice(0, 3).map(({ trainer }) => {
       const { id, name, photo, specialty, area, price, isDemo } = trainer;
       return { id, name, photo, specialty, area, price, isDemo };

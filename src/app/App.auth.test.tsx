@@ -81,7 +81,7 @@ describe("App auth restoration", () => {
     });
     render(<App />);
 
-    expect(await screen.findByRole("heading", { name: "No compatible trainers yet" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "No trainers available yet" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Maya Chen" })).not.toBeInTheDocument();
   });
 
@@ -90,7 +90,7 @@ describe("App auth restoration", () => {
       profileMarkdown: "# Training brief\n\nA training plan for specialist goals.", matches: [],
     });
     render(<App />);
-    await screen.findByRole("heading", { name: "No compatible trainers yet" });
+    await screen.findByRole("heading", { name: "No trainers available yet" });
     fireEvent.click(screen.getByRole("button", { name: "Update my preferences" }));
     const finishRetune = await screen.findByRole("button", { name: "Complete retune" });
     onboardingMocks.consumeWebOnboardingDraftV3.mockResolvedValue({

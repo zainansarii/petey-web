@@ -1,5 +1,5 @@
 import { useId } from "react";
-import { CalendarDays, Check } from "lucide-react";
+import { CalendarDays } from "lucide-react";
 import "./trainer-availability.css";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -68,7 +68,6 @@ export function TrainerAvailability({ availability }: { availability: string[] }
                       className={`trainer-availability__slot${labels ? " trainer-availability__slot--available" : ""}`}
                       title={labels?.join(" · ") ?? "No availability listed"}
                     >
-                      {labels ? <Check aria-hidden="true" size={15} strokeWidth={2} /> : null}
                       <span className="sr-only">{labels ? `Usually available: ${labels.join("; ")}` : "No availability listed"}</span>
                     </span>
                   </td>
@@ -79,10 +78,7 @@ export function TrainerAvailability({ availability }: { availability: string[] }
         </tbody>
       </table>
       {slots.size > 0 ? (
-        <p className="trainer-availability__legend"><Check aria-hidden="true" size={13} />Usually available</p>
-      ) : null}
-      {availability.some((label) => /lunchtime/i.test(label)) && slots.size > 0 ? (
-        <p className="trainer-availability__note">Lunchtime slots are shown under afternoon.</p>
+        <p className="trainer-availability__legend"><span aria-hidden="true" />Usually available</p>
       ) : null}
       {notes.length > 0 ? <p className="trainer-availability__note">{notes.join(" · ")}</p> : null}
       {availability.length === 0 ? <p className="trainer-availability__note">Availability to be confirmed.</p> : null}

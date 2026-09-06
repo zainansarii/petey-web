@@ -664,9 +664,12 @@ function PostChatHandoff({
               initial={reducedMotion ? false : { opacity: 0, y: 52 }}
               transition={{ duration: reducedMotion ? 0 : 0.9, ease: [0.22, 1, 0.36, 1] }}
             >
-              We found {matching.totalMatches} {matching.totalMatches === 1 ? "match" : "matches"}
+              {matching.totalMatches === 0 ? "No trainers available yet" : matching.matchKind === "closest"
+                ? "Explore your closest options"
+                : `We found ${matching.totalMatches} ${matching.totalMatches === 1 ? "match" : "matches"}`}
             </motion.h2>
-            {matching.totalMatches > 0 ? <div aria-label="Your trainer matches" className="match-preview" data-preview-count={Math.min(3, matching.previews.length)} role="list">
+            {matching.matchKind === "closest" && matching.totalMatches > 0 ? <p>We couldn’t find a close enough match for all your preferences. Here are the closest options to consider.</p> : null}
+            {matching.totalMatches > 0 ? <div aria-label={matching.matchKind === "closest" ? "Your closest trainer options" : "Your trainer matches"} className="match-preview" data-preview-count={Math.min(3, matching.previews.length)} role="list">
               {matching.previews.slice(0, 3).map((trainer, index) => (
                 <MatchPreviewCard
                   index={index}
@@ -678,7 +681,7 @@ function PostChatHandoff({
               ))}
             </div> : (
               <div className="post-chat-results__empty">
-                <p>We couldn’t find a compatible trainer in the current selection. You can still save your training brief by creating an account.</p>
+                <p>There are no available trainer profiles right now. You can still save your training brief by creating an account.</p>
                 <button className="primary-button" onClick={onCreateAccount} type="button">
                   Create an account <ArrowRight aria-hidden="true" size={18} />
                 </button>
@@ -764,13 +767,13 @@ function MatchPreviewCard({
 
 function QuickReplies({ prompts }: { prompts: string[] }) {
   const aui = useAui();
-  const labels = [...new Set(prompts.map((prompt) => prompt.trim().replace(/\.+$/, "").trim()))]
+  const labels = prompts.map((prompt) => prompt.trim().replace(/\.+$/, "").trim())
     .filter(Boolean);
   if (labels.length === 0) return null;
   return (
     <div aria-label="Suggested replies" className="chat-suggestions">
-      {labels.map((prompt) => (
-        <button className="chat-suggestion" key={prompt} onClick={() => {
+      {labels.map((prompt, index) => (
+        <button className="chat-suggestion" key={`${index}-${prompt}`} onClick={() => {
           aui.thread.composer().setText(prompt);
           aui.thread.composer().send();
         }} type="button">{prompt}</button>

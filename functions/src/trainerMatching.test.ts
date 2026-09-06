@@ -3,6 +3,7 @@ import {
   buildTrainerMatchingRequest,
   evaluateTrainerMatches,
   parseTrainerMatchEvaluations,
+  selectTrainerMatches,
   type MatchCandidate,
   type TrainerMatchingRequest,
 } from "./trainerMatching.js";
@@ -39,7 +40,9 @@ const evaluation = (trainerId: string, overrides: Record<string, unknown> = {}) 
     location: "not_required",
     availability: "met",
     trainerGender: "not_required",
+    otherRequirements: "not_required",
   },
+  tradeoffs: [],
   ...overrides,
 });
 const response = (...evaluations: ReturnType<typeof evaluation>[]) => JSON.stringify({ evaluations });
@@ -59,7 +62,7 @@ describe("trainer matching response validation", () => {
       .toHaveLength(2);
   });
 
-  it.each(["budget", "venue", "location", "availability", "trainerGender"])(
+  it.each(["budget", "venue", "location", "availability", "trainerGender", "otherRequirements"])(
     "blocks an asserted high-scoring match when %s is not confirmed or conflicts",
     (constraint) => {
       for (const status of ["unconfirmed", "not_met"]) {
@@ -85,7 +88,7 @@ describe("trainer matching response validation", () => {
       { trainerId: "threshold", compatible: true },
       { trainerId: "unsuitable", compatible: false },
     ]);
-    expect(results[0]).not.toHaveProperty("hardConstraints");
+    expect(results[0]).toHaveProperty("hardConstraints");
   });
 
   it.each([
@@ -209,5 +212,40 @@ describe("trainer matching provider boundary", () => {
     await expect(evaluateTrainerMatches(" ", [candidate("one")], provider)).rejects.toThrow(/brief is invalid/);
     await expect(evaluateTrainerMatches("a".repeat(12_001), [candidate("one")], provider)).rejects.toThrow(/brief is invalid/);
     expect(provider).not.toHaveBeenCalled();
+  });
+});
+
+describe("closest options and matching priorities", () => {
+  const parsed = (...items: ReturnType<typeof evaluation>[]) => parseTrainerMatchEvaluations(response(...items), items.map(({ trainerId }) => candidate(trainerId)));
+
+  it("keeps a useful match despite a softer personality difference", () => {
+    const results = parsed(evaluation("talkative", { tradeoffs: ["More conversational than your preferred quiet coaching style."] }));
+    expect(selectTrainerMatches(results)).toMatchObject({ matchKind: "compatible", evaluations: [{ trainerId: "talkative", tradeoffs: [expect.stringContaining("More conversational")] }] });
+  });
+
+  it("returns only compatible trainers when there are any, without filling with alternatives", () => {
+    const results = parsed(evaluation("fit"), evaluation("over-budget", { score: 99, hardConstraints: { ...evaluation("fit").hardConstraints, budget: "not_met" } }));
+    expect(selectTrainerMatches(results).evaluations.map(({ trainerId }) => trainerId)).toEqual(["fit"]);
+  });
+
+  it("returns at most three alternatives, prioritising dealbreakers before soft fit", () => {
+    const constraints = evaluation("base").hardConstraints;
+    const results = parsed(
+      evaluation("expensive", { score: 99, hardConstraints: { ...constraints, budget: "not_met" } }),
+      evaluation("unknown", { score: 90, hardConstraints: { ...constraints, availability: "unconfirmed" } }),
+      evaluation("soft-difference", { score: 69 }),
+      evaluation("two-conflicts", { score: 95, hardConstraints: { ...constraints, budget: "not_met", availability: "not_met" } }),
+    );
+    const selected = selectTrainerMatches(results);
+    expect(selected.matchKind).toBe("closest");
+    expect(selected.evaluations.map(({ trainerId }) => trainerId)).toEqual(["soft-difference", "unknown", "expensive"]);
+    expect(selected.evaluations.every(({ compatible }) => !compatible)).toBe(true);
+    expect(selected.evaluations[2]?.hardConstraints.budget).toBe("not_met");
+  });
+
+  it("still offers the available alternative when all candidates have a dealbreaker conflict", () => {
+    const results = parsed(evaluation("only-option", { score: 30, hardConstraints: { ...evaluation("base").hardConstraints, budget: "not_met" } }));
+    expect(selectTrainerMatches(results)).toMatchObject({ matchKind: "closest", evaluations: [{ trainerId: "only-option", compatible: false }] });
+    expect(selectTrainerMatches([]).evaluations).toEqual([]);
   });
 });

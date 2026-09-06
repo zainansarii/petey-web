@@ -23,7 +23,7 @@ import { BrandMark } from "../../../shared/ui/BrandMark";
 import { TrainerCard } from "../../discovery/components/TrainerCard";
 import { TrainerAvailability } from "./TrainerAvailability";
 import type { Trainer } from "../../discovery/model/trainer";
-import type { MatchedTrainer } from "../../onboarding/model/onboarding";
+import { MATCH_DEALBREAKER_LABELS, type MatchedTrainer, type MatchDealbreakers } from "../../onboarding/model/onboarding";
 
 export function FeedScreen({
   matches,
@@ -44,6 +44,7 @@ export function FeedScreen({
   const visibleIndex = Math.min(activeIndex, Math.max(0, matches.length - 1));
   const activeMatch = matches[visibleIndex];
   const activeTrainer = activeMatch?.trainer;
+  const showingClosest = activeMatch?.matchKind === "closest";
 
   const move = (direction: number) => {
     if (trainers.length < 2) return;
@@ -74,8 +75,8 @@ export function FeedScreen({
           <div className="feed-header__title"><span>Your shortlist</span><small>0 matches</small></div>
         </header>
         <section className="feed-empty" aria-live="polite">
-          <h1>No compatible trainers yet</h1>
-          <p>Your training brief is saved. You can update your preferences and search the current selection again.</p>
+          <h1>No trainers available yet</h1>
+          <p>Your training brief is saved. There are no available profiles to show right now. You can update your preferences and search again.</p>
           <button className="primary-button" onClick={onEditMatch} type="button">Update my preferences <ArrowRight aria-hidden="true" size={18} /></button>
         </section>
       </main>
@@ -102,8 +103,10 @@ export function FeedScreen({
 
         <div className="feed-layout">
           <aside className="feed-intro">
-            <h1>Your trainer matches</h1>
-            <p>{matches.length === 1 ? "One trainer fits" : `${matches.length} trainers fit`} your training preferences. Explore your shortlist.</p>
+            <h1>{showingClosest ? "Your closest options" : "Your trainer matches"}</h1>
+            <p>{showingClosest
+              ? "We couldn’t find a close enough match for all your preferences. These are the closest options, with the differences explained."
+              : `${matches.length === 1 ? "One trainer fits" : `${matches.length} trainers fit`} your training preferences. Explore your shortlist.`}</p>
             <div className="feed-intro__controls">
               <button aria-label="Previous trainer" onClick={() => move(-1)} type="button"><ChevronLeft size={21} /></button>
               <div className="carousel-dots">
@@ -151,7 +154,7 @@ export function FeedScreen({
                 <div className="feed-stage__back">
                   <TrainerDetails
                     trainer={activeTrainer}
-                    matchReason={activeMatch.reason}
+                    match={activeMatch}
                     onRequest={(trigger) => {
                       setDialogTrigger(trigger);
                       setRequestTrainer(activeTrainer);
@@ -294,9 +297,9 @@ function DialogShell({
   );
 }
 
-function TrainerDetails({ trainer, matchReason, onRequest }: {
+function TrainerDetails({ trainer, match, onRequest }: {
   trainer: Trainer;
-  matchReason: string;
+  match: MatchedTrainer;
   onRequest: (trigger: HTMLButtonElement) => void;
 }) {
   return (
@@ -305,8 +308,9 @@ function TrainerDetails({ trainer, matchReason, onRequest }: {
         <h2>About {trainer.name.split(" ")[0]}</h2>
         <p className="trainer-details__bio">{trainer.bio}</p>
         <div className="trainer-details__match">
-          <h3><Sparkles aria-hidden="true" size={18} />Why you match</h3>
-          <p>{matchReason}</p>
+          <h3><Sparkles aria-hidden="true" size={18} />{match.matchKind === "closest" ? "Why consider this trainer" : "Why you match"}</h3>
+          <p>{match.reason}</p>
+          {match.dealbreakers ? <MatchPriorities dealbreakers={match.dealbreakers} tradeoffs={match.tradeoffs ?? []} /> : null}
         </div>
         <ProfileSection icon={<Target aria-hidden="true" size={17} />} title="Specialises in" items={[...new Set([trainer.specialty, ...trainer.specialties])]} />
         <ProfileSection icon={<Sparkles aria-hidden="true" size={17} />} title="Coaching style" items={trainer.coachingStyles} />
@@ -324,6 +328,25 @@ function TrainerDetails({ trainer, matchReason, onRequest }: {
         <p className="trainer-details__disclosure">{trainer.isDemo ? "Illustrative profile, pricing and availability. " : ""}Intro requests are a preview; no trainer is contacted.</p>
       </div>
     </section>
+  );
+}
+
+function MatchPriorities({ dealbreakers, tradeoffs }: { dealbreakers: MatchDealbreakers; tradeoffs: string[] }) {
+  const entries = Object.entries(dealbreakers) as [keyof MatchDealbreakers, MatchDealbreakers[keyof MatchDealbreakers]][];
+  const required = entries.filter(([, status]) => status !== "not_required");
+  return (
+    <div className="match-priorities">
+      {required.length ? <section aria-label="Dealbreakers">
+        <h4>Dealbreakers</h4>
+        <ul>{required.map(([key, status]) => <li key={key}>
+          <strong>{MATCH_DEALBREAKER_LABELS[key]}</strong>: {status === "met" ? "Fits" : status === "not_met" ? "Doesn’t meet your requirement" : "Needs confirming"}
+        </li>)}</ul>
+      </section> : null}
+      {tradeoffs.length ? <section aria-label="Preference differences">
+        <h4>Preference differences</h4>
+        <ul>{tradeoffs.map((tradeoff) => <li key={tradeoff}>{tradeoff}</li>)}</ul>
+      </section> : null}
+    </div>
   );
 }
 
