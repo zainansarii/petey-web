@@ -2,18 +2,20 @@ import { createHash, randomUUID } from "node:crypto";
 import { FieldValue, Timestamp, type DocumentReference, type Firestore } from "firebase-admin/firestore";
 import { HttpsError } from "firebase-functions/v2/https";
 import { z } from "zod";
-import type { MatchedTrainer, MatchPreviewResult } from "../../src/features/onboarding/model/onboardingContract.js";
-import { evaluateTrainerMatches, type TrainerMatchingRequest } from "./trainerMatching.js";
+import { matchDealbreakersSchema, type MatchedTrainer, type MatchPreviewResult } from "../../src/features/onboarding/model/onboardingContract.js";
+import { evaluateTrainerMatches, selectTrainerMatches, MATCH_COMPATIBILITY_THRESHOLD, type TrainerMatchingRequest } from "./trainerMatching.js";
 import { loadWebTrainerCatalog, resolveWebTrainerPhoto, trainerPreview } from "./webTrainerCatalog.js";
 
-const MATCHING_VERSION = 1;
+const MATCHING_VERSION = 2;
 const LEASE_MS = 5 * 60 * 1_000;
 export const matchingProfileHash = (markdown: string) => createHash("sha256").update(markdown).digest("hex");
 const savedMatchSchema = z.object({
   trainerId: z.string().min(1).max(128).regex(/^[a-zA-Z0-9_-]+$/),
-  score: z.number().int().min(70).max(100),
+  score: z.number().int().min(0).max(100),
   reason: z.string().min(1).max(500),
   profileVersion: z.number().int().positive(),
+  dealbreakers: matchDealbreakersSchema,
+  tradeoffs: z.array(z.string().trim().min(1).max(160)).max(3),
 });
 const savedMatchingSchema = z.object({
   version: z.literal(MATCHING_VERSION),
@@ -22,7 +24,11 @@ const savedMatchingSchema = z.object({
   matches: z.array(savedMatchSchema).max(500),
   evaluatedCount: z.number().int().min(0).max(500),
   model: z.string(),
-});
+  matchKind: z.enum(["compatible", "closest"]),
+}).refine((matching) => matching.matchKind === "closest"
+  ? matching.matches.length <= 3
+  : matching.matches.every((match) => match.score >= MATCH_COMPATIBILITY_THRESHOLD
+    && Object.values(match.dealbreakers).every((status) => status === "met" || status === "not_required")));
 export type SavedMatching = z.infer<typeof savedMatchingSchema>;
 
 export function readSavedMatching(value: unknown, profileMarkdown: string): SavedMatching | null {
@@ -69,11 +75,13 @@ export async function ensureWebMatching({
   if (cached) return cached;
   try {
     const evaluations = await evaluateTrainerMatches(profileMarkdown, catalog, generateContent);
+    const selection = selectTrainerMatches(evaluations);
     const versions = new Map(catalog.map(({ trainer, profileVersion }) => [trainer.id, profileVersion]));
     const matching: SavedMatching = {
       version: MATCHING_VERSION, profileHash, catalogHash, model, evaluatedCount: catalog.length,
-      matches: evaluations.filter(({ compatible }) => compatible).map(({ trainerId, score, reason }) => ({
-        trainerId, score, reason, profileVersion: versions.get(trainerId)!,
+      matchKind: selection.matchKind,
+      matches: selection.evaluations.map(({ trainerId, score, reason, hardConstraints, tradeoffs }) => ({
+        trainerId, score, reason, dealbreakers: hardConstraints, tradeoffs, profileVersion: versions.get(trainerId)!,
       })),
     };
     await db.runTransaction(async (transaction) => {
@@ -109,13 +117,14 @@ export async function webMatchPreviews(db: Firestore, matching: SavedMatching): 
   const matches = await availableMatches(db, matching);
   return {
     totalMatches: matches.length,
+    matchKind: matching.matchKind,
     previews: await Promise.all(matches.slice(0, 3).map(async ({ trainer }) => trainerPreview(await resolveWebTrainerPhoto(trainer)))),
   };
 }
 
 export async function webMatchedProfiles(db: Firestore, matching: SavedMatching, uid: string): Promise<MatchedTrainer[]> {
   const matches = await availableMatches(db, matching, uid);
-  return Promise.all(matches.map(async ({ trainer, score, reason }) => ({
-    trainer: await resolveWebTrainerPhoto(trainer), score, reason,
+  return Promise.all(matches.map(async ({ trainer, score, reason, dealbreakers, tradeoffs }) => ({
+    trainer: await resolveWebTrainerPhoto(trainer), score, reason, dealbreakers, tradeoffs, matchKind: matching.matchKind,
   })));
 }

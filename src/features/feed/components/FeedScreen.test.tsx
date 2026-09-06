@@ -8,6 +8,21 @@ vi.mock("motion/react", async (importOriginal) => ({
 }));
 
 describe("matched trainer feed", () => {
+  it("labels alternatives honestly and separates dealbreakers from preference differences", () => {
+    render(<FeedScreen matches={[{
+      trainer: TRAINERS[0]!, score: 60, reason: "Useful strength experience, but above your maximum price.", matchKind: "closest",
+      dealbreakers: { budget: "not_met", availability: "unconfirmed", venue: "met", location: "met", trainerGender: "not_required", otherRequirements: "not_required" },
+      tradeoffs: ["More talkative than you prefer."],
+    }]} onEditMatch={vi.fn()} onHome={vi.fn()} />);
+    expect(screen.getByRole("heading", { name: "Your closest options" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Why you match" })).not.toBeInTheDocument();
+    const essentials = screen.getByRole("region", { name: "Dealbreakers" });
+    expect(essentials).toHaveTextContent("Budget: Doesn’t meet your requirement");
+    expect(essentials).toHaveTextContent("Availability: Needs confirming");
+    expect(essentials).toHaveTextContent("Training setting: Fits");
+    expect(screen.getByRole("region", { name: "Preference differences" })).toHaveTextContent("More talkative than you prefer.");
+  });
+
   it("makes every returned match available in server order, including beyond the three previews", async () => {
     const matchedTrainers = [TRAINERS[5]!, TRAINERS[3]!, TRAINERS[4]!, TRAINERS[7]!];
     render(<FeedScreen matches={matchedTrainers.map((trainer, index) => ({
@@ -59,7 +74,7 @@ describe("matched trainer feed", () => {
     render(<FeedScreen matches={[]} onEditMatch={onEditMatch} onHome={vi.fn()} />);
     fireEvent.keyDown(window, { key: "ArrowRight" });
     fireEvent.keyDown(window, { key: "ArrowLeft" });
-    expect(screen.getByRole("heading", { name: "No compatible trainers yet" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "No trainers available yet" })).toBeInTheDocument();
     expect(screen.queryByRole("article")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Update my preferences" }));
     expect(onEditMatch).toHaveBeenCalledOnce();

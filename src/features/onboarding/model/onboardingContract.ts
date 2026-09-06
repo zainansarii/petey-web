@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { Trainer, TrainerCardPreview } from "../../discovery/model/trainer.js";
 
 export const MAX_PROFILE_MARKDOWN_LENGTH = 12_000;
-export const MAX_ONBOARDING_QUICK_REPLIES = 3;
+export const MAX_ONBOARDING_QUICK_REPLIES = 4;
 export const MAX_ONBOARDING_QUICK_REPLY_LENGTH = 80;
 
 export type IdentityAnswers = {
@@ -145,9 +145,35 @@ export type FinalizeWebOnboardingV4Response = DraftCapability & {
 export type MatchPreviewResult = {
   totalMatches: number;
   previews: TrainerCardPreview[];
+  matchKind?: "compatible" | "closest";
 };
 
-export type MatchedTrainer = { trainer: Trainer; score: number; reason: string };
+export const matchConstraintSchema = z.enum(["met", "not_required", "unconfirmed", "not_met"]);
+export const matchDealbreakersSchema = z.object({
+  budget: matchConstraintSchema,
+  venue: matchConstraintSchema,
+  location: matchConstraintSchema,
+  availability: matchConstraintSchema,
+  trainerGender: matchConstraintSchema,
+  otherRequirements: matchConstraintSchema,
+}).strict();
+export type MatchDealbreakers = z.infer<typeof matchDealbreakersSchema>;
+export const MATCH_DEALBREAKER_LABELS: Record<keyof MatchDealbreakers, string> = {
+  budget: "Budget",
+  venue: "Training setting",
+  location: "Location",
+  availability: "Availability",
+  trainerGender: "Trainer gender",
+  otherRequirements: "Other essentials",
+};
+export type MatchedTrainer = {
+  trainer: Trainer;
+  score: number;
+  reason: string;
+  matchKind?: "compatible" | "closest";
+  dealbreakers?: MatchDealbreakers;
+  tradeoffs?: string[];
+};
 export type MatchWebOnboardingDraftV1Request = DraftCapability;
 export type MatchWebOnboardingDraftV1Response = { matching: MatchPreviewResult };
 

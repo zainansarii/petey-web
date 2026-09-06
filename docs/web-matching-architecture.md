@@ -26,23 +26,39 @@ only by development fixtures and tests. No demo fallback supplies real results.
 
 1. The existing finalization function generates and stores the non-identifying
    Markdown brief. Matching receives that brief, never the basic signup details.
+   Conversation completion requires answered training-setting and location questions,
+   alongside trainer fit, trainer gender, trainer-session frequency, availability
+   and budget. Location is a rough area for in-person training or a separate
+   confirmation of online-only sessions. Setting suggestions are Home, Online,
+   Commercial gym and Private studio. Frequency always means sessions with the
+   trainer, not independent workouts. The brief preserves firm dealbreakers and
+   flexible preferences separately.
 2. During “Finding your personal trainer”, `matchWebOnboardingDraftV1` verifies
    App Check and the draft capability, then reads all eligible published trainers.
 3. Gemini evaluates the brief against every candidate in batches of eight, with
    at most three calls in flight. The model returns one validated decision per
    candidate. Missing, duplicate or invented trainer IDs fail the entire run.
 4. Compatibility requires a score of at least 70/100 and no unmet or unconfirmed
-   required budget, venue, location, availability or explicit trainer-gender
-   constraint. Scores rank compatible trainers; they are not probabilities.
+   required budget, venue, location, availability, explicit trainer-gender or
+   other essential constraint. Coaching personality and talkativeness affect
+   ranking rather than eligibility unless the person explicitly makes them essential.
+   Scores rank compatible trainers; they are not probabilities.
    The prompt accounts for session frequency when assessing a monthly budget and
-   does not invent gender, travel distances or package inclusions.
+   does not invent gender, travel distances or package inclusions. If none are
+   compatible, return up to three clearly labelled closest options, ranking by
+   fewest unmet dealbreakers, then fewest unconfirmed dealbreakers, then fit score.
+   Even these alternatives can have dealbreaker conflicts; those conflicts remain
+   visible and never become a claim of compatibility.
 5. The result is saved with the exact brief hash, catalog hash, model, algorithm
    version, evaluated count and completion time. Each ranked match stores trainer
-   UID, approved version, score and short explanation. A five-minute lease avoids
+   UID, approved version, score, explanation, dealbreaker statuses and softer
+   preference differences. Algorithm version 2 invalidates old results so a
+   previously empty shortlist can be evaluated again. A five-minute lease avoids
    duplicate concurrent model runs; errors release it for retry.
 6. The callable returns the actual available count and no more than three card
    previews. Full biographies and practical details are returned after login.
-   Zero results is a supported result and still permits account creation.
+   Preview responses also distinguish compatible matches from closest options.
+   An empty eligible catalog still permits account creation without invented profiles.
 7. Confirmation requires the unchanged, matched brief. After verified-email
    authentication, consumption atomically attaches the brief, basic details and
    all matches to `webClientProfiles/{uid}`, creates its retry receipt, then

@@ -285,6 +285,61 @@ describe("AI onboarding V3 conversational output", () => {
     });
   });
 
+  it("replaces office suggestions with all four distinct training settings", () => {
+    expect(parseConversationalModelOutputV3(JSON.stringify({
+      reply: "Where would you like to train with your trainer?",
+      coverage: { trainee: true, trainer: true, sessions: false },
+      quickReplies: ["Office", "My workplace", "At work"],
+    })).quickReplies).toEqual(["Home", "Online", "Commercial gym", "Private studio"]);
+  });
+
+  it("makes frequency questions explicitly about trainer sessions and rejects ambiguous historical questions", () => {
+    for (const question of ["How often would you like to work out?", "How many sessions a week would you like?"]) {
+      expect(parseConversationalModelOutputV3(question).reply).toBe("How often would you like to train with your trainer?");
+      expect(requiredPracticalTopicsForTranscriptV3([
+        { role: "assistant", text: question }, { role: "user", text: "Three times a week" },
+      ]).trainingFrequencyAnswered).toBe(false);
+    }
+    for (const question of ["What budget works for two sessions per week?", "How often do you currently train?", "Two sessions per week. What is your availability?"]) {
+      expect(parseConversationalModelOutputV3(question).reply).toBe(question);
+    }
+    expect(requiredPracticalTopicsForTranscriptV3([
+      { role: "assistant", text: "How many sessions would you like with your trainer?" },
+      { role: "user", text: "Twice a week" },
+    ]).trainingFrequencyAnswered).toBe(true);
+  });
+
+  it("requires a location answer after the setting and accepts confirmed online-only sessions", () => {
+    const setting = [
+      { role: "assistant", text: "Where would you like to train with your trainer?" },
+      { role: "user", text: "Online" },
+    ] as const;
+    expect(requiredPracticalTopicsForTranscriptV3(setting)).toMatchObject({ trainingSettingAnswered: true, locationAnswered: false });
+    for (const [answer, expected] of [["Yes", true], ["Yes, that would be ideal", true], ["Online only", true], ["I only want online training", true], ["No", false], ["Online and at a gym", false], ["Yes, but also at a gym", false], ["Not sure", false]] as const) {
+      expect(requiredPracticalTopicsForTranscriptV3([
+        ...setting,
+        { role: "assistant", text: "Will your sessions with your trainer be online only?" },
+        { role: "user", text: answer },
+      ]).locationAnswered).toBe(expected);
+    }
+    expect(requiredPracticalTopicsForTranscriptV3([
+      ...setting,
+      { role: "assistant", text: "What area would you like your in-person sessions in?" },
+      { role: "user", text: "Battersea" },
+    ]).locationAnswered).toBe(true);
+  });
+
+  it("blocks premature completion when either training setting or location is missing", () => {
+    for (const missing of ["trainingSettingAnswered", "locationAnswered"] as const) {
+      const result = reconcileConversationTurnV4({
+        modelTurn: { reply: "Thanks! We have everything needed now to find your match.", coverage: { trainee: true, trainer: true, sessions: true }, quickReplies: [] },
+        requiredPracticalTopics: { coachingStyleAnswered: true, trainerGenderPreferenceAnswered: true, trainingFrequencyAnswered: true, trainingSettingAnswered: true, locationAnswered: true, availabilityAnswered: true, budgetAnswered: true, [missing]: false },
+      });
+      expect(result.readyForReview).toBe(false);
+      expect(result.reply).toMatch(missing === "trainingSettingAnswered" ? /where.*train/i : /area/i);
+    }
+  });
+
   it("requires theme coverage while defaulting optional quick replies", () => {
     expect(parseConversationalModelOutputV3(JSON.stringify({
       reply: "What would you like your trainer to specialise in?",
@@ -334,7 +389,7 @@ describe("AI onboarding V3 conversational output", () => {
     expect(() => parseConversationalModelOutputV3(JSON.stringify({
       reply: "What setting suits you?",
       coverage: { trainee: true, trainer: true, sessions: false },
-      quickReplies: ["I train at home", "I use a gym", "I train online", "I train outside"],
+      quickReplies: ["I train at home", "I use a gym", "I train online", "I train outside", "Private studio"],
     }))).toThrow(/structured output|metadata/i);
     expect(() => parseConversationalModelOutputV3("Here is the JSON requested.")).toThrow(/metadata/i);
     expect(() => parseConversationalModelOutputV3("```json\n{}\n```")).toThrow(/structured output|metadata/i);
@@ -344,6 +399,8 @@ describe("AI onboarding V3 conversational output", () => {
     const requiredTopics = {
       coachingStyleAnswered: true,
       trainerGenderPreferenceAnswered: true,
+      trainingSettingAnswered: true,
+      locationAnswered: true,
       trainingFrequencyAnswered: true,
       availabilityAnswered: true,
       budgetAnswered: true,
@@ -375,7 +432,7 @@ describe("AI onboarding V3 conversational output", () => {
     })).toBe(true);
   });
 
-  it("counts the five explicit matching topics only after separate assistant questions receive answers", () => {
+  it("counts the seven explicit matching topics only after separate assistant questions receive answers", () => {
     expect(requiredPracticalTopicsForTranscriptV3([
       { role: "assistant", text: "What is your current training baseline for steep mountain hikes?" },
       { role: "user", text: "I manage a two-hour hike with a light pack" },
@@ -385,7 +442,11 @@ describe("AI onboarding V3 conversational output", () => {
       { role: "user", text: "Regular check-ins between sessions" },
       { role: "assistant", text: "Do you have a trainer gender preference, or no preference?" },
       { role: "user", text: "I don't have a preference" },
-      { role: "assistant", text: "How often would you ideally like to train each week?" },
+      { role: "assistant", text: "Where would you like to train with your trainer?" },
+      { role: "user", text: "Private studio" },
+      { role: "assistant", text: "What area would you like your sessions in?" },
+      { role: "user", text: "Battersea" },
+      { role: "assistant", text: "How often would you like to train with your trainer?" },
       { role: "user", text: "Twice a week" },
       { role: "assistant", text: "Which days or times usually suit you best?" },
       { role: "user", text: "Weekday evenings" },
@@ -394,6 +455,8 @@ describe("AI onboarding V3 conversational output", () => {
     ])).toEqual({
       coachingStyleAnswered: true,
       trainerGenderPreferenceAnswered: true,
+      trainingSettingAnswered: true,
+      locationAnswered: true,
       trainingFrequencyAnswered: true,
       availabilityAnswered: true,
       budgetAnswered: true,
@@ -405,6 +468,8 @@ describe("AI onboarding V3 conversational output", () => {
     ])).toEqual({
       coachingStyleAnswered: false,
       trainerGenderPreferenceAnswered: false,
+      trainingSettingAnswered: false,
+      locationAnswered: false,
       trainingFrequencyAnswered: false,
       availabilityAnswered: false,
       budgetAnswered: false,
@@ -416,6 +481,8 @@ describe("AI onboarding V3 conversational output", () => {
     ])).toEqual({
       coachingStyleAnswered: false,
       trainerGenderPreferenceAnswered: false,
+      trainingSettingAnswered: false,
+      locationAnswered: false,
       trainingFrequencyAnswered: false,
       availabilityAnswered: false,
       budgetAnswered: false,
@@ -426,6 +493,8 @@ describe("AI onboarding V3 conversational output", () => {
     ])).toEqual({
       coachingStyleAnswered: false,
       trainerGenderPreferenceAnswered: false,
+      trainingSettingAnswered: false,
+      locationAnswered: false,
       trainingFrequencyAnswered: false,
       availabilityAnswered: false,
       budgetAnswered: false,
@@ -437,6 +506,8 @@ describe("AI onboarding V3 conversational output", () => {
     ])).toEqual({
       coachingStyleAnswered: false,
       trainerGenderPreferenceAnswered: false,
+      trainingSettingAnswered: false,
+      locationAnswered: false,
       trainingFrequencyAnswered: false,
       availabilityAnswered: false,
       budgetAnswered: false,
@@ -450,6 +521,8 @@ describe("AI onboarding V3 conversational output", () => {
     ])).toEqual({
       coachingStyleAnswered: false,
       trainerGenderPreferenceAnswered: true,
+      trainingSettingAnswered: false,
+      locationAnswered: false,
       trainingFrequencyAnswered: false,
       availabilityAnswered: true,
       budgetAnswered: false,
@@ -474,6 +547,8 @@ describe("AI onboarding V3 conversational output", () => {
       requiredPracticalTopics: {
         coachingStyleAnswered: false,
         trainerGenderPreferenceAnswered: true,
+        trainingSettingAnswered: true,
+        locationAnswered: true,
         trainingFrequencyAnswered: true,
         availabilityAnswered: true,
         budgetAnswered: true,
@@ -499,6 +574,8 @@ describe("AI onboarding V3 conversational output", () => {
       requiredPracticalTopics: {
         coachingStyleAnswered: true,
         trainerGenderPreferenceAnswered: true,
+        trainingSettingAnswered: true,
+        locationAnswered: true,
         trainingFrequencyAnswered: true,
         availabilityAnswered: true,
         budgetAnswered: true,
@@ -524,7 +601,11 @@ describe("AI onboarding V3 conversational output", () => {
       ["user", "Regular check-ins between sessions"],
       ["assistant", "Do you have a trainer gender preference, or no preference?"],
       ["user", "No preference"],
-      ["assistant", "How often would you ideally like to train each week?"],
+      ["assistant", "Where would you like to train with your trainer?"],
+      ["user", "Private studio"],
+      ["assistant", "What area would you like your sessions in?"],
+      ["user", "Battersea"],
+      ["assistant", "How often would you like to train with your trainer?"],
       ["user", "Twice a week"],
       ["assistant", "What availability do you usually have for sessions?"],
       ["user", "Weekday evenings"],
@@ -543,6 +624,8 @@ describe("AI onboarding V3 conversational output", () => {
     for (const requiredAnswer of [
       "Data-driven with lots of accountability",
       "No preference",
+      "Private studio",
+      "Battersea",
       "Twice a week",
       "Weekday evenings",
       "Around £60",

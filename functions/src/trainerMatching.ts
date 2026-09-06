@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { Trainer } from "../../src/features/discovery/model/trainer.js";
+import { matchDealbreakersSchema, type MatchDealbreakers } from "../../src/features/onboarding/model/onboardingContract.js";
 
 export type MatchCandidate = {
   trainer: Trainer;
@@ -12,25 +13,21 @@ export type MatchEvaluation = {
   compatible: boolean;
   score: number;
   reason: string;
+  hardConstraints: MatchDealbreakers;
+  tradeoffs: string[];
 };
 
 export const MATCH_COMPATIBILITY_THRESHOLD = 70;
 const MATCH_BATCH_SIZE = 8;
 const MATCH_CONCURRENCY = 3;
 
-const constraintStatus = z.enum(["met", "not_required", "unconfirmed", "not_met"]);
 const modelEvaluationSchema = z.object({
   trainerId: z.string().min(1).max(160),
   compatible: z.boolean(),
   score: z.number().int().min(0).max(100),
   reason: z.string().trim().min(1).max(240),
-  hardConstraints: z.object({
-    budget: constraintStatus,
-    venue: constraintStatus,
-    location: constraintStatus,
-    availability: constraintStatus,
-    trainerGender: constraintStatus,
-  }).strict(),
+  hardConstraints: matchDealbreakersSchema,
+  tradeoffs: z.array(z.string().trim().min(1).max(160)).max(3),
 }).strict();
 
 const modelResponseSchema = z.object({
@@ -58,6 +55,7 @@ export const TRAINER_MATCHING_RESPONSE_JSON_SCHEMA = {
           compatible: { type: "boolean" },
           score: { type: "integer", minimum: 0, maximum: 100 },
           reason: { type: "string", minLength: 1, maxLength: 240 },
+          tradeoffs: { type: "array", maxItems: 3, items: { type: "string", minLength: 1, maxLength: 160 } },
           hardConstraints: {
             type: "object",
             additionalProperties: false,
@@ -67,11 +65,12 @@ export const TRAINER_MATCHING_RESPONSE_JSON_SCHEMA = {
               location: constraintJsonSchema,
               availability: constraintJsonSchema,
               trainerGender: constraintJsonSchema,
+              otherRequirements: constraintJsonSchema,
             },
-            required: ["budget", "venue", "location", "availability", "trainerGender"],
+            required: ["budget", "venue", "location", "availability", "trainerGender", "otherRequirements"],
           },
         },
-        required: ["trainerId", "compatible", "score", "reason", "hardConstraints"],
+        required: ["trainerId", "compatible", "score", "reason", "hardConstraints", "tradeoffs"],
       },
     },
   },
@@ -92,8 +91,8 @@ Never repeat such information if it appears accidentally. Do not infer gender, e
 health conditions, or other demographic attributes from names, images, goals, writing style or location.
 The trainerId is an opaque identifier and provides no evidence about the trainer.
 
-HARD CONSTRAINTS
-For budget, venue, location, availability and trainerGender, report one status:
+DEALBREAKERS (HARD CONSTRAINTS)
+For budget, venue, location, availability, trainerGender and otherRequirements, report one status:
 - met: the brief states a requirement and the supplied trainer facts support satisfying it;
 - not_required: the brief does not impose a requirement, or explicitly accepts any option;
 - unconfirmed: a requirement exists but the supplied facts do not establish that it can be met;
@@ -101,6 +100,10 @@ For budget, venue, location, availability and trainerGender, report one status:
 A required constraint that is unconfirmed or not_met makes the trainer incompatible, regardless of fit.
 Do not turn a clearly flexible preference into a hard requirement. Do not treat missing trainer facts as
 evidence of compatibility. In particular:
+- Use the brief's Dealbreakers and Flexible preferences sections when present, grounded in the stated
+  wording. "Maximum", "must", "only" and explicit non-negotiables are firm; "ideally", "around" and
+  "prefer" are flexible unless the surrounding context says otherwise. Apply the same distinction to
+  older briefs without those headings. Unknown client preferences are not requirements.
 - Budget: prices are GBP. Compare a per-session cap with perSessionGBP. For a monthly budget and stated
   weekly frequency, estimate 4.33 * sessionsPerWeek * perSessionGBP; for a stated monthly session count,
   use that count * perSessionGBP. For a range of required frequencies, affordability must cover its upper
@@ -111,12 +114,21 @@ evidence of compatibility. In particular:
   inclusions are known, mark budget unconfirmed. Do not assume discounts, free trials or negotiable prices.
 - Venue: compare the requested session format with the listed venues. Remote must be explicitly offered.
 - Location: use only the broad areas and travel flexibility actually stated. Remote sessions can make
-  location not_required if the client accepts them. A home/office venue does not establish that a trainer
+  location not_required if the client accepts them. A home venue does not establish that a trainer
   serves the client's area. Do not invent travel radii, personalised distances or willingness to travel.
 - Availability: require overlap with listed availability and the client's required times. Broad listed
   windows are offered training windows, not a guarantee of a bookable appointment or spare capacity.
 - Trainer gender: use ONLY the separately supplied explicit gender field. If a gender is required but
   that field is absent or does not establish it, mark unconfirmed. Never infer it from trainerId or bio.
+- Other requirements: any additional explicitly essential client requirement. Use not_required if there
+  are none, not_met if any conflict, otherwise unconfirmed if any cannot be verified, otherwise met.
+
+FLEXIBLE PREFERENCES (NON-DEALBREAKERS)
+Coaching personality, talkativeness, motivational style and other preferences affect ranking rather than
+excluding a trainer, unless the client explicitly calls them essential. A trainer being more talkative
+than requested can still be a useful match. Return up to three short factual tradeoffs explaining these
+softer differences or unconfirmed preferences, and an empty array when none are evidenced. Never invent
+a difference. Keep unmet or unconfirmed dealbreakers out of tradeoffs; explain them in reason instead.
 
 FIT AND OUTPUT
 Score fit from 0 to 100 using the client's goals, experience, coaching relationship preferences and
@@ -127,7 +139,9 @@ there is affirmative evidence of useful fit with a score of at least ${MATCH_COM
 A shared generic trait alone is not sufficient evidence of a strong match. Qualifications do not prove
 medical capability, outcomes or clinical suitability. Do not diagnose or give treatment recommendations.
 Write a short, factual reason of at most 240 characters grounded in supplied facts. Explain the strongest
-fit or the blocking requirement. Never invent logistics, attributes, achievements, session inclusions,
+fit and any blocking requirement. Incompatible evaluations may be shown as clearly labelled closest
+options, so explain both what could work and what prevents a confirmed match. Never call them compatible.
+Never invent logistics, attributes, achievements, session inclusions,
 availability or promised results. Return only JSON matching the supplied response schema.`;
 
 export type TrainerMatchingRequest = {
@@ -215,12 +229,23 @@ export const parseTrainerMatchEvaluations = (
     throw new Error("The trainer evaluation response is missing trainer IDs.");
   }
 
-  return result.data.evaluations.map(({ hardConstraints, ...evaluation }) => ({
+  return result.data.evaluations.map((evaluation) => ({
     ...evaluation,
     compatible: evaluation.compatible
       && evaluation.score >= MATCH_COMPATIBILITY_THRESHOLD
-      && Object.values(hardConstraints).every((status) => status === "met" || status === "not_required"),
+      && Object.values(evaluation.hardConstraints).every((status) => status === "met" || status === "not_required"),
   }));
+};
+
+export const selectTrainerMatches = (evaluations: readonly MatchEvaluation[]) => {
+  const byScore = (a: MatchEvaluation, b: MatchEvaluation) => b.score - a.score || a.trainerId.localeCompare(b.trainerId);
+  const compatible = evaluations.filter((evaluation) => evaluation.compatible).sort(byScore);
+  if (compatible.length) return { matchKind: "compatible" as const, evaluations: compatible };
+  const count = (evaluation: MatchEvaluation, status: string) => Object.values(evaluation.hardConstraints)
+    .filter((value) => value === status).length;
+  const closest = [...evaluations].sort((a, b) => count(a, "not_met") - count(b, "not_met")
+    || count(a, "unconfirmed") - count(b, "unconfirmed") || byScore(a, b)).slice(0, 3);
+  return { matchKind: "closest" as const, evaluations: closest };
 };
 
 export const evaluateTrainerMatches = async (

@@ -37,16 +37,18 @@ const catalogTrainer = (id = "trainer-one", profileVersion = 3): CatalogTrainer 
   },
 });
 const savedMatching = (ids = ["trainer-one"]): SavedMatching => ({
-  version: 1,
+  version: 2,
+  matchKind: "compatible",
   profileHash: matchingProfileHash(markdown),
   catalogHash: matchingProfileHash(JSON.stringify(ids.map((id) => catalogTrainer(id)))),
-  matches: ids.map((trainerId) => ({ trainerId, score: 85, reason: "A good coaching fit.", profileVersion: 3 })),
+  matches: ids.map((trainerId) => ({ trainerId, score: 85, reason: "A good coaching fit.", profileVersion: 3, dealbreakers: { budget: "met", venue: "met", location: "not_required", availability: "met", trainerGender: "not_required", otherRequirements: "not_required" }, tradeoffs: [] })),
   evaluatedCount: ids.length,
   model: "test-model",
 });
 const modelResponse = () => JSON.stringify({ evaluations: [{
   trainerId: "trainer-one", compatible: true, score: 85, reason: "Calm remote strength coaching within your budget.",
-  hardConstraints: { budget: "met", venue: "met", location: "not_required", availability: "met", trainerGender: "not_required" },
+  hardConstraints: { budget: "met", venue: "met", location: "not_required", availability: "met", trainerGender: "not_required", otherRequirements: "not_required" },
+  tradeoffs: [],
 }] });
 
 const deferred = <T>() => {
@@ -106,7 +108,7 @@ describe("saved matching validation", () => {
   });
 
   it.each([
-    { version: 2 },
+    { version: 1 },
     { evaluatedCount: -1 },
     { evaluatedCount: 501 },
     { profileHash: "wrong" },
@@ -129,6 +131,23 @@ describe("saved matching validation", () => {
 });
 
 describe("matching lease and atomic completion", () => {
+  it("recomputes the previous algorithm's empty result and persists closest-option caveats", async () => {
+    const harness = transactionDatabase({ ...initialDraft(), matching: { ...savedMatching(), version: 1, matches: [] } });
+    const generateContent = vi.fn(async () => {
+      const result = JSON.parse(modelResponse());
+      Object.assign(result.evaluations[0], { score: 62, compatible: false, tradeoffs: ["More talkative than preferred."] });
+      result.evaluations[0].hardConstraints.budget = "not_met";
+      return JSON.stringify(result);
+    });
+    const saved = await ensureWebMatching({ ...harness, profileMarkdown: markdown, model: "test-model", generateContent });
+    expect(saved).toMatchObject({ version: 2, matchKind: "closest", matches: [{ trainerId: "trainer-one", score: 62, dealbreakers: { budget: "not_met" }, tradeoffs: ["More talkative than preferred."] }] });
+    expect(readSavedMatching(saved, markdown)).toEqual(saved);
+    expect((await webMatchPreviews(harness.db, saved)).matchKind).toBe("closest");
+    expect(await webMatchedProfiles(harness.db, saved, "client-one")).toMatchObject([{ matchKind: "closest", dealbreakers: { budget: "not_met" }, tradeoffs: ["More talkative than preferred."] }]);
+    expect(await ensureWebMatching({ ...harness, profileMarkdown: markdown, model: "test-model", generateContent })).toEqual(saved);
+    expect(generateContent).toHaveBeenCalledTimes(1);
+  });
+
   it("reuses a saved match result after verifying the catalogue without calling the provider", async () => {
     const saved = savedMatching();
     const harness = transactionDatabase({ ...initialDraft(), matching: saved });

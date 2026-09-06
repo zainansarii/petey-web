@@ -99,6 +99,10 @@
 .trainer-details h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; }
 .trainer-details h3 svg { flex-shrink: 0; }
 .trainer-details__match p { margin: 0; color: var(--ink-soft); }
+.match-priorities section { margin-top: 16px; }
+.match-priorities h4 { margin: 0 0 6px; font-size: 14px; }
+.match-priorities ul { margin: 0; padding-left: 18px; color: var(--ink-soft); font-size: 14px; line-height: 1.6; }
+.match-priorities li + li { margin-top: 4px; }
 .profile-section { margin-top: 24px; }
 .profile-section > div { display: flex; flex-wrap: wrap; gap: 7px; }
 .profile-section > div span { padding: 6px 10px; border-radius: 14px; background: var(--cream); color: var(--ink-soft); font-size: 13px; line-height: 1.45; }

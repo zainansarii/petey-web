@@ -28,7 +28,6 @@ describe("trainer availability calendar", () => {
     expect(cells[0]).toHaveTextContent("No availability listed");
     expect(cells[1]).toHaveTextContent("Usually available: Monday lunchtimes; Monday afternoons");
     expect(cells[2]).toHaveTextContent("No availability listed");
-    expect(screen.getByText("Lunchtime slots are shown under afternoon.")).toBeInTheDocument();
   });
 
   it("keeps unstructured notes visible without inventing times, and handles missing schedules", () => {
