@@ -12,8 +12,9 @@ body { overflow: auto; }
 .review-app button.review-primary { background: var(--lime); border-color: var(--lime); }
 .review-app button.review-primary:hover:not(:disabled) { background: var(--lime-pressed); border-color: var(--lime-pressed); }
 .review-app select:focus-visible, .review-app summary:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
-.review-header { min-height: 88px; padding: 20px max(24px, calc((100vw - 1320px) / 2)); display: flex; align-items: center; justify-content: space-between; gap: 24px; border-bottom: 1px solid var(--line); }
+.review-header { min-height: 88px; padding: 20px 46px; display: flex; align-items: center; justify-content: space-between; gap: 24px; border-bottom: 1px solid var(--line); }
 .review-brand { text-decoration: none; font-size: 38px; line-height: 1; font-weight: 700; letter-spacing: -.075em; display: flex; align-items: center; gap: 24px; }
+.review-brand .brand-mark { display: block; width: 148px; height: auto; }
 .review-brand span { font-size: 14px; font-weight: 400; letter-spacing: 0; border-left: 1px solid #bac0ac; padding-left: 24px; }
 .review-account { display: flex; align-items: center; gap: 16px; font-size: 13px; color: var(--ink-soft); min-width: 0; }
 .review-account span { overflow-wrap: anywhere; }
@@ -92,6 +93,7 @@ body { overflow: auto; }
 .review-history p { margin: 8px 0 0; font-size: 14px; }
 @media (max-width: 900px) { .review-columns { gap: 28px; grid-template-columns: minmax(0, 1.4fr) minmax(260px, 1fr); } .review-fields { grid-template-columns: 1fr; } }
 @media (max-width: 700px) {
+  .review-brand .brand-mark { width: 96px; }
   .review-header { padding: 18px 20px; gap: 16px; align-items: flex-start; }
   .review-brand { font-size: 32px; flex-direction: column; gap: 10px; align-items: flex-start; }
   .review-brand span { font-size: 12px; padding: 0; border: 0; }

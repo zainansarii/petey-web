@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { applicationStatuses, type ApplicationDetail, type ApplicationPage, type ApplicationStatus, type ReviewAccess } from "../features/trainerApplications/model";
 import { isReviewFixture, reviewApi, type ReviewApi } from "./api";
 import { observeReviewSession, reviewErrorMessage, signInReviewer, signOutReviewer, type ReviewSession } from "./auth";
+import { BrandMark } from "../shared/ui/BrandMark";
 import { ReviewEditor } from "./ReviewEditor";
 
 const labels: Record<ApplicationStatus, string> = { pending_review: "Pending review", needs_changes: "Needs changes", approved: "Approved", rejected: "Rejected", suspended: "Suspended" };
@@ -72,7 +73,7 @@ export function AdminApp({ api = reviewApi }: { api?: ReviewApi }) {
 
   return <div className="review-app">
     <a className="review-skip" href="#review-main" onClick={(event) => { event.preventDefault(); document.getElementById("review-main")?.focus(); }}>Skip to content</a>
-    <header className="review-header"><a className="review-brand" href="#/" aria-label="Petey trainer applications">petey<span>Trainer review</span></a>{session && <div className="review-account"><span>{session.email}</span>{!fixtureMode && <><button type="button" disabled={loading} onClick={login}>Renew session</button><button type="button" disabled={loading} onClick={logout}>Sign out</button></>}</div>}</header>
+    <header className="review-header"><a className="review-brand" href="#/" aria-label="Petey trainer applications"><BrandMark /><span>Trainer review</span></a>{session && <div className="review-account"><span>{session.email}</span>{!fixtureMode && <><button type="button" disabled={loading} onClick={login}>Renew session</button><button type="button" disabled={loading} onClick={logout}>Sign out</button></>}</div>}</header>
     {fixtureMode && <div className="review-fixture">Development preview — changes stay in this browser session.</div>}
     <main id="review-main" tabIndex={-1}>
       {!authReady && <p role="status">Checking your session…</p>}

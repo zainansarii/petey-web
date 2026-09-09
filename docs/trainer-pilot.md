@@ -2,6 +2,9 @@
 
 The live web pilot gives approved, invited trainers an enquiry dashboard, private lead tracking, editable public profiles and conversations with trainees. Every unlock records `amountPence: 0` and `priceVersion: free-pilot-v1`. There is no checkout or payment integration.
 
+All trainer and messaging screens follow the [app-wide design consistency rules](./design-consistency.md):
+shared brand basics and no eyebrow text, while preserving their approved smaller typography and workspace styling.
+
 ## Entry points
 
 - `/petey-web/trainer/#overview`: all-date action queues, reporting trends and follow-ups.

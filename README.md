@@ -2,6 +2,14 @@
 
 A web trainer/trainee matching marketplace. Trainees complete conversational onboarding and discover matched trainers; invited trainers manage enquiries, free pilot unlocks, conversations and public profiles in their workspace.
 
+## Design consistency
+
+Every page follows the existing home page, signup chat and matching experience.
+Keep Oxygen, the Petey logo, brand colours and profile-card patterns consistent; never add eyebrow text.
+Preserve the approved trainer dashboard, inbox and profile styling, including their smaller text and compact layouts.
+Read the [app-wide design guide](./docs/design-consistency.md) and
+[repository guidance](./AGENTS.md) before creating or changing UI.
+
 ## Run locally
 
 ```bash

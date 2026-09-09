@@ -46,8 +46,7 @@ export function AccessGate({ trainer, children }: { trainer: boolean; children: 
     return () => { alive = false; stop(); stopAccess(); };
   }, [attempt]);
   if (state === "ready" && access && (!trainer || access.membership?.status === "active")) return <>{children(access)}</>;
-  return <main className="mp-access"><a href={import.meta.env.BASE_URL} aria-label="Petey home"><BrandMark /></a><div className="mp-access-panel">
-    <p className="td-eyebrow">{trainer ? "PETEY FOR TRAINERS" : "YOUR PETEY INBOX"}</p>
+  return <main className="mp-access"><header className="mp-access-header"><a href={import.meta.env.BASE_URL} aria-label="Petey home"><BrandMark /></a></header><div className="mp-access-panel">
     <h1>{state === "loading" ? "Opening your workspace…" : state === "sent" ? "Check your email" : state === "missing-email" ? "Confirm your email" : state === "ready" ? "Your trainer workspace starts with an invitation" : state === "revoked" ? "Trainer access is unavailable" : "Welcome back"}</h1>
     {state === "ready" ? <><p>Approved web applicants receive a personal invitation from Petey. Use the link sent to your application email to connect your trainer profile.</p><p>Signed in as {access?.email}.</p></> : state === "revoked" ? <p>Your trainer access has changed. Contact Petey for help.</p> : state === "sent" ? <p>Open the secure sign-in link sent to <strong>{email}</strong>. You can complete it on another device by confirming this email address.</p> : state !== "loading" && <form onSubmit={async event => { event.preventDefault(); setError(""); try {
       if (state === "missing-email" || state === "error") { const result = await finishMagicLink(email); if (result !== "signed-in") throw new Error("This link could not be completed. Request a new sign-in link."); setAttempt(value => value + 1); setState("loading"); }

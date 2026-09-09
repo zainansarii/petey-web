@@ -28,9 +28,10 @@
 .mp-week button[aria-pressed=true] { background: #c9ff5c; border-color: #82a949; }
 .mp-app .td-period { flex-direction: row; margin: 0; }
 .mp-app .td-period select { border: 0; font-size: 13px; }
-.mp-access { max-width: 580px; margin: auto; padding: 65px 22px; min-height: 100svh; }
-.mp-access .brand-mark { width: 100px; height: auto; }
-.mp-access-panel { margin-top: 50px; }
+.mp-access { padding: max(22px, env(safe-area-inset-top)) 46px 40px; min-height: 100svh; }
+.mp-access-header { display: flex; align-items: flex-start; min-height: 66px; }
+.mp-access .brand-mark { width: 148px; height: auto; }
+.mp-access-panel { width: min(100%, 536px); margin: 50px auto 0; }
 .mp-access h1 { font-weight: 400; font-size: clamp(28px, 4vw, 38px); letter-spacing: -.05em; }
 .mp-access p { margin: 20px 0; }
 .mp-dialog { color: #2e342b; background: #f7f8f2; border: none; border-radius: 24px; width: min(720px, calc(100vw - 32px)); max-height: calc(100svh - 40px); padding: 26px; box-shadow: 0 24px 90px #1d261638; overflow: auto; }
@@ -121,3 +122,10 @@
 @media (max-width: 650px) { .mp-app .td-summary-grid { grid-template-rows: auto 232px auto; } .mp-app .td-nav-count { position: static; } .mp-app .td-profile-card { align-content: center; } }
 @media (max-width: 760px) { .mp-app .td-scroll { height: auto; overflow: visible; } .mp-app .td-topbar { min-height: 110px; height: auto; padding: 15px 20px 60px; position: relative; gap: 10px; } .mp-app .td-topbar nav { position: absolute; bottom: 8px; left: 10px; right: 10px; justify-content: space-around; } .mp-app .td-topbar nav button { font-size: 11px; padding: 10px 8px; } .mp-app .td-topbar nav button svg { display: none; } .mp-app .td-page { padding: 25px 20px; } .mp-app .td-page-heading { align-items: flex-start; flex-direction: column; } .mp-app .td-period { align-self: flex-start; } .mp-conversation-grid { grid-template-columns: minmax(0,1fr); } .mp-panel { padding: 20px; } .mp-fields { grid-template-columns: minmax(0,1fr); } .mp-inbox-controls { flex-wrap: wrap; gap: 0 12px; } .mp-inbox-controls p { width: 100%; margin: 0; } .mp-inbox-controls label { min-width: 130px; } .mp-enquiry-row { gap: 10px; flex-wrap: wrap; } .mp-enquiry-status { width: calc(100% - 52px); margin-left: 52px; flex-direction: row; } .mp-enquiry-row > svg { display: none; } .mp-app .td-rail { grid-template-columns: minmax(0,1fr); } .mp-preferences { flex-direction: column; gap: 10px; } .mp-dialog { padding: 20px; } .mp-chart-labels { flex-wrap: wrap; } .mp-spend-heading { flex-wrap: wrap; } .mp-app .td-preview-bar { font-size: 10px; flex-wrap: wrap; } .mp-conversation-heading { flex-direction: column; align-items: flex-start; gap: 5px; } .mp-profile-photo { flex-direction: column; align-items: flex-start; } }
 @media (prefers-reduced-motion: reduce) { .mp-app *, .mp-dialog * { scroll-behavior: auto !important; transition: none !important; } }
+
+@media (max-width: 780px) {
+  .mp-access { padding: max(18px, env(safe-area-inset-top)) 20px 32px; }
+  .mp-access .brand-mark { width: 96px; }
+  .mp-access-header { min-height: 55px; }
+  .mp-access-panel { margin-top: 36px; }
+}

@@ -3,6 +3,10 @@
 The approved concept is now implemented as a separate [free trainer pilot](./trainer-pilot.md).
 The live pilot supersedes the example prices and implementation gaps below; this document records the original sample wireframe.
 
+The [app-wide design consistency rules](./design-consistency.md) apply to brand
+basics such as Oxygen, the wordmark and no eyebrow text. Preserve the approved
+dashboard, inbox and profile styling, including its smaller text and compact layout.
+
 An interactive, responsive concept for a trainer’s lead workspace. Open
 `/petey-web/trainer-preview/` with the existing Vite dev server. The preview is
 a separate entry point; trainee onboarding, matching and the reviewer app are
