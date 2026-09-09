@@ -30,7 +30,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ["functions/src/**/*.ts", "functions/vitest.config.ts"],
+    files: ["functions/src/**/*.ts", "functions/vitest.config.ts", "scripts/**/*.mjs"],
     languageOptions: {
       globals: globals.node,
     },

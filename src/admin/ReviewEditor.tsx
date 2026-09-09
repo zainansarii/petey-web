@@ -2,6 +2,8 @@ import { cloneElement, useEffect, useId, useRef, useState, type ReactElement } f
 import { reviewDraftSchema, verificationSchema, type ApplicationDetail, type ReviewDecision, type ReviewDraft, type Verification } from "../features/trainerApplications/model";
 import type { ReviewApi } from "./api";
 import { reviewErrorMessage } from "./auth";
+import { isReviewFixture } from "./api";
+import { TrainerPilotControls } from "./TrainerPilotControls";
 
 const displayDate = (date: string) => new Date(date).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" });
 const words = (value: string) => value.replace(/([a-z])([A-Z])/g, "$1 $2").replaceAll("_", " ");
@@ -142,6 +144,7 @@ export function ReviewEditor({ initial, api, onDirtyChange }: { initial: Applica
         <div className="review-feedback" ref={feedback} tabIndex={-1} aria-live="polite">{error && <p role="alert" className="review-error">{error}</p>}{notice && <p role="status">{notice}</p>}</div>
       </div>
       <aside className="review-inspector">
+        {api.marketplace && !isReviewFixture() && <TrainerPilotControls detail={detail} api={api} disabled={busy || dirty} onUpdated={accept} />}
         <section className="review-preview" aria-labelledby="preview-heading"><h2 id="preview-heading">Profile preview</h2>{detail.photo.url ? <img src={detail.photo.url} alt={`${draft.name || "Applicant"}'s profile`} referrerPolicy="no-referrer" /> : <div className="review-photo-placeholder">{detail.photo.state === "ready" ? "Profile photo ready" : "Profile photo unavailable"}</div>}{detail.photo.error && <p className="review-error">{detail.photo.error}</p>}
           <h3>{draft.name || "Public name"}</h3><p className="review-hint">{draft.area}</p><p>{draft.bio || "Add a profile bio."}</p>
           <dl><dt>Session</dt><dd>{currency(draft.singleSessionPence)}{draft.sessionDurationMinutes ? ` · ${draft.sessionDurationMinutes} minutes` : ""}</dd><dt>Specialisms</dt><dd>{draft.specialties.filter(Boolean).join(", ") || "—"}</dd><dt>Coaching style</dt><dd>{draft.coachingStyles.filter(Boolean).join(" · ") || "—"}</dd><dt>Training formats</dt><dd>{draft.venues.filter(Boolean).join(", ") || "—"}</dd><dt>Service areas</dt><dd>{draft.serviceAreaNotes || draft.area || "—"}</dd><dt>Availability</dt><dd>{draft.availability.filter(Boolean).join(" · ") || "—"}</dd><dt>Packages</dt><dd>{draft.pricingNotes || "—"}</dd><dt>Qualifications</dt><dd>{draft.qualifications.filter(Boolean).join(", ") || "—"}</dd></dl>

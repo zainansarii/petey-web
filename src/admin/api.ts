@@ -2,8 +2,10 @@ import type {
   ApplicationDetail, ApplicationPage, ApplicationStatus, ReviewAccess, ReviewDecision, ReviewDraft, Verification,
 } from "../features/trainerApplications/model";
 import { callReviewFunction } from "./auth";
+import type { MarketplaceRequest } from "../features/marketplace/model";
 
 export interface ReviewApi {
+  marketplace?<T>(request: MarketplaceRequest): Promise<T>;
   access(): Promise<ReviewAccess>;
   list(request: { status?: ApplicationStatus; cursor?: string }): Promise<ApplicationPage>;
   detail(applicationId: string): Promise<ApplicationDetail>;
@@ -15,6 +17,7 @@ export const isReviewFixture = () => import.meta.env.DEV && new URLSearchParams(
 const fixture = () => import.meta.env.DEV ? import("./fixture") : Promise.reject(new Error("Review fixtures are only available in development."));
 
 export const reviewApi: ReviewApi = {
+  marketplace: request => callReviewFunction("webMarketplaceV1", request),
   access: async () => isReviewFixture() ? (await fixture()).fixtureApi.access() : callReviewFunction("getWebTrainerReviewAccessV1", {}),
   list: async (request) => isReviewFixture() ? (await fixture()).fixtureApi.list(request) : callReviewFunction("listWebTrainerApplicationsV1", request),
   detail: async (applicationId) => isReviewFixture() ? (await fixture()).fixtureApi.detail(applicationId) : callReviewFunction("getWebTrainerApplicationV1", { applicationId }),

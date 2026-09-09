@@ -5,7 +5,7 @@ export default defineConfig({
   base: "/petey-web/",
   build: {
     rollupOptions: {
-      input: { main: "index.html", admin: "admin/index.html" },
+      input: { main: "index.html", admin: "admin/index.html", trainerPreview: "trainer-preview/index.html", trainer: "trainer/index.html", messages: "messages/index.html" },
     },
   },
   optimizeDeps: {

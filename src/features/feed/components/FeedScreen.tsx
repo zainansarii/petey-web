@@ -22,6 +22,8 @@ import "./feed.css";
 import { BrandMark } from "../../../shared/ui/BrandMark";
 import { TrainerCard } from "../../discovery/components/TrainerCard";
 import { TrainerAvailability } from "./TrainerAvailability";
+import { EnquiryComposer } from "../../marketplace/EnquiryComposer";
+import { marketplace } from "../../marketplace/api";
 import type { Trainer } from "../../discovery/model/trainer";
 import { MATCH_DEALBREAKER_LABELS, type MatchedTrainer, type MatchDealbreakers } from "../../onboarding/model/onboarding";
 
@@ -29,15 +31,26 @@ export function FeedScreen({
   matches,
   onEditMatch,
   onHome,
+  liveEnquiries = false,
 }: {
   matches: MatchedTrainer[];
   onEditMatch: () => void;
   onHome: () => void;
+  liveEnquiries?: boolean;
 }) {
   const trainers = matches.map(({ trainer }) => trainer);
   const [activeIndex, setActiveIndex] = useState(0);
   const [requestTrainer, setRequestTrainer] = useState<Trainer | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [enabledTrainerIds, setEnabledTrainerIds] = useState<string[]>([]);
+  const matchIds = matches.map(match => match.trainer.id).join(",");
+  useEffect(() => {
+    if (!liveEnquiries) return;
+    let alive = true;
+    const refresh = () => { void marketplace<{ trainerIds: string[] }>({ action: "availability", trainerIds: matchIds ? matchIds.split(",") : [] }).then(result => { if (alive) setEnabledTrainerIds(result.trainerIds); }).catch(() => { if (alive) setEnabledTrainerIds([]); }); };
+    refresh(); window.addEventListener("focus", refresh);
+    return () => { alive = false; window.removeEventListener("focus", refresh); };
+  }, [liveEnquiries, matchIds]);
   const [dialogTrigger, setDialogTrigger] = useState<HTMLButtonElement | null>(null);
   const reducedMotion = useReducedMotion();
   const prefersReducedMotion = Boolean(reducedMotion);
@@ -73,6 +86,7 @@ export function FeedScreen({
         <header className="feed-header">
           <button aria-label="Petey home" className="feed-header__brand" onClick={onHome} type="button"><BrandMark /></button>
           <div className="feed-header__title"><span>Your shortlist</span><small>0 matches</small></div>
+          {liveEnquiries && <a className="quiet-button" href={`${import.meta.env.BASE_URL}messages/`}>Inbox</a>}
         </header>
         <section className="feed-empty" aria-live="polite">
           <h1>No trainers available yet</h1>
@@ -99,6 +113,7 @@ export function FeedScreen({
             <small>{visibleIndex + 1} of {trainers.length}</small>
           </div>
           <button className="quiet-button" onClick={onEditMatch} type="button">Retune match</button>
+          {liveEnquiries && <a className="quiet-button" href={`${import.meta.env.BASE_URL}messages/`}>Inbox</a>}
         </header>
 
         <div className="feed-layout">
@@ -155,6 +170,8 @@ export function FeedScreen({
                   <TrainerDetails
                     trainer={activeTrainer}
                     match={activeMatch}
+                    liveEnquiries={liveEnquiries}
+                    enquiryEnabled={enabledTrainerIds.includes(activeTrainer.id)}
                     onRequest={(trigger) => {
                       setDialogTrigger(trigger);
                       setRequestTrainer(activeTrainer);
@@ -169,7 +186,7 @@ export function FeedScreen({
       </div>
 
       <AnimatePresence>
-        {requestTrainer ? (
+        {requestTrainer && liveEnquiries ? <EnquiryComposer trainerId={requestTrainer.id} trainerName={requestTrainer.name} onClose={() => { setRequestTrainer(null); dialogTrigger?.focus(); }} /> : requestTrainer ? (
           <RequestDialog
             onClose={() => setRequestTrainer(null)}
             onPreviewComplete={() => {
@@ -297,10 +314,12 @@ function DialogShell({
   );
 }
 
-function TrainerDetails({ trainer, match, onRequest }: {
+function TrainerDetails({ trainer, match, onRequest, liveEnquiries, enquiryEnabled }: {
   trainer: Trainer;
   match: MatchedTrainer;
   onRequest: (trigger: HTMLButtonElement) => void;
+  liveEnquiries: boolean;
+  enquiryEnabled: boolean;
 }) {
   return (
     <section aria-label={`${trainer.name}'s profile details`} className="trainer-details" tabIndex={0}>
@@ -327,10 +346,10 @@ function TrainerDetails({ trainer, match, onRequest }: {
           {trainer.monthlyPrice !== null ? <div><dt>Monthly coaching</dt><dd>£{trainer.monthlyPrice}</dd></div> : null}
         </dl>
         {trainer.pricingNotes ? <p className="trainer-details__bio">{trainer.pricingNotes}</p> : null}
-        <button className="primary-button trainer-details__cta" onClick={(event) => onRequest(event.currentTarget)} type="button">
-          Preview intro request <ArrowRight aria-hidden="true" size={18} />
+        <button className="primary-button trainer-details__cta" disabled={liveEnquiries && !enquiryEnabled} onClick={(event) => onRequest(event.currentTarget)} type="button">
+          {liveEnquiries ? enquiryEnabled ? "Send an enquiry" : "Enquiries unavailable" : "Preview intro request"} <ArrowRight aria-hidden="true" size={18} />
         </button>
-        <p className="trainer-details__disclosure">{trainer.isDemo ? "Illustrative profile, pricing and availability. " : ""}Intro requests are a preview; no trainer is contacted.</p>
+        <p className="trainer-details__disclosure">{liveEnquiries ? enquiryEnabled ? "Review what you share before sending. Continue the conversation in Petey." : "This trainer is not currently accepting enquiries through the pilot." : `${trainer.isDemo ? "Illustrative profile, pricing and availability. " : ""}Intro requests are a preview; no trainer is contacted.`}</p>
       </div>
     </section>
   );

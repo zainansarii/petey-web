@@ -63,8 +63,9 @@ export async function importApplication(db: Firestore, input: FormImport, now = 
   const ref = collection(db).doc(id);
   const contentHash = contentHashFor(input);
   return db.runTransaction(async (tx) => {
-    const snapshot = await tx.get(ref);
+    const [snapshot, deleted] = await Promise.all([tx.get(ref), tx.get(db.collection("webDeletedTrainerApplications").doc(id))]);
     const old = snapshot.exists ? snapshot.data() as StoredApplication : null;
+    if (deleted.exists) return { applicationId: id, revision: old?.sourceRevision ?? 0, contentHash, photoNeeded: false, superseded: true };
     if (old && Date.parse(input.observedAt) < Date.parse(old.source.observedAt)) {
       return { applicationId: id, revision: old.sourceRevision, contentHash: old.contentHash, photoNeeded: false, superseded: true };
     }
@@ -140,7 +141,7 @@ export async function reviewApplication(db: Firestore, input: ReviewInput, uid: 
   const ref = collection(db).doc(input.applicationId);
   const eventRef = ref.collection("history").doc(input.requestId);
   await db.runTransaction(async (tx) => {
-    const [appSnapshot, eventSnapshot] = await Promise.all([tx.get(ref), tx.get(eventRef)]);
+    const [appSnapshot, eventSnapshot, workspaceSnapshot, catalogSnapshot] = await Promise.all([tx.get(ref), tx.get(eventRef), tx.get(db.collection("webTrainerWorkspaces").doc(input.applicationId)), tx.get(db.collection("webTrainerCatalog").doc(input.applicationId))]);
     if (eventSnapshot.exists) {
       const old = eventSnapshot.data()!;
       if (old.reviewerUid !== uid || old.requestHash !== digest(canonicalJson(input))) throw new HttpsError("already-exists", "This decision request has already been used.");
@@ -149,23 +150,27 @@ export async function reviewApplication(db: Firestore, input: ReviewInput, uid: 
     const app = load(appSnapshot);
     if (app.version !== input.expectedVersion) throw new HttpsError("aborted", "This application changed. Reload it before deciding.");
     if (input.decision !== "approve" && !input.reason?.trim()) throw new HttpsError("invalid-argument", "Add a reason for this decision.");
-    const version = app.version + 1;
+    const version = Math.max(app.version, catalogSnapshot.data()?.profileVersion ?? 0) + 1;
     const timestamp = now.toISOString();
     const catalogue = db.collection("webTrainerCatalog").doc(app.trainerId);
     if (input.decision === "approve") {
-      const issues = approvalIssues(app.draft, app.verification, app.photo.state === "ready" && Boolean(app.photo.path), now);
+      const managed = workspaceSnapshot.data();
+      const approvedDraft = managed ? { ...managed.published, qualifications: app.draft.qualifications } as ReviewDraft : app.draft;
+      const approvedPhoto = managed?.publishedPhotoPath ?? app.photo.path;
+      const issues = approvalIssues(approvedDraft, app.verification, Boolean(approvedPhoto) && (Boolean(managed) || app.photo.state === "ready"), now);
       if (app.draft.acceptingNewClients && /future/i.test(String(app.source.answers.acceptingClients ?? "")) && !app.draft.availableFrom) issues.push("Confirm the future start date before making this trainer available.");
       if (!z.email().safeParse(app.email).success) issues.push("The applicant needs to correct their contact email in the form.");
       if (issues.length) throw new HttpsError("failed-precondition", "Complete the profile and verification checks before approving.", { issues });
-      const profile = publicProfile(app.trainerId, app.draft, app.photo.path!);
+      const profile = publicProfile(app.trainerId, approvedDraft, approvedPhoto!);
       tx.set(catalogue, { source: "google_form", applicationId: input.applicationId, trainerId: app.trainerId,
         published: true, approvalStatus: "approved", profileVersion: version, profile,
-        ...(app.draft.gender ? { gender: app.draft.gender } : {}),
-        acceptingNewClients: app.draft.acceptingNewClients, availableFrom: app.draft.availableFrom,
+        ...(approvedDraft.gender ? { gender: approvedDraft.gender } : {}),
+        acceptingNewClients: approvedDraft.acceptingNewClients, availableFrom: approvedDraft.availableFrom,
         verificationExpiresOn: verificationExpiry(app.verification), approvedAt: timestamp, updatedAt: timestamp });
-      tx.update(ref, { status: "approved", version, publishedVersion: version, publishedPhotoPath: app.photo.path, updatedAt: timestamp, issues: [] });
+      tx.update(ref, { status: "approved", version, publishedVersion: version, publishedPhotoPath: approvedPhoto, updatedAt: timestamp, issues: [] });
+      tx.set(db.collection("webTrainerVerifiedCredentials").doc(app.trainerId), { verification: app.verification, qualifications: approvedDraft.qualifications });
     } else if (input.decision === "suspend") {
-      tx.set(catalogue, { published: false, approvalStatus: "suspended", updatedAt: timestamp }, { merge: true });
+      tx.set(catalogue, { published: false, approvalStatus: "suspended", suspensionReason: "reviewer", updatedAt: timestamp }, { merge: true });
       tx.update(ref, { status: "suspended", version, updatedAt: timestamp });
     } else {
       tx.update(ref, { status: input.decision === "reject" ? "rejected" : "needs_changes", version, updatedAt: timestamp });
@@ -294,7 +299,7 @@ export const expireWebTrainerVerificationsV1 = onSchedule({ schedule: "every day
     const [currentRow, appSnap] = await Promise.all([tx.get(row.ref), tx.get(appRef)]);
     const published = currentRow.data(); if (!published?.published || published.verificationExpiresOn >= today || !appSnap.exists) return;
     const app = load(appSnap); const now = new Date().toISOString();
-    tx.update(row.ref, { published: false, approvalStatus: "suspended", updatedAt: now });
+    tx.update(row.ref, { published: false, approvalStatus: "suspended", suspensionReason: "verification_expired", updatedAt: now });
     tx.update(appRef, { status: "suspended", version: app.version + 1, updatedAt: now });
     tx.create(appRef.collection("history").doc(`expiry_${published.profileVersion}`), { action: "suspend", reviewerUid: "verification-expiry", at: now, version: app.version + 1, reason: "Verification expired." });
   });
