@@ -1,6 +1,6 @@
 # Petey web
 
-A trainee-only web adaptation of Petey's mobile discovery and onboarding experience. The flow starts with a trainer carousel, moves into a natural-language matching conversation after one scroll gesture, and opens a secure identity and email magic-link handoff when the conversation is complete.
+A web trainer/trainee matching marketplace. Trainees complete conversational onboarding and discover matched trainers; invited trainers manage enquiries, free pilot unlocks, conversations and public profiles in their workspace.
 
 ## Run locally
 
@@ -8,6 +8,18 @@ A trainee-only web adaptation of Petey's mobile discovery and onboarding experie
 npm install
 npm run dev
 ```
+
+The interactive trainer dashboard concept is available at `/petey-web/trainer-preview/`.
+It uses sample data and simulated unlocks, with no live payments or messaging.
+See [the wireframe specification](./docs/trainer-dashboard-wireframe.md) for the
+codebase findings, metric definitions, interaction coverage and implementation gaps.
+
+The live pilot entry points are `/petey-web/trainer/` and `/petey-web/messages/`.
+They use authenticated server data and are separate from the sample wireframe.
+See [the pilot implementation guide](./docs/trainer-pilot.md) and
+[post-implementation to-do list](./docs/trainer-pilot-todo.md), including the
+deferred Resend setup. New invitations/enquiries and email delivery default to off.
+`npm run test:marketplace` runs verification with Firebase emulators and the shared mobile rules suites.
 
 `npm run verify` runs linting, type-checking, unit tests, and production builds for both the web app and the `web-onboarding-v3` Firebase Functions codebase. The Functions runtime targets Node 22; the web app supports Node 20.19 or newer.
 
@@ -42,7 +54,7 @@ clarifications inside each phase, and context-specific example answers.
 The end-only `ONBOARDING_MARKDOWN_PROFILE_SYSTEM_PROMPT` is in the same file and is intentionally separate
 from the live chat. It controls the internal matching profile, which is not rendered to the user.
 
-Draft messages and idempotency records are subcollections rather than one growing array. Authenticated consumption atomically writes the user-confirmed internal `profileMarkdown` document, then recursively removes the capability-protected draft and raw transcript. The new flow does not extract or persist structured matching fields, postcodes, health notes, or concierge notes. The trainer feed therefore remains a neutral demo catalogue until a separate Markdown-aware matcher is deliberately designed.
+Draft messages and idempotency records are subcollections rather than one growing array. Authenticated consumption atomically writes the user-confirmed internal `profileMarkdown` document, then recursively removes the capability-protected draft and raw transcript. The Markdown-aware matcher reads eligible catalogue entries and persists versioned matches. The marketplace creates a separate trainee-confirmed practical summary when the trainee sends an enquiry.
 
 For a production environment:
 
@@ -64,7 +76,7 @@ the [guarded reset and rollout runbook](./docs/web-onboarding-v3-rollout.md).
 
 ## Firebase email-link authentication
 
-Trainer profiles and introduction requests are demo-only; the UI never claims that a request was delivered. The concierge itself requires Firebase configuration because all natural-language interpretation is performed by Gemini behind the protected backend.
+The configured app reads approved catalogue profiles and supports real introductions to accepted, enabled pilot trainers. The separate onboarding and trainer-preview fixtures remain demo-only. Onboarding and enquiry summary generation require Firebase configuration and the protected Gemini backend.
 
 For real web magic links and secure onboarding drafts, copy `.env.example` to `.env.local` and provide the Firebase Web app configuration plus the reCAPTCHA Enterprise App Check site key. Local development should additionally use a registered `VITE_FIREBASE_APPCHECK_DEBUG_TOKEN`; that value must stay in ignored local environment files and must never be added to a deployed build. Enable Email/Password > Email link in Firebase Authentication and add both `localhost` and the deployed custom domain to Firebase Authentication's authorised domains.
 
@@ -93,4 +105,4 @@ Use the default project Pages URL only for the Firebase-free prototype. Before e
 
 The transcript and sensitive matching details live in the short-lived server draft in configured environments. Name, date of birth, and email are accepted only by the final confirmation callable and never enter the assistant runtime or Gemini request. The email address is also kept locally only as required to complete Firebase email-link sign-in and is removed after successful authentication or a failed send.
 
-The confirmed internal Markdown profile unlocks the demo trainer results after sign-in; it does not create the production mobile profile, calculate a real trainer ranking, send trainer introductions, or bypass the mobile phone-verification policy.
+The confirmed internal Markdown profile drives saved web matches after sign-in. Pilot enquiries share only the trainee-confirmed practical summary and introduction. Web membership and conversations remain separate from production mobile profiles and chat contracts.

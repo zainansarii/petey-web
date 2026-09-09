@@ -17,7 +17,9 @@
     "functions:test": "npm --prefix functions run test",
     "forms:test": "node --test apps-script/trainer-applications/Code.test.mjs",
     "reset:user-data": "npm --prefix functions run reset:user-data --",
-    "verify": "npm run lint && npm run typecheck && vitest run && vite build && npm run functions:build && npm run functions:test && npm run forms:test"
+    "verify": "npm run lint && npm run typecheck && vitest run && vite build && npm run functions:build && npm run functions:test && npm run forms:test",
+    "test:marketplace": "npx -y firebase-tools@latest --config firebase.marketplace-tests.json emulators:exec --project demo-petey-rules --only auth,firestore,storage \"node scripts/verify-marketplace.mjs\"",
+    "dev:marketplace-qa": "npm run functions:build && node scripts/marketplace-qa-server.mjs"
   },
   "dependencies": {
     "@assistant-ui/react": "^0.15.17",
@@ -31,10 +33,11 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@firebase/rules-unit-testing": "^5.0.2",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.4",
-    "@types/node": "^20.19.43",
+    "@types/node": "^22.20.2",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "@vitejs/plugin-react": "^6.0.5",

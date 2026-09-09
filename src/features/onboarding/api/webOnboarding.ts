@@ -63,7 +63,7 @@ type CallableAppContext = { app: unknown; appCheck: unknown };
 let callableAppPromise: Promise<CallableAppContext> | null = null;
 let onboardingPrewarmPromise: Promise<void> | null = null;
 
-const getCallableApp = async () => {
+export const getCallableApp = async () => {
   if (!isRemoteDraftConfigured) {
     throw new Error("The secure AI concierge is not configured for this environment.");
   }

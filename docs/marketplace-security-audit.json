@@ -1,0 +1,13 @@
+{
+  "score": 5,
+  "summary": "Self-review of the new web marketplace Firestore rules and callable boundary: server-controlled writes, explicit trainer membership, verified active participant reads, and separate private content. Existing mobile predicates remain unchanged. Emulator attack and mobile compatibility suites pass; deployed authenticated smoke testing remains a release gate.",
+  "findings": [],
+  "checks": [
+    { "check": "The Update Bypass", "result": "All client create/update/delete operations on marketplace records are denied. Callable schemas and transactions validate mutations." },
+    { "check": "Authority Source", "result": "Authority comes from verified Firebase Auth and server-owned active membership/user records, never client-supplied role or ownership fields." },
+    { "check": "Business Logic vs. Rules", "result": "Owner inbox queries and unlocked participant message queries are allowed. Private introductions are Functions-only, notes are trainer-only, and existing mobile rules tests pass." },
+    { "check": "Storage Abuse", "result": "Writes use strict bounded schemas, per-user rate limits, text/array caps and validated 5 MB image/evidence limits. Storage client access remains denied." },
+    { "check": "Type Safety", "result": "Zod validates server-controlled writes, including enums, versions, dates and bounded strings. Rules require verified Auth and exact active/unlocked server fields." },
+    { "check": "Field-Level vs. Identity-Level Security", "result": "Reads require exact owner or participant identity. No field allowlist grants cross-user mutation. Rules tests reject stranger reads, forged memberships and private-note access." }
+  ]
+}

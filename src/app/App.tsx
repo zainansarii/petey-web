@@ -275,6 +275,7 @@ export function App() {
             transition={{ duration: reducedMotion ? 0 : 0.24 }}
           >
             <FeedScreen
+              liveEnquiries={!(import.meta.env.DEV && new URLSearchParams(window.location.search).has("onboardingFixture"))}
               matches={matches}
               onEditMatch={() => {
                 clearLocalConversationV4();

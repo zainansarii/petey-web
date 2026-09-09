@@ -23,7 +23,7 @@ const createFirebaseAuth = async () => {
 
 let firebaseAuthPromise: ReturnType<typeof createFirebaseAuth> | null = null;
 
-const getFirebaseAuth = () => {
+export const getFirebaseAuth = () => {
   if (!isFirebaseConfigured) return createFirebaseAuth();
   firebaseAuthPromise ??= createFirebaseAuth().catch((error) => {
     firebaseAuthPromise = null;
@@ -40,7 +40,7 @@ const removeStoredEmail = () => {
   }
 };
 
-export const requestMagicLink = async (email: string): Promise<"sent" | "preview"> => {
+export const requestMagicLink = async (email: string, returnTo?: string): Promise<"sent" | "preview"> => {
   const normalizedEmail = email.trim().toLowerCase();
   if (!isFirebaseConfigured) return "preview";
 
@@ -52,6 +52,13 @@ export const requestMagicLink = async (email: string): Promise<"sent" | "preview
   const continueUrl = new URL(window.location.href);
   continueUrl.search = "";
   continueUrl.hash = "";
+  if (returnTo) {
+    const target = new URL(returnTo, window.location.origin);
+    if (target.origin !== window.location.origin || !target.pathname.startsWith(import.meta.env.BASE_URL)) throw new Error("Invalid sign-in destination.");
+    continueUrl.pathname = target.pathname;
+    continueUrl.search = target.search;
+    continueUrl.hash = target.hash;
+  }
   continueUrl.searchParams.set("finishSignUp", "1");
 
   try {
@@ -81,7 +88,7 @@ type FinishMagicLinkCache = {
 
 let finishMagicLinkCache: FinishMagicLinkCache | null = null;
 
-const finishMagicLinkForUrl = async (href: string): Promise<FinishMagicLinkResult> => {
+const finishMagicLinkForUrl = async (href: string, suppliedEmail?: string): Promise<FinishMagicLinkResult> => {
   if (!isFirebaseConfigured) return "ignored";
 
   const [{ isSignInWithEmailLink, signInWithEmailLink }, auth] = await Promise.all([
@@ -96,23 +103,26 @@ const finishMagicLinkForUrl = async (href: string): Promise<FinishMagicLinkResul
   } catch {
     // Missing storage is handled by the existing request-another-link flow.
   }
+  email = suppliedEmail?.trim().toLowerCase() || email;
   if (!email) return "missing-email";
 
   try {
     await signInWithEmailLink(auth, email, href);
     removeStoredEmail();
-    window.history.replaceState({}, document.title, window.location.pathname);
+    const destination = new URL(href);
+    for (const key of ["apiKey", "oobCode", "mode", "lang", "finishSignUp"]) destination.searchParams.delete(key);
+    window.history.replaceState({}, document.title, `${destination.pathname}${destination.search}${destination.hash}`);
     return "signed-in";
   } catch {
     return "error";
   }
 };
 
-export const finishMagicLink = (): Promise<FinishMagicLinkResult> => {
+export const finishMagicLink = (suppliedEmail?: string): Promise<FinishMagicLinkResult> => {
   const href = window.location.href;
-  if (finishMagicLinkCache?.href === href) return finishMagicLinkCache.result;
+  if (!suppliedEmail && finishMagicLinkCache?.href === href) return finishMagicLinkCache.result;
 
-  const result = finishMagicLinkForUrl(href);
+  const result = finishMagicLinkForUrl(href, suppliedEmail);
   finishMagicLinkCache = { href, result };
   return result;
 };

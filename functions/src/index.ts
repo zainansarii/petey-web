@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
+export { webMarketplaceV1, deliverWebMarketplaceNotificationsV1, deleteWebMarketplaceAccountV1 } from "./webMarketplace.js";
 import {
   type Content,
   GoogleGenAI,
