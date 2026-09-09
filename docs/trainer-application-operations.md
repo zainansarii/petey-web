@@ -456,3 +456,47 @@ After installing the bridge's version-2 acknowledgement behavior and reconciling
 `2026-09-07T22:14:55.078Z`, with `errorCount: 0` and no sync message. The second
 application's photo validation error remained visible: successful export does
 not imply approval readiness. Both QA applications were retained for review.
+
+## Development handover on 9 September 2026
+
+Web implementation commit `10c39a1` was pushed to `main`. GitHub Pages
+[run 34391669883](https://github.com/zainansarii/petey-web/actions/runs/34391669883)
+completed successfully and the
+[reviewer workspace](https://zainansarii.github.io/petey-web/admin/) returned HTTP
+200. The deployed host still targets `petey-dev-getcass`; its Firebase and App
+Check settings were preserved. `VITE_TRAINER_APPLICATION_URL` remains unset on
+this public host until cutover, so the trainer CTA is disabled. Local development
+uses the separate development responder URL. The original production form and
+production Firebase configuration have not been changed.
+
+The final verification passed lint, types, both builds, 79 frontend tests,
+188 Functions tests, 20 Node script tests and 16 Apps Script tests. The eight
+emulator-only Functions cases are intentionally skipped in the normal suite;
+they passed in the dedicated Firestore/Storage integration run. The 24 affected
+central rules tests also passed in emulators. Desktop (1440 px), mobile (390 px),
+keyboard and refreshed bookmarked admin URLs were checked. Unauthenticated
+bookmarks show sign-in without application content. Local fixture checks covered
+draft corrections, verification, approval, failed-photo blocking and suspension.
+
+The six central rules, rules tests and mobile review-guide changes were committed
+locally in `mobile-app` as `7945e0d`; this commit has not been pushed. Other mobile
+worktree changes were preserved. The development deny rules and required indexes
+had already been deployed and checked as described above.
+
+Apps Script's latest 50 visible executions on 9 September were all completed
+15-minute reconciliation runs; the latest inspected run started at 19:40:48
+Europe/London and took 9.97 seconds. This confirms the schedule is running. A
+fresh Firestore sync-health/count read could not authenticate: gcloud, Application
+Default Credentials and Firebase CLI cached sessions all required renewed login.
+Do not interpret a completed Apps Script execution as a fresh verification of
+`lastSuccessfulSyncAt` or `errorCount`; the last direct readback is recorded above.
+
+Before the next live step, renew operator credentials and obtain the individual
+reviewer email plus confirmation of the passkey/security-key MFA policy. Have
+that person sign in on the hosted admin page, grant development access with the
+audited CLI, and complete live review/publication/revision/suspension acceptance.
+The new catalogue loader is built and tested, but existing matching callables
+have not yet been redeployed with it. Deploy those affected callables and enable
+development catalogue inclusion for that acceptance run. No reviewer has been
+granted access and no application has been published. Production connection and
+catalogue activation remain pending successful development acceptance.
