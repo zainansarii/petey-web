@@ -314,14 +314,19 @@ function TrainerDetails({ trainer, match, onRequest }: {
         </div>
         <ProfileSection icon={<Target aria-hidden="true" size={17} />} title="Specialises in" items={[...new Set([trainer.specialty, ...trainer.specialties])]} />
         <ProfileSection icon={<Sparkles aria-hidden="true" size={17} />} title="Coaching style" items={trainer.coachingStyles} />
-        <TrainerAvailability availability={trainer.availability} />
+        {trainer.coachingStyleNotes ? <p className="trainer-details__bio">{trainer.coachingStyleNotes}</p> : null}
+        <TrainerAvailability availability={[...trainer.availability, ...(trainer.availabilityNotes ? [trainer.availabilityNotes] : [])]} />
         <ProfileSection icon={<MapPin aria-hidden="true" size={17} />} title="Where you can train" items={[trainer.area, ...trainer.venues]} />
+        {trainer.serviceAreaNotes ? <p className="trainer-details__bio">{trainer.serviceAreaNotes}</p> : null}
         <ProfileSection icon={<ShieldCheck aria-hidden="true" size={17} />} title="Qualifications" items={trainer.qualifications} />
+        {trainer.experience ? <p className="trainer-details__bio">Experience: {trainer.experience}</p> : null}
+        {trainer.professionalUrl ? <p><a href={trainer.professionalUrl} target="_blank" rel="noopener noreferrer">Professional website or social profile</a></p> : null}
         <dl className="trainer-details__pricing">
-          <div><dt>Single session</dt><dd>£{trainer.price}</dd></div>
+          <div><dt>Single session{trainer.sessionDurationMinutes ? ` · ${trainer.sessionDurationMinutes} minutes` : ""}</dt><dd>£{trainer.price}</dd></div>
           {trainer.tenPackPrice !== null ? <div><dt>10 sessions</dt><dd>£{trainer.tenPackPrice}</dd></div> : null}
           {trainer.monthlyPrice !== null ? <div><dt>Monthly coaching</dt><dd>£{trainer.monthlyPrice}</dd></div> : null}
         </dl>
+        {trainer.pricingNotes ? <p className="trainer-details__bio">{trainer.pricingNotes}</p> : null}
         <button className="primary-button trainer-details__cta" onClick={(event) => onRequest(event.currentTarget)} type="button">
           Preview intro request <ArrowRight aria-hidden="true" size={18} />
         </button>

@@ -3,6 +3,11 @@ import react from "@vitejs/plugin-react";
 
 export default defineConfig({
   base: "/petey-web/",
+  build: {
+    rollupOptions: {
+      input: { main: "index.html", admin: "admin/index.html" },
+    },
+  },
   optimizeDeps: {
     include: [
       "@assistant-ui/react",
@@ -20,6 +25,7 @@ export default defineConfig({
   },
   test: {
     environment: "jsdom",
+    include: ["src/**/*.test.{ts,tsx}"],
     setupFiles: "./src/test/setup.ts",
     css: true,
     globals: true,

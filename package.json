@@ -15,8 +15,9 @@
     "test": "vitest",
     "functions:build": "npm --prefix functions run build",
     "functions:test": "npm --prefix functions run test",
+    "forms:test": "node --test apps-script/trainer-applications/Code.test.mjs",
     "reset:user-data": "npm --prefix functions run reset:user-data --",
-    "verify": "npm run lint && npm run typecheck && vitest run && vite build && npm run functions:build && npm run functions:test"
+    "verify": "npm run lint && npm run typecheck && vitest run && vite build && npm run functions:build && npm run functions:test && npm run forms:test"
   },
   "dependencies": {
     "@assistant-ui/react": "^0.15.17",

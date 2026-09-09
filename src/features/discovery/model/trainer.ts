@@ -14,6 +14,9 @@ export const trainerPhotoSchema = z.string().min(1).max(4_000).refine((value) =>
       return false;
     }
   }
+  if (value.startsWith("web-trainer-applications/")) {
+    return /^web-trainer-applications\/[a-zA-Z0-9_-]{1,128}\/revisions\/[1-9][0-9]*\/profile-[a-f0-9]{64}\.webp$/.test(value);
+  }
   return /^(?:\/(?!\/)|onboarding\/)[^\s?#\\]*$/.test(value)
     && !value.split("/").some((part) => part === "." || part === "..");
 }, "Use an HTTPS image URL or a valid image path.");
@@ -35,6 +38,16 @@ export const trainerSchema = z.object({
   qualifications: list,
   availability: list,
   bio: z.string().trim().min(1).max(4_000),
+  sessionDurationMinutes: z.number().int().positive().max(1_440).optional(),
+  pricingNotes: z.string().trim().max(4_000).optional(),
+  serviceAreaNotes: z.string().trim().max(4_000).optional(),
+  coachingStyleNotes: z.string().trim().max(4_000).optional(),
+  availabilityNotes: z.string().trim().max(4_000).optional(),
+  experience: z.string().trim().max(500).optional(),
+  professionalUrl: z.url().max(2_000).refine((value) => {
+    const url = new URL(value);
+    return url.protocol === "https:" && !url.username && !url.password;
+  }, "Use an HTTPS professional website URL.").optional(),
   isDemo: z.boolean().optional(),
 });
 

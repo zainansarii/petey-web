@@ -111,13 +111,18 @@ evidence of compatibility. In particular:
   and can be used only when the brief permits that package commitment. monthlyPackageGBP has unspecified
   session inclusions: never assume it buys enough sessions, and never compare a monthly cap against it
   as proof of affordability. If a monthly cap exists but neither frequency nor applicable package
-  inclusions are known, mark budget unconfirmed. Do not assume discounts, free trials or negotiable prices.
+  inclusions are known, mark budget unconfirmed. Read pricing.notes for explicit package inclusions,
+  required membership, travel charges and commitments; do not assume a different package buys ten
+  sessions. Respect sessionDurationMinutes when the client requires a session length. Do not assume
+  discounts, free trials or negotiable prices.
 - Venue: compare the requested session format with the listed venues. Remote must be explicitly offered.
 - Location: use only the broad areas and travel flexibility actually stated. Remote sessions can make
   location not_required if the client accepts them. A home venue does not establish that a trainer
-  serves the client's area. Do not invent travel radii, personalised distances or willingness to travel.
+  serves the client's area. Read serviceAreaNotes for exact coverage and venue-access requirements.
+  Do not invent travel radii, personalised distances or willingness to travel.
 - Availability: require overlap with listed availability and the client's required times. Broad listed
   windows are offered training windows, not a guarantee of a bookable appointment or spare capacity.
+  Read availabilityNotes for exact times and time zones; do not broaden them into whole-day slots.
 - Trainer gender: use ONLY the separately supplied explicit gender field. If a gender is required but
   that field is absent or does not establish it, mark unconfirmed. Never infer it from trainerId or bio.
 - Other requirements: any additional explicitly essential client requirement. Use not_required if there
@@ -189,12 +194,18 @@ export const buildTrainerMatchingRequest = (
           perSessionGBP: trainer.price,
           tenSessionPackGBP: trainer.tenPackPrice,
           monthlyPackageGBP: trainer.monthlyPrice,
+          ...(trainer.sessionDurationMinutes ? { sessionDurationMinutes: trainer.sessionDurationMinutes } : {}),
+          ...(trainer.pricingNotes ? { notes: trainer.pricingNotes } : {}),
         },
         coachingStyles: trainer.coachingStyles,
         venues: trainer.venues,
         qualifications: trainer.qualifications,
         availability: trainer.availability,
         bio: trainer.bio,
+        ...(trainer.serviceAreaNotes ? { serviceAreaNotes: trainer.serviceAreaNotes } : {}),
+        ...(trainer.coachingStyleNotes ? { coachingStyleNotes: trainer.coachingStyleNotes } : {}),
+        ...(trainer.availabilityNotes ? { availabilityNotes: trainer.availabilityNotes } : {}),
+        ...(trainer.experience ? { experience: trainer.experience } : {}),
         ...(gender ? { gender } : {}),
         ...(idealClients ? { idealClients } : {}),
       })),

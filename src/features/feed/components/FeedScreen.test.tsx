@@ -8,6 +8,26 @@ vi.mock("motion/react", async (importOriginal) => ({
 }));
 
 describe("matched trainer feed", () => {
+  it("shows exact form profile pricing, duration, locations, availability and coaching notes", () => {
+    const trainer = {
+      ...TRAINERS[0]!, sessionDurationMinutes: 45, tenPackPrice: null, monthlyPrice: null,
+      availability: [], availabilityNotes: "Monday and Wednesday 6–9pm, UK time.",
+      pricingNotes: "Six sessions for £360; payment upfront.",
+      serviceAreaNotes: "Online or at North Studio; membership required.",
+      coachingStyleNotes: "Calm explanations with regular progress reviews.",
+      experience: "3–5 years", professionalUrl: "https://example.com/coach",
+    };
+    render(<FeedScreen matches={[{ trainer, score: 90, reason: "Your practical preferences fit." }]} onEditMatch={vi.fn()} onHome={vi.fn()} />);
+    const profile = screen.getByRole("region", { name: `${trainer.name}'s profile details` });
+    for (const note of [trainer.availabilityNotes, trainer.pricingNotes, trainer.serviceAreaNotes, trainer.coachingStyleNotes]) {
+      expect(within(profile).getByText(note)).toBeInTheDocument();
+    }
+    expect(within(profile).getByText("Single session · 45 minutes")).toBeInTheDocument();
+    expect(within(profile).queryByText("10 sessions")).not.toBeInTheDocument();
+    expect(within(profile).getByRole("link", { name: "Professional website or social profile" }))
+      .toHaveAttribute("href", trainer.professionalUrl);
+  });
+
   it("labels alternatives honestly and separates dealbreakers from preference differences", () => {
     render(<FeedScreen matches={[{
       trainer: TRAINERS[0]!, score: 60, reason: "Useful strength experience, but above your maximum price.", matchKind: "closest",

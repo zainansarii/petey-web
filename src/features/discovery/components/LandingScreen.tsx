@@ -4,6 +4,7 @@ import { ArrowDown, ArrowRight, FastForward } from "lucide-react";
 import { BrandMark } from "../../../shared/ui/BrandMark";
 import { TrainerCard } from "./TrainerCard";
 import { TRAINERS } from "../data/trainers";
+import { trainerApplicationUrl } from "../model/trainerApplicationUrl";
 
 const AUTO_ADVANCE_MS = 5000;
 const CAROUSEL_SPRING = {
@@ -33,6 +34,7 @@ type LandingScreenProps = {
 };
 
 export function LandingScreen({ onLogin, onPreviewHandoff, onStart }: LandingScreenProps) {
+  const applicationUrl = trainerApplicationUrl(import.meta.env.VITE_TRAINER_APPLICATION_URL);
   const [carouselPosition, setCarouselPosition] = useState(0);
   const [interactionPaused, setInteractionPaused] = useState(false);
   const transitionLocked = useRef(false);
@@ -147,9 +149,11 @@ export function LandingScreen({ onLogin, onPreviewHandoff, onStart }: LandingScr
             <button className="primary-button" onClick={start} type="button">
               Find my trainer <ArrowRight aria-hidden="true" size={20} />
             </button>
-            <button className="primary-button landing__trainer-cta" type="button">
+            {applicationUrl ? <a className="primary-button landing__trainer-cta" href={applicationUrl} target="_blank" rel="noopener noreferrer">
               I'm a personal trainer <ArrowRight aria-hidden="true" size={20} />
-            </button>
+            </a> : <button className="primary-button landing__trainer-cta" type="button" disabled title="Trainer applications are not open in this environment yet.">
+              I'm a personal trainer <ArrowRight aria-hidden="true" size={20} />
+            </button>}
           </div>
         </motion.section>
 

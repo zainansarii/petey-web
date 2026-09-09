@@ -132,7 +132,7 @@ describe("Petey web journey", () => {
     expect(screen.queryByRole("button", { name: /previous trainer/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /next trainer/i })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Start matching" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "I'm a personal trainer" })).toBeInTheDocument();
+    expect(screen.getByText("I'm a personal trainer")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Log in" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Show Maya Chen" })).not.toBeInTheDocument();
     const carousel = screen.getByRole("region", { name: "Trainer previews" });

@@ -33,7 +33,7 @@ describe("trainer availability calendar", () => {
   it("keeps unstructured notes visible without inventing times, and handles missing schedules", () => {
     const { rerender } = render(<TrainerAvailability availability={["Monday mornings by arrangement"]} />);
     expect(screen.getByText("Monday mornings by arrangement")).toBeInTheDocument();
-    expect(screen.getAllByRole("cell").filter((cell) => cell.textContent === "No availability listed")).toHaveLength(21);
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
     rerender(<TrainerAvailability availability={[]} />);
     expect(screen.getByText("Availability to be confirmed.")).toBeInTheDocument();
     expect(screen.queryByText("Monday mornings by arrangement")).not.toBeInTheDocument();

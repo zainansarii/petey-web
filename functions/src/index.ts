@@ -67,6 +67,12 @@ import type { DraftCapability, MatchPreviewResult } from "../../src/features/onb
 initializeApp();
 const db = getFirestore();
 
+export {
+  importWebTrainerApplicationV1, uploadWebTrainerApplicationPhotoV1, recordWebTrainerFormSyncV1,
+  getWebTrainerReviewAccessV1, listWebTrainerApplicationsV1, getWebTrainerApplicationV1,
+  saveWebTrainerApplicationV1, reviewWebTrainerApplicationV1, expireWebTrainerVerificationsV1,
+} from "./webTrainerApplications.js";
+
 const drafts = db.collection("webOnboardingDraftsV3");
 const rateLimits = db.collection("_webOnboardingRateLimitsV3");
 const consumptions = db.collection("_webOnboardingConsumptionsV3");

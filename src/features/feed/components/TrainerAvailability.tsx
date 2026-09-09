@@ -40,7 +40,7 @@ export function TrainerAvailability({ availability }: { availability: string[] }
   return (
     <section aria-labelledby={headingId} className="trainer-availability">
       <h3 id={headingId}><CalendarDays aria-hidden="true" size={17} />Availability</h3>
-      <table className="trainer-availability__table">
+      {slots.size > 0 ? <table className="trainer-availability__table">
         <caption className="sr-only">Weekly availability</caption>
         <colgroup><col className="trainer-availability__day-column" /><col span={3} /></colgroup>
         <thead>
@@ -76,7 +76,7 @@ export function TrainerAvailability({ availability }: { availability: string[] }
             </tr>
           ))}
         </tbody>
-      </table>
+      </table> : null}
       {slots.size > 0 ? (
         <p className="trainer-availability__legend"><span aria-hidden="true" />Usually available</p>
       ) : null}

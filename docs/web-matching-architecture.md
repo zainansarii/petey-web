@@ -9,6 +9,8 @@ The web and mobile apps share the Standard `(default)` database in
 | --- | --- |
 | `trainerProfiles/{trainerUid}` | Existing private trainer application, approval version and evidence. Never sent to the matching model or web client. |
 | `publicTrainers/{trainerUid}` | Existing approved publication plus `webProfile` for the complete web display profile. Server access only. |
+| `webTrainerApplications/{applicationId}` | Private Google Form source, immutable revisions, editable draft, external verification and review history. Reviewer functions only. |
+| `webTrainerCatalog/{trainerId}` | Approved web snapshot with a stable ID independent of Firebase Auth, catalogue availability and verification expiry. Server access only. |
 | `webOnboardingDraftsV3/{draftId}` | Temporary Markdown brief, capability hash, expiry, matching result and lease. Basic details are added on confirmation. Existing 24-hour draft lifetime applies. |
 | `webClientProfiles/{uid}` | Durable Markdown brief, private `identity` (full name, date of birth, verified email), consent version, signup timestamp and ranked matching result. Accessed through authenticated callables for this UID only. |
 | `_webOnboardingConsumptionsV3/{draftId}` | Existing seven-day idempotency receipt with UID, capability hash, brief and matches. |
@@ -69,12 +71,25 @@ only by development fixtures and tests. No demo fallback supplies real results.
    Existing users with an older Markdown-only record get matches on next login;
    their previously discarded identity fields cannot be reconstructed.
 
-Every catalog read checks the active trainer account, approved publication and
-version, suspension status and evidence expiry. Canonical approved name, photo,
+Every mobile-backed catalog read checks the active trainer account, approved
+publication and version, suspension status and evidence expiry. Canonical approved name, photo,
 pricing, session options and qualifications override editorial web metadata, so
 reapproval cannot leave stale practical facts in the web profile. Changed catalog
 facts invalidate cached matches. Blocked, withdrawn or no-longer-eligible trainers
 are excluded from authenticated results.
+
+When `WEB_TRAINER_CATALOG_ENABLED` is enabled, the same loader also includes
+form-backed snapshots. These use explicit manual-verification eligibility,
+matching approved version/photo, availability, confirmed future start dates and
+verification expiry; no trainer Auth account or mobile evidence record is needed.
+Pending form edits do not replace the approved snapshot. Each response rechecks
+eligibility, and changes to the eligible catalogue invalidate saved matching.
+An already rendered page reflects changes on its next fetch or refresh.
+Contact details, original answers, response-edit links and private insurance
+records are excluded from public profiles and matching prompts. Session duration,
+package notes, service areas, experience and other approved practical details
+are included without inventing structured prices, locations or hours.
+See [trainer application operations](trainer-application-operations.md).
 
 ## Runtime and rollout
 
@@ -84,8 +99,11 @@ are excluded from authenticated results.
 - Existing `roles/datastore.user` and `roles/aiplatform.user` are required.
   Signed images additionally need `roles/storage.objectViewer` on the trainer
   bucket and `roles/iam.serviceAccountTokenCreator` on the runtime identity itself.
-  Photos must be under the approved trainer's `onboarding/{uid}/profile/` path;
+  Mobile-backed photos must be under the approved trainer's `onboarding/{uid}/profile/` path;
   signed URLs expire after two hours and are refreshed when profiles load.
+  Form-backed photos must match the application's approved immutable
+  `web-trainer-applications/{id}/revisions/` object. Reviewer URLs expire after
+  five minutes; catalogue URLs use the existing signed-photo expiry.
 - The synchronous implementation supports up to 500 published trainers. It fails
   explicitly above that bound instead of claiming a partial search is complete.
   Larger catalogs should use queued matching shards and a completion job.
