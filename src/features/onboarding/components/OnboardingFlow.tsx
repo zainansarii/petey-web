@@ -846,11 +846,48 @@ function QuickReplies({ prompts }: { prompts: string[] }) {
   const aui = useAui();
   const running = useAuiState((state) => state.thread.isRunning);
   const composing = useAuiState((state) => state.composer.text.trim().length > 0);
-  const labels = prompts.map((prompt) => prompt.trim().replace(/\.+$/, "").trim())
-    .filter(Boolean);
+  const rowRef = useRef<HTMLDivElement>(null);
+  const labels = useMemo(() => prompts.map((prompt) => prompt.trim().replace(/\.+$/, "").trim())
+    .filter(Boolean), [prompts]);
+
+  useLayoutEffect(() => {
+    const row = rowRef.current;
+    if (!row) return;
+    const buttons = Array.from(row.querySelectorAll<HTMLButtonElement>(".chat-suggestion"));
+    const fitReplies = () => {
+      // A hidden composing row has no dimensions; measure when it reappears.
+      if (!row.clientWidth) return;
+      const style = getComputedStyle(row);
+      const gap = parseFloat(style.columnGap) || 0;
+      let remaining = row.clientWidth - (parseFloat(style.paddingLeft) || 0) - (parseFloat(style.paddingRight) || 0);
+      let visible = 0;
+      const widths = buttons.map((button) => button.getBoundingClientRect().width);
+      buttons.forEach((button, index) => {
+        const required = widths[index] + (visible ? gap : 0);
+        const fits = required <= remaining;
+        button.toggleAttribute("data-overflow", !fits);
+        button.toggleAttribute("inert", !fits);
+        if (fits) {
+          button.removeAttribute("aria-hidden");
+          remaining -= required;
+          visible += 1;
+        } else {
+          button.setAttribute("aria-hidden", "true");
+        }
+      });
+      row.toggleAttribute("data-empty", visible === 0);
+    };
+    fitReplies();
+    const observer = new ResizeObserver(fitReplies);
+    observer.observe(row);
+    // Natural button widths also change when fonts load or text size changes.
+    buttons.forEach((button) => observer.observe(button));
+    return () => observer.disconnect();
+  }, [labels]);
+
   if (labels.length === 0) return null;
   return (
-    <div aria-label="Suggested replies" className="chat-suggestions" data-composing={composing}>
+    <div aria-label="Suggested replies" className="chat-suggestions" data-composing={composing} ref={rowRef}>
       {labels.map((prompt, index) => (
         <button className="chat-suggestion" disabled={running} key={`${index}-${prompt}`} onMouseDown={keepComposerFocus} onClick={() => {
           if (aui.thread.getState().isRunning) return;

@@ -1657,17 +1657,23 @@
 }
 
 .chat-suggestions {
+  position: relative;
   display: flex;
-  max-height: 100px;
+  flex-wrap: nowrap;
   gap: 8px;
   margin-bottom: 10px;
-  overflow-x: auto;
+  overflow: hidden;
   padding: 2px 1px;
-  scrollbar-width: none;
+}
+
+.chat-suggestions[data-empty] {
+  margin-bottom: 0;
+  padding-block: 0;
 }
 
 .chat-suggestion {
   min-height: 42px;
+  width: max-content;
   flex: 0 0 auto;
   padding: 0 15px;
   border: 1px solid #b6baa9;
@@ -1676,7 +1682,15 @@
   color: var(--ink);
   cursor: pointer;
   touch-action: manipulation;
+  white-space: nowrap;
   transition: border-color 160ms ease, background 160ms ease, color 160ms ease;
+}
+
+.chat-suggestion[data-overflow] {
+  /* Keep natural widths measurable without reserving space or exposing controls. */
+  position: absolute;
+  inset: 0 auto auto 0;
+  visibility: hidden;
 }
 
 .chat-suggestion:focus-visible,

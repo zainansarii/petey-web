@@ -107,8 +107,8 @@
   .chat-message__word { max-width: 100%; }
   .chat-thread__footer { padding: 12px var(--page-gutter) max(16px, env(safe-area-inset-bottom)); }
   .onboarding-shell--chat[data-keyboard-open="true"] .chat-thread__footer { padding-bottom: 8px; }
-  .chat-suggestions { max-height: none; padding-block: 4px; }
-  .chat-suggestion { min-height: var(--control-height); max-width: 100%; padding: 10px 14px; white-space: normal; text-align: left; }
+  .chat-suggestions { padding-block: 4px; }
+  .chat-suggestion { min-height: var(--control-height); padding: 10px 14px; text-align: left; }
   .chat-composer { grid-template-columns: minmax(0, 1fr) var(--control-height); padding: 5px 6px 5px 16px; }
   .chat-composer__send { width: var(--control-height); height: var(--control-height); }
   .chat-message__retry { min-height: var(--control-height); }
@@ -206,9 +206,9 @@
   .chat-delete { font-size: 12px; }
   .chat-thread__messages { gap: 18px; }
   .chat-message--user .chat-message__content { max-width: 90%; }
-  .chat-suggestions { flex-wrap: wrap; gap: 6px; max-height: clamp(44px, calc(var(--chat-viewport-height, 100dvh) * 0.3), 180px); overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; }
+  .chat-suggestions { gap: 6px; }
   .chat-suggestions[data-composing="true"] { display: none; }
-  .chat-suggestion { min-width: 0; flex-shrink: 1; padding: 8px 12px; font-size: 13px; overflow-wrap: anywhere; }
+  .chat-suggestion { padding: 8px 12px; font-size: 13px; }
   .secure-identity { padding: 20px var(--page-gutter); }
   .secure-identity .primary-button { width: 100%; padding: 12px 16px; }
   .dialog-backdrop { align-items: flex-end; padding: max(12px, env(safe-area-inset-top)) 0 0; }
