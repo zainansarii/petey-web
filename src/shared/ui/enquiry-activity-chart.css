@@ -46,8 +46,6 @@
 .activity-chart__dot--unlocked { background: var(--chart-unlocked); }
 .activity-chart__marker { position: absolute; width: 11px; height: 11px; margin: -5.5px; border: 2px solid var(--cream); border-radius: 50%; background: var(--chart-received); box-shadow: 0 0 0 1.5px var(--chart-received); pointer-events: none; z-index: 1; }
 .activity-chart__marker--unlocked { background: var(--chart-unlocked); border-radius: 2px; rotate: 45deg; box-shadow: 0 0 0 1.5px var(--chart-unlocked); }
-.activity-chart .activity-chart__help { margin: 5px 0 0; color: var(--chart-muted); font: 400 10px/1.5 var(--body); }
-.activity-chart .activity-chart__caption { margin: 14px 0 0; padding-top: 13px; border-top: 1px solid var(--chart-grid); color: var(--chart-muted); font: 400 10px/1.6 var(--body); }
 .activity-chart .activity-chart__empty { position: absolute; inset: 35% 12% auto; text-align: center; color: var(--chart-muted); font: 400 13px/1.6 var(--body); }
 @media (max-width: 650px) {
   .activity-chart { border-radius: 21px; padding: 18px 14px 15px; }
@@ -57,5 +55,5 @@
   .activity-chart__readout { min-width: 140px; padding: 9px 11px; }
   .activity-chart__readout > span { font-size: 9px; }
   .activity-chart__readout strong { font-size: 18px; }
-  .activity-chart__help > span, .activity-chart__dates .is-secondary { display: none; }
+  .activity-chart__dates .is-secondary { display: none; }
 }

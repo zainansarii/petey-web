@@ -35,7 +35,6 @@ export function TrainerDashboard() {
   const wins = periodLeads.filter(lead => lead.stage === "won");
   const currentLead = visibleLeads.find(lead => lead.id === selected);
   const profileToPreview = page === "profile" ? profileDraft : profile;
-  const followUps = visibleLeads.filter(lead => lead.followUp && !["closed", "won"].includes(lead.stage)).sort((a, b) => a.followUp!.localeCompare(b.followUp!));
   const openPage = (next: Page, nextFilter: Filter = "all") => { setPage(next); setFilter(nextFilter); setQuery(""); content.current?.scrollTo({ top: 0 }); };
   const updateLead = (id: string, patch: Partial<Lead>) => setLeads(current => current.map(lead => lead.id === id ? { ...lead, ...patch } : lead));
   useEffect(() => { if (!toast) return; const timer = window.setTimeout(() => setToast(""), 5000); return () => window.clearTimeout(timer); }, [toast]);
@@ -57,7 +56,7 @@ export function TrainerDashboard() {
     </header>
     <main className="td-scroll" id="dashboard-content" tabIndex={-1} ref={content}>
       <div className="td-page">
-        <div className="td-page-heading"><div><h1>{PAGE_COPY[page][0]}{page === "overview" && <span className="td-heading-dot">.</span>}</h1><p>{page === "overview" ? `${newLeads.length} new enquiries and ${replyLeads.length} leads awaiting your reply.` : PAGE_COPY[page][1]}</p></div>
+        <div className="td-page-heading"><div><h1>{PAGE_COPY[page][0]}{page === "overview" && <span className="td-heading-dot">.</span>}</h1>{page !== "overview" && <p>{PAGE_COPY[page][1]}</p>}</div>
           {page === "profile" ? <button className="td-button td-button--white" onClick={() => setPreviewProfile(true)}><Eye size={16} /> Preview profile</button> : <label className="td-period"><CalendarDays size={16} /><select aria-label="Reporting period" value={period} onChange={e => setPeriod(Number(e.target.value))}><option value={28}>Last 28 days</option><option value={7}>Last 7 days</option></select></label>}
         </div>
         {scenario === "error" ? <div className="td-empty td-error"><CircleHelp size={32} /><h2>Your dashboard couldn’t load</h2><p>Try again to pick up where you left off.</p><button className="td-button" onClick={() => setScenario("populated")}>Try again <ArrowRight size={16} /></button></div> : <>
@@ -71,27 +70,23 @@ export function TrainerDashboard() {
                   <button className={`td-availability ${profile.accepting ? "" : "is-paused"}`} aria-pressed={profile.accepting} onClick={() => { const accepting = !profile.accepting; setProfile({ ...profile, accepting }); setProfileDraft({ ...profileDraft, accepting }); setToast(accepting ? "Preview: profile is accepting enquiries again." : "Preview: new enquiries paused. Existing leads stay available."); }}><span />{profile.accepting ? "Accepting new clients" : "New enquiries paused"}<SlidersHorizontal size={13} /></button>
                   <button className="td-text-button" onClick={() => setPreviewProfile(true)}>View public profile <ArrowUpRight size={14} /></button>
                 </section>
-                <button className="td-metric td-metric--lime" onClick={() => openPage("enquiries", "new")}><span className="td-metric-top">New enquiries<span className="td-metric-icon"><MessageCircle size={21} /></span></span><span className="td-metric-number">{newLeads.length.toString().padStart(2, "0")}</span><span className="td-metric-description">People ready to meet you</span><span className="td-metric-footer">Review & unlock <ArrowUpRight size={19} /></span></button>
-                <button className="td-metric td-metric--dark" onClick={() => openPage("enquiries", "reply")}><span className="td-metric-top">Ready for your reply<span className="td-metric-icon"><Send size={21} /></span></span><span className="td-metric-number">{replyLeads.length.toString().padStart(2, "0")}</span><span className="td-metric-description">Unlocked, awaiting your first hello</span><span className="td-metric-footer">Start a conversation <ArrowUpRight size={19} /></span></button>
+                <button className="td-metric td-metric--lime" onClick={() => openPage("enquiries", "new")}><span className="td-metric-top">New enquiries<span className="td-metric-icon"><MessageCircle size={21} /></span></span><span className="td-metric-number">{newLeads.length.toString().padStart(2, "0")}</span><span className="td-metric-footer">Review & unlock <ArrowUpRight size={19} /></span></button>
+                <button className="td-metric td-metric--dark" onClick={() => openPage("enquiries", "reply")}><span className="td-metric-top">Ready for your reply<span className="td-metric-icon"><Send size={21} /></span></span><span className="td-metric-number">{replyLeads.length.toString().padStart(2, "0")}</span><span className="td-metric-footer">Start a conversation <ArrowUpRight size={19} /></span></button>
                 <div className="td-funnel" aria-label={`Enquiries received in the last ${period} days`}><span><strong>{periodLeads.length}</strong> enquiries</span><ChevronRight size={16} /><span><strong>{unlocks.length}</strong> unlocked</span><ChevronRight size={16} /><span><strong>{wins.length}</strong> started training</span><span className="td-funnel-period">{period} days</span></div>
               </div>
-              <section className="td-section td-enquiry-section"><SectionHeading title="Your newest enquiries" subtitle="See the fit before you unlock the conversation." action={<button className="td-text-button" onClick={() => openPage("enquiries", "new")}>View all <ArrowRight size={15} /></button>} />
+              <ActivityChart leads={periodLeads} period={period} />
+              <section className="td-section td-enquiry-section"><SectionHeading title="Your newest enquiries" action={<button className="td-text-button" onClick={() => openPage("enquiries", "new")}>View all <ArrowRight size={15} /></button>} />
                 {newLeads.length ? <div className="td-lead-list">{newLeads.slice(0, 3).map(lead => <LeadRow key={lead.id} lead={lead} onOpen={() => setSelected(lead.id)} />)}</div> : <EmptyLeads onProfile={() => openPage("profile")} />}
               </section>
-              <ActivityChart leads={periodLeads} period={period} />
             </div>
             <aside className="td-rail">
-              <section><SectionHeading title="Your follow-ups" subtitle="Your upcoming reminders · All dates" action={<span className="td-round-icon"><CalendarDays size={18} /></span>} />
-                <div className="td-followups">{followUps.length ? followUps.slice(0, 3).map(lead => <button key={lead.id} className="td-followup" onClick={() => setSelected(lead.id)}><span className="td-followup-date">{dateLabel(lead.followUp!)}<Clock3 size={13} /></span><span className="td-followup-body"><strong>{lead.name}</strong><span>{lead.note || "Follow up on their enquiry."}</span><small>{STAGE_LABELS[lead.stage]}</small></span><ArrowUpRight size={17} /></button>) : <p className="td-quiet-empty">You’re all caught up. Add a reminder to an unlocked enquiry when you need one.</p>}</div>
-                {followUps.length > 0 && <button className="td-text-button td-rail-link" onClick={() => openPage("enquiries")}>Open your enquiries <ArrowRight size={15} /></button>}
-              </section>
-              <section className="td-spend-summary"><SectionHeading title="Lead outcomes" subtitle={`Enquiries received in the last ${period} days`} />
+              <section className="td-spend-summary"><SectionHeading title="Lead outcomes" />
                 <div className="td-conversion"><strong>{unlocks.length ? Math.round(wins.length / unlocks.length * 100) : "—"}{unlocks.length > 0 && <span>%</span>}</strong><span>of unlocked leads<br />started training</span></div>
                 <div className="td-segment-bar" aria-hidden="true">{Array.from({ length: 16 }, (_, i) => <span className={i < (unlocks.length ? wins.length / unlocks.length * 16 : 0) ? "is-filled" : ""} key={i} />)}</div><p className="td-footnote">{wins.length} of {unlocks.length} unlocked leads · Outcomes marked by you</p>
-                <dl className="td-mini-stats"><div><dt>Unlock spend</dt><dd>{money(transactions.length * UNLOCK_PRICE)}</dd></div><div><dt>Average per unlock</dt><dd>{transactions.length ? money(UNLOCK_PRICE) : "—"}</dd></div></dl>
+                <dl className="td-mini-stats"><div><dt>Unlock spend</dt><dd>{money(transactions.length * UNLOCK_PRICE)}</dd></div></dl>
                 <button className="td-text-button" onClick={() => openPage("spending")}>View spending <ArrowRight size={15} /></button>
               </section>
-              <section className="td-demand"><SectionHeading title="What people need" subtitle={`Goals in your ${periodLeads.length} recent enquiries`} />{["Run my first 10K", "Build strength", "Get back into fitness", "Improve my 5K time"].map(goal => { const count = periodLeads.filter(lead => lead.goal === goal).length; return <div className="td-demand-row" key={goal}><span>{goal}</span><strong>{count}</strong><div><span style={{ width: `${periodLeads.length ? count / periodLeads.length * 100 : 0}%` }} /></div></div>; })}</section>
+              <section className="td-demand"><SectionHeading title="What people need" />{["Run my first 10K", "Build strength", "Get back into fitness", "Improve my 5K time"].map(goal => { const count = periodLeads.filter(lead => lead.goal === goal).length; return <div className="td-demand-row" key={goal}><span>{goal}</span><strong>{count}</strong><div><span style={{ width: `${periodLeads.length ? count / periodLeads.length * 100 : 0}%` }} /></div></div>; })}</section>
               <button className="td-help-link" onClick={() => setHelp(true)}><CircleHelp size={16} /> How enquiries & unlocks work <ArrowUpRight size={14} /></button>
             </aside>
           </div>}
@@ -111,7 +106,6 @@ export function TrainerDashboard() {
               <aside className="td-billing-note"><CreditCard size={26} /><h2>Pay as you find a fit</h2><p>Review a trainee’s goals, budget and availability for free. You only pay when you choose to open their message.</p><ul><li>One clear price before you unlock</li><li>No subscription in this concept</li><li>Follow-up messages included</li></ul><p className="td-footnote">This wireframe uses an illustrative £8 price. No payment details are collected.</p><button className="td-text-button" onClick={() => setHelp(true)}>How it works <ArrowUpRight size={14} /></button></aside></div>
           </div>}
         </>}
-        <footer className="td-footer"><span>Petey. Good people, great training.</span><span>Trainer dashboard concept · v01</span></footer>
       </div>
     </main>
     {currentLead && <LeadDialog key={currentLead.id} lead={currentLead} onClose={() => setSelected(null)} onUpdate={patch => updateLead(currentLead.id, patch)} onNotify={setToast} />}
@@ -138,7 +132,7 @@ function ActivityChart({ leads, period }: { leads: Lead[]; period: number }) {
     date.setUTCDate(date.getUTCDate() - 1);
     return { date: start, label: dateLabel(start), detailLabel: period === 28 ? `${dateLabel(start)} – ${dateLabel(date.toISOString().slice(0, 10))}` : dateLabel(start), received: received.length, unlocked: received.filter(l => l.unlocked).length };
   });
-  return <section id="enquiry-activity" className="td-section td-activity"><SectionHeading title="Enquiry activity" subtitle="Enquiries received, and how many you’ve unlocked." /><EnquiryActivityChart points={groups} description="Grouped by enquiry received date. Unlock counts reflect their current status." /></section>;
+  return <section id="enquiry-activity" className="td-section td-activity"><SectionHeading title="Enquiry activity" /><EnquiryActivityChart points={groups} description="Grouped by enquiry received date. Unlock counts reflect their current status." /></section>;
 }
 
 function Modal({ title, onClose, children, wide = false }: { title: string; onClose: () => void; children: ReactNode; wide?: boolean }) {

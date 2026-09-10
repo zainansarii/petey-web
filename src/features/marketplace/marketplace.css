@@ -80,17 +80,12 @@
 .mp-empty { text-align: center; padding: 40px 20px; background: var(--paper); border-radius: 20px; }
 .mp-empty h3 { margin: 12px 0; }
 .mp-empty-copy { color: var(--ink-soft); padding: 20px 0; line-height: 1.6; }
-.mp-reminder { display: grid; grid-template-columns: 55px 1fr 20px; width: 100%; align-items: center; gap: 12px; text-align: left; border: 0; border-bottom: 1px solid var(--line); background: none; padding: 22px 0; }
-.mp-reminder > span { font-size: 12px; color: var(--ink-soft); }
 .mp-goal { margin-top: 22px; }
 .mp-goal > div { display: flex; justify-content: space-between; margin-bottom: 8px; }
 .mp-goal progress { display: block; border: 0; height: 7px; width: 100%; border-radius: 8px; overflow: hidden; background: var(--cream-deep); accent-color: var(--violet); }
 .mp-goal progress::-webkit-progress-bar { background: var(--cream-deep); }
 .mp-goal progress::-webkit-progress-value { background: var(--violet); border-radius: 8px; }
 .mp-goal progress::-moz-progress-bar { background: var(--violet); border-radius: 8px; }
-.mp-pilot-note { padding: 22px; border-radius: 22px; background: var(--violet-soft); }
-.mp-pilot-note h3 { margin: 12px 0; }
-.mp-pilot-note p { font-size: 12px; color: var(--ink-soft); }
 .mp-conversion { font-size: 34px; font-weight: 400; text-align: right; }
 .mp-conversion small { display: block; font-size: 10px; color: var(--ink-soft); }
 .mp-app table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; }
@@ -99,9 +94,6 @@
 .mp-table-scroll { overflow-x: auto; }
 .mp-spend-heading { display: flex; justify-content: space-between; align-items: center; gap: 20px; margin-bottom: 30px; }
 .mp-spend-heading strong { font-size: 72px; font-weight: 400; letter-spacing: -.05em; }
-.mp-preferences { margin-top: 48px; padding: 25px 0; border-top: 1px solid var(--line); display: flex; gap: 35px; justify-content: space-between; }
-.mp-preferences h2 { font-size: 17px; margin-bottom: 8px; }
-.mp-preferences p { font-size: 12px; color: var(--ink-soft); }
 .mp-profile-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 24px; }
 .mp-profile-photo { display: flex; align-items: center; gap: 22px; }
 .mp-profile-photo img { width: 95px; height: 95px; border-radius: 50%; object-fit: cover; }
@@ -113,9 +105,9 @@
 .mp-credential-list { list-style: none; padding: 0; }
 .mp-credential-list li { border-bottom: 1px solid var(--line); padding: 12px 0; }
 .mp-credential-list span { display: block; font-size: 12px; margin-top: 5px; }
-@media (max-width: 1100px) { .mp-app .td-overview { grid-template-columns: minmax(0,1fr); } .mp-app .td-rail { border: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; margin-top: 35px; } .mp-pilot-note { grid-column: 1 / -1; } .mp-profile-layout { grid-template-columns: minmax(0,1fr); } }
+@media (max-width: 1100px) { .mp-app .td-overview { grid-template-columns: minmax(0,1fr); } .mp-app .td-rail { border: 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); margin-top: 35px; } .mp-profile-layout { grid-template-columns: minmax(0,1fr); } }
 @media (max-width: 650px) { .mp-app .td-summary-grid { grid-template-rows: auto 232px auto; } .mp-app .td-nav-count { position: static; } .mp-app .td-profile-card { align-content: center; } }
-@media (max-width: 760px) { .mp-app .td-scroll { height: auto; overflow: visible; } .mp-app .td-topbar { min-height: 110px; height: auto; padding: 15px 20px 60px; position: relative; gap: 10px; } .mp-app .td-topbar nav { position: absolute; bottom: 8px; left: 10px; right: 10px; justify-content: space-around; } .mp-app .td-topbar nav button { font-size: 11px; padding: 10px 8px; } .mp-app .td-topbar nav button svg { display: none; } .mp-app .td-page { padding: 25px 20px; } .mp-app .td-page-heading { align-items: flex-start; flex-direction: column; } .mp-app .td-period { align-self: flex-start; } .mp-conversation-grid { grid-template-columns: minmax(0,1fr); } .mp-panel { padding: 20px; } .mp-fields { grid-template-columns: minmax(0,1fr); } .mp-inbox-controls { flex-wrap: wrap; gap: 0 12px; } .mp-inbox-controls p { width: 100%; margin: 0; } .mp-inbox-controls label { min-width: 130px; } .mp-enquiry-row { gap: 10px; flex-wrap: wrap; } .mp-enquiry-status { width: calc(100% - 52px); margin-left: 52px; flex-direction: row; } .mp-enquiry-row > svg { display: none; } .mp-app .td-rail { grid-template-columns: minmax(0,1fr); } .mp-preferences { flex-direction: column; gap: 10px; } .mp-dialog { padding: 20px; } .mp-spend-heading { flex-wrap: wrap; } .mp-app .td-preview-bar { font-size: 10px; flex-wrap: wrap; } .mp-conversation-heading { flex-direction: column; align-items: flex-start; gap: 5px; } .mp-profile-photo { flex-direction: column; align-items: flex-start; } }
+@media (max-width: 760px) { .mp-app .td-scroll { height: auto; overflow: visible; } .mp-app .td-topbar { min-height: 110px; height: auto; padding: 15px 20px 60px; position: relative; gap: 10px; } .mp-app .td-topbar nav { position: absolute; bottom: 8px; left: 10px; right: 10px; justify-content: space-around; } .mp-app .td-topbar nav button { font-size: 11px; padding: 10px 8px; } .mp-app .td-topbar nav button svg { display: none; } .mp-app .td-page { padding: 25px 20px; } .mp-app .td-page-heading { align-items: flex-start; flex-direction: column; } .mp-app .td-period { align-self: flex-start; } .mp-conversation-grid { grid-template-columns: minmax(0,1fr); } .mp-panel { padding: 20px; } .mp-fields { grid-template-columns: minmax(0,1fr); } .mp-inbox-controls { flex-wrap: wrap; gap: 0 12px; } .mp-inbox-controls p { width: 100%; margin: 0; } .mp-inbox-controls label { min-width: 130px; } .mp-enquiry-row { gap: 10px; flex-wrap: wrap; } .mp-enquiry-status { width: calc(100% - 52px); margin-left: 52px; flex-direction: row; } .mp-enquiry-row > svg { display: none; } .mp-app .td-rail { grid-template-columns: minmax(0,1fr); } .mp-dialog { padding: 20px; } .mp-spend-heading { flex-wrap: wrap; } .mp-app .td-preview-bar { font-size: 10px; flex-wrap: wrap; } .mp-conversation-heading { flex-direction: column; align-items: flex-start; gap: 5px; } .mp-profile-photo { flex-direction: column; align-items: flex-start; } }
 @media (prefers-reduced-motion: reduce) { .mp-app *, .mp-dialog * { scroll-behavior: auto !important; transition: none !important; } }
 
 @media (max-width: 780px) {

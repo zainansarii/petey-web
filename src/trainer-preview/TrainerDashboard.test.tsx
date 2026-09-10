@@ -28,7 +28,7 @@ describe("trainer dashboard product wireframe", () => {
     expect(screen.getByLabelText("Lead status")).toHaveValue("contacted");
     await user.click(screen.getByRole("button", { name: "Close dialog" }));
     await user.click(screen.getByRole("button", { name: "Spending" }));
-    expect(screen.getByText("£136")).toBeInTheDocument();
+    expect(screen.getByText("£120")).toBeInTheDocument();
   });
 
   it("keeps date-filtered metrics and the linked enquiry list consistent", async () => {

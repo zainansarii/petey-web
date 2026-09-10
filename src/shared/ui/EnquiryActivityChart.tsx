@@ -108,7 +108,6 @@ export function EnquiryActivityChart({ points, description }: {
       </>}
       {(!points.length || !hasSeries) && <p className="activity-chart__empty">{points.length ? "Choose a series above to explore activity." : "Your activity will appear here with your first enquiry."}</p>}
     </div>
-    <p className="activity-chart__help" id={`${id}-help`}>Hover or tap to explore<span> · Use ← → when focused</span></p>
-    <p className="activity-chart__caption">{description}</p>
+    <p className="sr-only" id={`${id}-help`}>{description} Use the arrow keys to explore.</p>
   </div>;
 }

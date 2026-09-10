@@ -16,13 +16,14 @@ export interface Lead {
 const names = ["Emma Wilson", "Daniel Brooks", "Sophie Patel", "Oliver James", "Amelia Lewis", "Noah Turner", "Isla Martin", "Leo Clarke", "Grace Ahmed", "James Taylor", "Mia Harris", "Alex Morgan", "Chloe Evans", "Ethan Lee", "Ruby Walker", "Oscar Thomas", "Freya White", "Lucas Green", "Ella Robinson", "Jack Wright", "Ava Hall", "Hugo Scott", "Lily Adams", "Max King"];
 const goals = ["Run my first 10K", "Build strength", "Get back into fitness", "Improve my 5K time"];
 const areas = ["Richmond", "Twickenham", "Kew", "Richmond"];
-const stages: LeadStage[] = ["new", "new", "new", "new", "reply", "new", "reply", "new", "new", "reply", "contacted", "consultation", "new", "contacted", "contacted", "consultation", "contacted", "consultation", "contacted", "contacted", "won", "won", "won", "won"];
+const stages: LeadStage[] = ["new", "new", "new", "new", "reply", "new", "reply", "new", "new", "reply", "contacted", "consultation", "new", "contacted", "contacted", "consultation", "contacted", "consultation", "closed", "closed", "won", "won", "won", "won"];
 export function createLeads(): Lead[] {
   return names.map((name, i) => {
     const date = new Date(`${TODAY}T12:00:00Z`);
     date.setUTCDate(date.getUTCDate() - Math.floor(i * 1.12));
     const created = date.toISOString().slice(0, 10);
     const stage = stages[i];
+    const unlocked = stage !== "new" && stage !== "closed";
     return {
       id: `enquiry-${i + 1}`, name, initials: name.split(" ").map(n => n[0]).join(""),
       goal: goals[i % 4], area: areas[i % 4], budget: i === 2 ? "£60–£65 / session" : "£70–£80 / session",
@@ -30,7 +31,7 @@ export function createLeads(): Lead[] {
       availability: i % 2 ? "Weekday evenings" : "Weekday mornings",
       frequency: i % 2 ? "Twice a week with a trainer" : "Once a week with a trainer",
       experience: i % 2 ? "Some training experience" : "Getting started",
-      created, stage, unlocked: stage !== "new", unlockedAt: stage !== "new" ? created : undefined,
+      created, stage, unlocked, unlockedAt: unlocked ? created : undefined,
       followUp: [10, 11].includes(i) ? TODAY : i === 13 ? "2026-09-10" : undefined,
       note: i === 10 ? "Check whether mornings still work." : i === 11 ? "Send a couple of times for an introductory call." : i === 13 ? "Ask how the first gym visit went." : "",
       messages: [],
