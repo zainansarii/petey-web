@@ -1,0 +1,61 @@
+.activity-chart {
+  --chart-received: var(--coral);
+  --chart-unlocked: var(--violet);
+  --chart-received-fill: var(--coral);
+  --chart-unlocked-fill: var(--violet);
+  --chart-ink: var(--ink);
+  --chart-muted: var(--ink-soft);
+  --chart-grid: color-mix(in srgb, var(--charcoal) 7%, transparent);
+  color: var(--chart-ink);
+  background: var(--cream);
+  border-radius: 26px;
+  padding: 22px 24px 18px;
+  min-width: 0;
+  isolation: isolate;
+  overflow: hidden;
+}
+.activity-chart__legend { display: flex; gap: 30px; }
+.activity-chart .activity-chart__series { display: flex; align-items: flex-start; gap: 9px; min-height: 44px; border: 0; padding: 0; background: none; color: var(--chart-muted); font: 400 11px/1.5 var(--body); text-align: left; transition: opacity .2s; }
+.activity-chart__series > i { width: 8px; height: 8px; border-radius: 50%; margin-top: 4px; background: var(--chart-received); }
+.activity-chart__series--unlocked > i { background: var(--chart-unlocked); border-radius: 2px; rotate: 45deg; }
+.activity-chart__series[aria-pressed="false"] { opacity: .45; }
+.activity-chart__series strong { display: block; font-size: 29px; font-weight: 400; color: var(--chart-ink); letter-spacing: -.055em; line-height: 1.4; font-variant-numeric: tabular-nums; }
+.activity-chart button:focus-visible, .activity-chart__plot:focus-visible { outline: 2px solid var(--ink); outline-offset: 4px; }
+.activity-chart__plot { position: relative; height: 310px; margin-top: -9px; touch-action: pan-y; cursor: crosshair; border-radius: 12px; }
+.activity-chart__plot > svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.activity-chart__grid { stroke: var(--chart-grid); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.activity-chart__line { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.activity-chart__line--received { stroke: var(--chart-received); }
+.activity-chart__line--unlocked { stroke: var(--chart-unlocked); }
+.activity-chart__crosshair { stroke: color-mix(in srgb, var(--charcoal) 31%, transparent); stroke-width: 1; stroke-dasharray: 3 5; vector-effect: non-scaling-stroke; }
+.activity-chart__axis { position: absolute; inset: 0 auto 0 0; width: 4%; pointer-events: none; }
+.activity-chart__axis > span { position: absolute; right: 0; transform: translateY(-50%); color: var(--chart-muted); font-size: 10px; font-variant-numeric: tabular-nums; }
+.activity-chart__dates { position: absolute; inset: auto 0 10px; height: 15px; pointer-events: none; }
+.activity-chart__dates > span { position: absolute; transform: translateX(-50%); white-space: nowrap; font-size: 10px; color: var(--chart-muted); }
+.activity-chart__dates > span:first-child { transform: none; }
+.activity-chart__dates > span:last-child { transform: translateX(-100%); }
+.activity-chart__dates > span:only-child { transform: translateX(-50%); }
+.activity-chart__readout { position: absolute; transform: translateX(-50%); width: max-content; min-width: 157px; max-width: 195px; padding: 10px 13px; border-radius: 16px; background: color-mix(in srgb, var(--paper) 93%, transparent); backdrop-filter: blur(12px); box-shadow: 0 7px 24px color-mix(in srgb, var(--charcoal) 7%, transparent); color: var(--ink); pointer-events: none; z-index: 2; }
+.activity-chart__readout > span { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 10px; white-space: nowrap; }
+.activity-chart__readout > div { display: flex; gap: 15px; margin-top: 6px; }
+.activity-chart__readout > div > span { display: grid; grid-template-columns: 6px auto; align-items: center; gap: 0 6px; }
+.activity-chart__readout i { width: 6px; height: 6px; border-radius: 50%; }
+.activity-chart__readout strong { font-size: 20px; line-height: 1.2; font-weight: 400; font-variant-numeric: tabular-nums; }
+.activity-chart__readout small { grid-column: 2; color: var(--ink-soft); font: 400 9px/1.5 var(--body); }
+.activity-chart__dot--received { background: var(--chart-received); }
+.activity-chart__dot--unlocked { background: var(--chart-unlocked); }
+.activity-chart__marker { position: absolute; width: 11px; height: 11px; margin: -5.5px; border: 2px solid var(--cream); border-radius: 50%; background: var(--chart-received); box-shadow: 0 0 0 1.5px var(--chart-received); pointer-events: none; z-index: 1; }
+.activity-chart__marker--unlocked { background: var(--chart-unlocked); border-radius: 2px; rotate: 45deg; box-shadow: 0 0 0 1.5px var(--chart-unlocked); }
+.activity-chart .activity-chart__help { margin: 5px 0 0; color: var(--chart-muted); font: 400 10px/1.5 var(--body); }
+.activity-chart .activity-chart__caption { margin: 14px 0 0; padding-top: 13px; border-top: 1px solid var(--chart-grid); color: var(--chart-muted); font: 400 10px/1.6 var(--body); }
+.activity-chart .activity-chart__empty { position: absolute; inset: 35% 12% auto; text-align: center; color: var(--chart-muted); font: 400 13px/1.6 var(--body); }
+@media (max-width: 650px) {
+  .activity-chart { border-radius: 21px; padding: 18px 14px 15px; }
+  .activity-chart__legend { gap: 17px; }
+  .activity-chart__series strong { font-size: 24px; }
+  .activity-chart__plot { height: 270px; margin-top: 0; }
+  .activity-chart__readout { min-width: 140px; padding: 9px 11px; }
+  .activity-chart__readout > span { font-size: 9px; }
+  .activity-chart__readout strong { font-size: 18px; }
+  .activity-chart__help > span, .activity-chart__dates .is-secondary { display: none; }
+}

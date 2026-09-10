@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { ArrowRight, CalendarDays, Check, LayoutDashboard, MapPin, MessageCircle, Pencil, UserRound, Wallet } from "lucide-react";
 import { BrandMark } from "../../shared/ui/BrandMark";
+import { EnquiryActivityChart } from "../../shared/ui/EnquiryActivityChart";
 import { getFirebaseAuth } from "../auth/api/magicLink";
 import { AccessGate } from "./AccessGate";
 import { Conversation } from "./Conversation";
@@ -88,9 +89,7 @@ function EnquiryList({ items, trainer, onSelect, searching = false, onClearSearc
 }
 
 function Trend({ data }: { data: Dashboard }) {
-  const max = Math.max(1, ...data.trend.flatMap(day => [day.received, day.unlocked]));
-  const points = (key: "received" | "unlocked") => data.trend.map((day, index) => `${20 + index * 760 / Math.max(1, data.trend.length - 1)},${160 - day[key] / max * 130}`).join(" ");
-  return <div className="mp-trend"><svg viewBox="0 0 800 190" role="img" aria-label={`Daily activity: ${data.cohort.received} enquiries received during this period. Detailed values below.`}>{[0, 1, 2, 3].map(i => <line key={i} x1="20" x2="780" y1={30 + i * 43} y2={30 + i * 43} stroke="#dfe3d5" strokeDasharray="3 5" />)}<polyline points={points("received")} fill="none" stroke="#587633" strokeWidth="3" /><polyline points={points("unlocked")} fill="none" stroke="#929a86" strokeWidth="3" strokeDasharray="7 4" /></svg><div className="mp-chart-labels"><span>{data.trend[0]?.date}</span><span className="mp-chart-legend"><i className="mp-line-received" /> Enquiries received <i className="mp-line-unlocked" /> Unlocks</span><span>{data.trend.at(-1)?.date}</span></div><details><summary>View daily numbers</summary><table><thead><tr><th>Date (UTC)</th><th>Received</th><th>Unlocked</th></tr></thead><tbody>{data.trend.map(day => <tr key={day.date}><th>{day.date}</th><td>{day.received}</td><td>{day.unlocked}</td></tr>)}</tbody></table></details></div>;
+  return <EnquiryActivityChart points={data.trend.map(day => ({ ...day, label: new Date(`${day.date}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" }) }))} description="Daily totals in UTC. Enquiries use the date received; unlocks use the date unlocked." />;
 }
 function Spending({ data, days }: { data: Dashboard; days: number }) {
   const start = new Date(); start.setUTCHours(0,0,0,0); start.setUTCDate(start.getUTCDate() - days + 1);

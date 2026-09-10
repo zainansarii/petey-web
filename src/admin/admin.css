@@ -6,7 +6,7 @@ body { overflow: auto; }
 .review-app h3 { font-size: 17px; margin: 24px 0 12px; }
 .review-app a { color: inherit; text-underline-offset: 3px; overflow-wrap: anywhere; }
 .review-app button, .review-app select { font: inherit; }
-.review-app button { min-height: 44px; padding: 10px 16px; border: 1px solid #bac0ac; border-radius: 10px; background: transparent; font-weight: 700; cursor: pointer; transition: background 150ms ease, border-color 150ms ease; }
+.review-app button { min-height: 44px; padding: 10px 16px; border: 1px solid var(--line-strong); border-radius: 10px; background: transparent; font-weight: 700; cursor: pointer; transition: background 150ms ease, border-color 150ms ease; }
 .review-app button:hover:not(:disabled) { background: var(--cream-deep); border-color: var(--ink-soft); }
 .review-app button:disabled { cursor: not-allowed; opacity: .48; }
 .review-app button.review-primary { background: var(--lime); border-color: var(--lime); }
@@ -15,7 +15,7 @@ body { overflow: auto; }
 .review-header { min-height: 88px; padding: 20px 46px; display: flex; align-items: center; justify-content: space-between; gap: 24px; border-bottom: 1px solid var(--line); }
 .review-brand { text-decoration: none; font-size: 38px; line-height: 1; font-weight: 700; letter-spacing: -.075em; display: flex; align-items: center; gap: 24px; }
 .review-brand .brand-mark { display: block; width: 148px; height: auto; }
-.review-brand span { font-size: 14px; font-weight: 400; letter-spacing: 0; border-left: 1px solid #bac0ac; padding-left: 24px; }
+.review-brand span { font-size: 14px; font-weight: 400; letter-spacing: 0; border-left: 1px solid var(--line-strong); padding-left: 24px; }
 .review-account { display: flex; align-items: center; gap: 16px; font-size: 13px; color: var(--ink-soft); min-width: 0; }
 .review-account span { overflow-wrap: anywhere; }
 .review-account button { white-space: nowrap; }
@@ -31,7 +31,7 @@ body { overflow: auto; }
 .review-sync { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 20px; color: var(--ink-soft); font-size: 13px; padding: 14px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); margin: 24px 0; }
 .review-sync strong { color: var(--ink); }
 .review-filter { display: flex; align-items: center; gap: 14px; font-weight: 700; }
-.review-filter select { min-height: 44px; padding: 8px 36px 8px 12px; border: 1px solid #bac0ac; border-radius: 8px; background: var(--paper); color: var(--ink); }
+.review-filter select { min-height: 44px; padding: 8px 36px 8px 12px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--paper); color: var(--ink); }
 .review-application-list { list-style: none; margin: 28px 0; padding: 0; border-top: 1px solid var(--line); }
 .review-application-list li { border-bottom: 1px solid var(--line); }
 .review-application-list a { display: grid; grid-template-columns: minmax(0, 1fr) minmax(240px, .7fr) 20px; gap: 28px; padding: 25px 12px; text-decoration: none; transition: background 150ms ease; }
@@ -56,7 +56,7 @@ body { overflow: auto; }
 .review-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 20px; }
 .review-field { display: flex; flex-direction: column; gap: 7px; margin-bottom: 20px; min-width: 0; }
 .review-field > label { font-size: 14px; font-weight: 700; }
-.review-field input, .review-field textarea { width: 100%; min-width: 0; min-height: 44px; background: var(--paper); color: var(--ink); border: 1px solid #b4baa7; border-radius: 8px; padding: 10px 12px; font-size: 16px; line-height: 1.5; }
+.review-field input, .review-field textarea { width: 100%; min-width: 0; min-height: 44px; background: var(--paper); color: var(--ink); border: 1px solid var(--line-strong); border-radius: 8px; padding: 10px 12px; font-size: 16px; line-height: 1.5; }
 .review-field textarea { resize: vertical; }
 .review-field small, .review-hint { font-size: 13px; line-height: 1.6; color: var(--ink-soft); }
 .review-check { display: flex; align-items: center; gap: 10px; margin: 0 0 20px; min-height: 44px; cursor: pointer; }

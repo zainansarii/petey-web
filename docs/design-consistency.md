@@ -16,7 +16,7 @@ The trainee inbox uses full-width, softly tinted conversation rows: initials, tr
 
 - **Font:** use Oxygen and the existing fallback stack. Keep each approved screen's sizes, weights, line heights and responsive behaviour. Do not enlarge text or make all headings bold simply to match another page.
 - **Logo:** use the actual Petey wordmark through `BrandMark`, with its proportions intact. Keep it in the familiar top-left header position and use the established desktop/mobile sizing. Do not recreate the logo as styled text or place it inside an unrelated content column.
-- **Colour:** keep the recognisable cream, charcoal, white and lime palette. Preserve the approved dashboard's related surface and chart treatments.
+- **Colour:** use the [shared colour palette](./colour-palette.md) across every page: cream, charcoal, white, neon lime, violet and warm coral. Use the exact accent tokens for charts, progress bars, controls and highlights, with shared soft tints for backgrounds and neutral text. Never substitute darker accent variants or introduce muted olive/khaki shades. Preserve the approved layouts and density while correcting colours.
 - **Profile cards:** reuse existing public trainer-card patterns when showing the same profile information. Maintain recognisable photo treatment and information hierarchy. Compact dashboard profile summaries and profile editors can retain their different layouts; do not replace them with large discovery cards.
 - **Controls and spacing:** reuse the closest approved context. Preserve the trainer workspace's original buttons, inputs, radii and compact spacing. Equivalent controls within the same experience should look and behave consistently.
 

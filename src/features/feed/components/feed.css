@@ -134,7 +134,7 @@
   .feed-intro__controls .carousel-dots { gap: 0; }
   .feed-intro__controls .carousel-dots button,
   .feed-intro__controls .carousel-dots button.is-active { display: grid; place-items: center; width: 44px; height: 44px; background: transparent; }
-  .carousel-dots button::before { content: ""; width: 8px; height: 8px; border-radius: 99px; background: #bec2b4; }
+  .carousel-dots button::before { content: ""; width: 8px; height: 8px; border-radius: 99px; background: var(--line-strong); }
   .carousel-dots button.is-active::before { width: 28px; background: var(--ink); }
   .feed-stage__pair { gap: var(--card-gap); align-items: start; }
   .trainer-details { position: static; overflow: visible; }

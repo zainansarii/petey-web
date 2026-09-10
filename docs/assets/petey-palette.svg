@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="280" viewBox="0 0 1000 280" role="img" aria-labelledby="title desc">
+  <title id="title">Petey colour palette</title>
+  <desc id="desc">Neon lime C9FF5C, charcoal 2E2E2E, violet 9C86FF, warm coral FF8F82, cream F7F8F2, and white FFFFFF.</desc>
+  <rect width="1000" height="280" fill="#f7f8f2" rx="24"/>
+  <g font-family="Oxygen, system-ui, sans-serif" fill="#2e2e2e">
+    <rect x="28" y="28" width="144" height="158" rx="20" fill="#c9ff5c"/>
+    <rect x="188" y="28" width="144" height="158" rx="20" fill="#2e2e2e"/>
+    <rect x="348" y="28" width="144" height="158" rx="20" fill="#9c86ff"/>
+    <rect x="508" y="28" width="144" height="158" rx="20" fill="#ff8f82"/>
+    <rect x="668" y="28" width="144" height="158" rx="20" fill="#f7f8f2" stroke="#dedfd9"/>
+    <rect x="828" y="28" width="144" height="158" rx="20" fill="#ffffff" stroke="#e7e8e2"/>
+    <g font-size="17"><text x="28" y="218">Neon lime</text><text x="188" y="218">Charcoal</text><text x="348" y="218">Violet</text><text x="508" y="218">Warm coral</text><text x="668" y="218">Cream</text><text x="828" y="218">White</text></g>
+    <g font-size="13" fill="#62666d"><text x="28" y="244">#C9FF5C</text><text x="188" y="244">#2E2E2E</text><text x="348" y="244">#9C86FF</text><text x="508" y="244">#FF8F82</text><text x="668" y="244">#F7F8F2</text><text x="828" y="244">#FFFFFF</text></g>
+  </g>
+</svg>

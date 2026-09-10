@@ -24,6 +24,7 @@
   "dependencies": {
     "@assistant-ui/react": "^0.15.17",
     "@fontsource/oxygen": "^5.3.0",
+    "d3-shape": "^3.2.0",
     "firebase": "^12.17.1",
     "lucide-react": "^1.31.0",
     "motion": "^13.1.0",
@@ -37,6 +38,7 @@
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.4",
+    "@types/d3-shape": "^3.2.0",
     "@types/node": "^22.20.2",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",

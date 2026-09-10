@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { ArrowDownToLine, ArrowRight, ArrowUpRight, CalendarDays, Check, CheckCheck, ChevronRight, CircleHelp, Clock3, CreditCard, Eye, LayoutDashboard, LockKeyhole, MapPin, MessageCircle, Pencil, Search, Send, ShieldCheck, SlidersHorizontal, Target, UserRound, Wallet, X } from "lucide-react";
 import { BrandMark } from "../shared/ui/BrandMark";
+import { EnquiryActivityChart } from "../shared/ui/EnquiryActivityChart";
 import johnPhoto from "../assets/trainers/john-kim.png";
 import { createLeads, dateLabel, inPeriod, INITIAL_PROFILE, money, STAGE_LABELS, TODAY, UNLOCK_PRICE, type Lead, type LeadStage, type Profile } from "./fixture";
 
@@ -130,15 +131,14 @@ function EmptyLeads({ onProfile }: { onProfile: () => void }) {
   return <div className="td-empty td-empty--compact"><MessageCircle size={26} /><h3>Your next client starts here</h3><p>New enquiries will appear here when someone chooses you.</p><button className="td-text-button" onClick={onProfile}>Review your profile <ArrowRight size={15} /></button></div>;
 }
 function ActivityChart({ leads, period }: { leads: Lead[]; period: number }) {
-  const [table, setTable] = useState(false);
   const groups = Array.from({ length: period === 28 ? 4 : 7 }, (_, i) => {
     const date = new Date(`${TODAY}T12:00:00Z`); date.setUTCDate(date.getUTCDate() - period + 1 + i * (period === 28 ? 7 : 1));
     const start = date.toISOString().slice(0, 10); date.setUTCDate(date.getUTCDate() + (period === 28 ? 7 : 1)); const end = date.toISOString().slice(0, 10);
     const received = leads.filter(l => l.created >= start && l.created < end);
-    return { label: dateLabel(start), total: received.length, unlocked: received.filter(l => l.unlocked).length };
+    date.setUTCDate(date.getUTCDate() - 1);
+    return { date: start, label: dateLabel(start), detailLabel: period === 28 ? `${dateLabel(start)} – ${dateLabel(date.toISOString().slice(0, 10))}` : dateLabel(start), received: received.length, unlocked: received.filter(l => l.unlocked).length };
   });
-  const max = Math.ceil(Math.max(4, ...groups.map(group => group.total)) / 2) * 2;
-  return <section className="td-section td-activity"><SectionHeading title="Enquiry activity" subtitle="Enquiries received, and how many you’ve unlocked." action={<button className="td-text-button" onClick={() => setTable(!table)}>{table ? "Show chart" : "View data"}</button>} /><div className="td-chart-legend"><span><i /> Enquiries</span><span><i /> Unlocked</span></div>{table ? <table className="td-data-table"><caption className="sr-only">Enquiry activity by received date</caption><thead><tr><th>Received</th><th>Enquiries</th><th>Unlocked</th></tr></thead><tbody>{groups.map(g => <tr key={g.label}><th>{g.label}</th><td>{g.total}</td><td>{g.unlocked}</td></tr>)}</tbody></table> : <div className="td-chart"><div className="td-chart-scale" aria-hidden="true"><span>{max}</span><span>{Math.round(max / 2)}</span><span>0</span></div><div className="td-chart-plot">{groups.map(group => <div className="td-chart-group" key={group.label}><div className="td-chart-bars"><div className="td-bar td-bar--received" style={{ height: `${group.total / max * 100}%` }}><span>{group.total}</span></div><div className="td-bar td-bar--unlocked" style={{ height: `${group.unlocked / max * 100}%` }}><span>{group.unlocked}</span></div></div><span className="td-chart-label">{group.label}</span><span className="sr-only">: {group.total} enquiries, {group.unlocked} unlocked.</span></div>)}</div></div>}<p className="td-footnote">Grouped by enquiry received date. Unlock counts reflect their current status.</p></section>;
+  return <section id="enquiry-activity" className="td-section td-activity"><SectionHeading title="Enquiry activity" subtitle="Enquiries received, and how many you’ve unlocked." /><EnquiryActivityChart points={groups} description="Grouped by enquiry received date. Unlock counts reflect their current status." /></section>;
 }
 
 function Modal({ title, onClose, children, wide = false }: { title: string; onClose: () => void; children: ReactNode; wide?: boolean }) {
