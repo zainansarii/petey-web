@@ -28,6 +28,8 @@
 .feed-header__title { display: flex; align-items: baseline; gap: 10px; }
 .feed-header__title small { color: var(--ink-soft); }
 .feed-header .quiet-button { justify-self: end; min-height: 44px; }
+.feed-header__actions { display: flex; justify-self: end; align-items: center; gap: 10px; }
+.feed-header__inbox { display: inline-flex; align-items: center; justify-content: center; gap: 8px; color: var(--ink); text-decoration: none; white-space: nowrap; }
 
 .feed-layout {
   display: grid;
@@ -129,6 +131,7 @@
   .feed-header__title { display: none; }
   .feed-header { grid-template-columns: 1fr auto; }
   .feed-header .quiet-button { padding: 0 12px; }
+  .feed-header__actions { gap: 8px; }
   .feed-layout { display: flex; min-height: calc(100svh - 88px); flex-direction: column; align-items: stretch; gap: 24px; padding: 22px 20px max(24px, env(safe-area-inset-bottom)); }
   .feed-intro { padding: 0; }
   .feed-intro > p { margin-top: 18px; }
@@ -142,4 +145,10 @@
   .trainer-details__body { padding: 24px; }
   .feed-mobile-controls { display: flex; justify-content: center; }
   .feed-mobile-controls > span { min-width: 48px; text-align: center; color: var(--ink-soft); font-size: 13px; font-weight: 700; }
+}
+
+@media (max-width: 380px) {
+  .feed-header__actions { --text-action: 12px; gap: 6px; }
+  .feed-header__actions .quiet-button { padding-inline: 10px; white-space: nowrap; }
+  .feed-header__inbox svg { display: none; }
 }

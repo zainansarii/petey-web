@@ -129,3 +129,37 @@
   .mp-access-header { min-height: 55px; }
   .mp-access-panel { margin-top: 36px; }
 }
+
+/* Trainee inbox: keep the compact workspace type, without trainer-only chrome. */
+.mp-app--trainee { font-family: var(--body); }
+/* Match trainee heading and control weights without importing the landing-page scale. */
+.mp-app--trainee h1,
+.mp-app--trainee h2,
+.mp-app--trainee h3,
+.mp-app--trainee label:not(.mp-checkbox),
+.mp-app--trainee button:not(.mp-enquiry-row),
+.mp-trainee-header nav a,
+.mp-shared-details > summary { font-weight: 700; }
+.mp-app--trainee .td-page-heading h1,
+.mp-app--trainee .mp-panel > h2 { letter-spacing: var(--tracking-heading); line-height: 1.08; }
+.mp-app--trainee input,
+.mp-app--trainee textarea,
+.mp-app--trainee select { font-weight: 400; }
+.mp-app--trainee .td-scroll { height: calc(100svh - 88px); }
+.mp-app--trainee .td-page { max-width: 1120px; }
+.mp-trainee-header nav { display: flex; }
+.mp-trainee-header nav a { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 12px 18px; border-radius: 25px; color: var(--ink-soft); font-size: 13px; text-decoration: none; }
+.mp-trainee-header nav a:hover { background: var(--cream-deep); color: var(--ink); }
+.mp-shared-details { margin-top: 20px; border-block: 1px solid var(--line); }
+.mp-shared-details > summary { min-height: 44px; padding-block: 12px; cursor: pointer; font-size: 13px; }
+.mp-shared-details > summary:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+.mp-shared-details .mp-summary { margin-top: 12px; }
+.mp-empty .mp-matches-link { margin-top: 20px; text-decoration: none; }
+.mp-empty > .td-text-button { margin-top: 12px; }
+@media (max-width: 900px) and (min-width: 761px) { .mp-app--trainee .td-scroll { height: calc(100svh - 77px); } }
+@media (max-width: 760px) {
+  .mp-app--trainee .td-scroll { height: auto; }
+  .mp-app--trainee .mp-trainee-header nav { display: flex; gap: 8px; }
+  .mp-trainee-header nav a, .mp-trainee-header nav button { flex: 1; }
+  .mp-trainee-header nav a { padding: 10px 8px; font-size: 11px; }
+}

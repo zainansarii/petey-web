@@ -27,6 +27,12 @@ import { marketplace } from "../../marketplace/api";
 import type { Trainer } from "../../discovery/model/trainer";
 import { MATCH_DEALBREAKER_LABELS, type MatchedTrainer, type MatchDealbreakers } from "../../onboarding/model/onboarding";
 
+function InboxLink() {
+  return <a className="quiet-button feed-header__inbox" href={`${import.meta.env.BASE_URL}messages/`}>
+    <MessageCircle aria-hidden="true" size={17} /><span>Inbox</span>
+  </a>;
+}
+
 export function FeedScreen({
   matches,
   onEditMatch,
@@ -86,7 +92,9 @@ export function FeedScreen({
         <header className="feed-header">
           <button aria-label="Petey home" className="feed-header__brand" onClick={onHome} type="button"><BrandMark /></button>
           <div className="feed-header__title"><span>Your shortlist</span><small>0 matches</small></div>
-          {liveEnquiries && <a className="quiet-button" href={`${import.meta.env.BASE_URL}messages/`}>Inbox</a>}
+          <div className="feed-header__actions">
+            {liveEnquiries && <InboxLink />}
+          </div>
         </header>
         <section className="feed-empty" aria-live="polite">
           <h1>No trainers available yet</h1>
@@ -112,8 +120,10 @@ export function FeedScreen({
             <span>Your shortlist</span>
             <small>{visibleIndex + 1} of {trainers.length}</small>
           </div>
-          <button className="quiet-button" onClick={onEditMatch} type="button">Retune match</button>
-          {liveEnquiries && <a className="quiet-button" href={`${import.meta.env.BASE_URL}messages/`}>Inbox</a>}
+          <div className="feed-header__actions">
+            <button className="quiet-button" onClick={onEditMatch} type="button">Retune match</button>
+            {liveEnquiries && <InboxLink />}
+          </div>
         </header>
 
         <div className="feed-layout">

@@ -32,4 +32,18 @@ describe.skipIf(!emulator)("email-link destinations against the Auth emulator", 
     expect(location.search).toBe("?invite=token"); expect(location.hash).toBe("#enquiries/lead");
     expect((await getFirebaseAuth()).currentUser?.emailVerified).toBe(true);
   });
+  it("returns a trainee to the requested conversation after cross-device sign-in", async () => {
+    const { requestMagicLink, finishMagicLink } = await import("./magicLink");
+    const id = "a".repeat(64);
+    await requestMagicLink("trainee-inbox@example.com", `/petey-web/messages/#${id}`);
+    const link = (await codes()).reverse().find(code => code.email === "trainee-inbox@example.com")!;
+    expect(new URL(link.oobLink).searchParams.get("continueUrl")).toContain(`/messages/?finishSignUp=1#${id}`);
+    localStorage.clear();
+    history.replaceState(null, "", `/petey-web/messages/?mode=signIn&oobCode=${encodeURIComponent(link.oobCode)}&apiKey=fake-api-key&finishSignUp=1#${id}`);
+    expect(await finishMagicLink()).toBe("missing-email");
+    expect(await finishMagicLink("trainee-inbox@example.com")).toBe("signed-in");
+    expect(location.pathname).toBe("/petey-web/messages/");
+    expect(location.search).toBe("");
+    expect(location.hash).toBe(`#${id}`);
+  });
 });

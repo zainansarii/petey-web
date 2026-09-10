@@ -6,8 +6,20 @@ vi.mock("motion/react", async (importOriginal) => ({
   ...await importOriginal<typeof import("motion/react")>(),
   useReducedMotion: () => true,
 }));
+vi.mock("../../marketplace/api", async original => ({
+  ...await original<typeof import("../../marketplace/api")>(),
+  marketplace: vi.fn(async () => ({ trainerIds: [] })),
+}));
 
 describe("matched trainer feed", () => {
+  beforeEach(() => vi.stubEnv("BASE_URL", "/petey-web/"));
+  afterEach(() => vi.unstubAllEnvs());
+
+  it.each([{ matches: [] }, { matches: [{ trainer: TRAINERS[0]!, score: 90, reason: "A good fit." }] }])("keeps the live inbox reachable with any shortlist", ({ matches }) => {
+    render(<FeedScreen matches={matches} liveEnquiries onEditMatch={vi.fn()} onHome={vi.fn()} />);
+    expect(screen.getByRole("link", { name: "Inbox" })).toHaveAttribute("href", "/petey-web/messages/");
+  });
+
   it("shows exact form profile pricing, duration, locations, availability and coaching notes", () => {
     const trainer = {
       ...TRAINERS[0]!, sessionDurationMinutes: 45, tenPackPrice: null, monthlyPrice: null,
