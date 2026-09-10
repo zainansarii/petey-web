@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MarketplaceApp } from "./MarketplaceApp";
 import { marketplace } from "./api";
-import type { Access, InboxItem } from "./model";
+import type { Access, EnquiryDetail, InboxItem, InboxPage, MessagePage } from "./model";
 
 vi.mock("./AccessGate", () => ({
   AccessGate: ({ children }: { children: (access: Access) => ReactNode }) => children({
@@ -65,13 +65,24 @@ describe("trainee inbox", () => {
   });
 
   it("shows the latest message and activity date with an accessible unread count", async () => {
-    api.mockResolvedValue({ items: [{ ...enquiry, unlockedAt: enquiry.createdAt, latestAt: "2026-09-10T10:24:00Z", latestMessage: "Thanks for your message! I’m free next week.", unreadCount: 2 }], nextCursor: null });
+    const latestEnquiry: InboxItem = {
+      ...enquiry, unlockedAt: enquiry.createdAt, latestAt: "2026-09-10T10:24:00Z",
+      latestMessage: "Thanks for your message! I’m free next week.", unreadCount: 2,
+    };
+    api.mockImplementation(async request => {
+      if (request.action === "inbox") return { items: [latestEnquiry], nextCursor: null } satisfies InboxPage;
+      if (request.action === "detail") return { ...latestEnquiry, role: "trainee", tradeoffs: [], content: null, tracking: null } satisfies EnquiryDetail;
+      if (request.action === "messages") return { messages: [], hasMore: false } satisfies MessagePage;
+      return {};
+    });
     render(<MarketplaceApp trainer={false} />);
     const row = await screen.findByRole("button", { name: /Alex Morgan.*Thanks for your message.*2 unread messages/ });
     expect(row.querySelector("time")).toHaveAttribute("dateTime", "2026-09-10T10:24:00Z");
     expect(row).not.toHaveTextContent(enquiry.summary.goals);
     fireEvent.click(row);
     await waitFor(() => expect(location.hash).toBe(`#${enquiry.id}`));
+    expect(await screen.findByRole("heading", { name: enquiry.trainerName })).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Your message" })).toBeInTheDocument();
   });
 
   it("provides a route back to matches for an empty inbox", async () => {
