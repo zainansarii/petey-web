@@ -125,30 +125,46 @@
   .feed-intro__controls { position: absolute; right: 0; bottom: 0; max-width: 180px; margin: 0; }
 }
 
-@media (max-width: 700px) {
-  .feed-header { height: 88px; gap: 10px; padding: max(18px, env(safe-area-inset-top)) 20px 14px; }
-  .feed-header__brand .brand-mark { width: 100px; }
-  .feed-header__title { display: none; }
-  .feed-header { grid-template-columns: 1fr auto; }
-  .feed-header .quiet-button { padding: 0 12px; }
-  .feed-header__actions { gap: 8px; }
-  .feed-layout { display: flex; min-height: calc(100svh - 88px); flex-direction: column; align-items: stretch; gap: 24px; padding: 22px 20px max(24px, env(safe-area-inset-bottom)); }
+@media (min-width: 768px) and (max-width: 1023px) {
+  .feed-header { height: auto; min-height: 88px; padding-inline: var(--page-gutter); }
+  .feed-header__brand .brand-mark { width: 112px; }
+  .feed-layout { min-height: 0; align-content: start; padding: var(--page-top) var(--page-gutter) var(--section-gap); }
   .feed-intro { padding: 0; }
-  .feed-intro > p { margin-top: 18px; }
-  .feed-intro__controls { display: none; }
-  .feed-stage { max-width: 460px; align-self: center; }
-  .feed-stage__pair { grid-template-columns: minmax(0, 1fr); gap: 20px; }
-  .feed-stage__card { width: 100%; }
-  .trainer-card--feed .trainer-card__content { padding: 20px; }
-  .trainer-card--feed .trainer-card__facts-row > span { font-size: 11px; }
-  .trainer-details { position: static; overflow: visible; border-radius: 25px; }
+  .feed-intro__controls { position: static; max-width: none; margin-top: 20px; }
+  .feed-intro__controls .carousel-dots { gap: 0; }
+  .feed-intro__controls .carousel-dots button,
+  .feed-intro__controls .carousel-dots button.is-active { display: grid; place-items: center; width: 44px; height: 44px; background: transparent; }
+  .carousel-dots button::before { content: ""; width: 8px; height: 8px; border-radius: 99px; background: #bec2b4; }
+  .carousel-dots button.is-active::before { width: 28px; background: var(--ink); }
+  .feed-stage__pair { gap: var(--card-gap); align-items: start; }
+  .trainer-details { position: static; overflow: visible; }
   .trainer-details__body { padding: 24px; }
-  .feed-mobile-controls { display: flex; justify-content: center; }
-  .feed-mobile-controls > span { min-width: 48px; text-align: center; color: var(--ink-soft); font-size: 13px; font-weight: 700; }
 }
 
-@media (max-width: 380px) {
-  .feed-header__actions { --text-action: 12px; gap: 6px; }
-  .feed-header__actions .quiet-button { padding-inline: 10px; white-space: nowrap; }
-  .feed-header__inbox svg { display: none; }
+@media (min-width: 768px) and (max-width: 1023px) and (min-height: 600px) {
+  .feed-stage__card { position: sticky; top: var(--page-top); }
+}
+
+@media (max-width: 767px) {
+  .feed-header { height: auto; grid-template-columns: 1fr auto; gap: 12px; padding: max(16px, env(safe-area-inset-top)) var(--page-gutter) 0; }
+  .feed-header__brand .brand-mark { width: 96px; }
+  .feed-header__title { grid-column: 1 / -1; grid-row: 2; justify-content: space-between; padding-top: 12px; border-top: 1px solid var(--line); }
+  .feed-header__actions { gap: 8px; flex-wrap: wrap; }
+  .feed-header:has(.feed-header__inbox) .feed-header__actions { display: contents; }
+  .feed-header:has(.feed-header__inbox) .feed-header__title { grid-column: 1; flex-wrap: wrap; justify-content: flex-start; border: 0; padding: 0; }
+  .feed-header__inbox { grid-column: 2; grid-row: 2; }
+  .feed-header .quiet-button { padding-inline: 12px; }
+  .feed-layout { display: flex; min-height: 0; flex-direction: column; align-items: stretch; gap: var(--section-gap); padding: var(--page-top) var(--page-gutter) max(32px, env(safe-area-inset-bottom)); }
+  .feed-intro { padding: 0; }
+  .feed-intro > p { margin-top: var(--content-gap); }
+  .feed-intro__controls { display: none; }
+  .feed-stage { max-width: 480px; align-self: center; }
+  .feed-stage__pair { grid-template-columns: minmax(0, 1fr); gap: var(--card-gap); }
+  .feed-stage__card { width: 100%; }
+  .trainer-details { position: static; overflow: visible; border-radius: var(--compact-radius); }
+  .trainer-details__body { padding: 24px var(--page-gutter); overflow-wrap: anywhere; }
+  .trainer-details__pricing { grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); }
+  .feed-mobile-controls { display: flex; justify-content: center; }
+  .feed-mobile-controls > span { min-width: 48px; text-align: center; color: var(--ink-soft); font-size: 13px; font-weight: 700; }
+  .feed-empty { margin: var(--section-gap) auto; padding: 0 var(--page-gutter); }
 }

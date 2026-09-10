@@ -6,6 +6,12 @@ The home page, signup chat and matching experience establish the brand. The orig
 
 This rule covers all web entry points, including trainer access, messaging, reviewer tools, dialogs, loading, empty and error states.
 
+## Simplicity first
+
+This is an MVP. Keep only the text and controls needed to understand the current screen and take the next action. Remove repeated explanations, decorative labels and incidental metadata. Put occasional settings behind a clear disclosure.
+
+The trainee inbox uses full-width, softly tinted conversation rows: initials, trainer name, the latest message (or training goal before messaging), a timestamp and an arrow. Status colour supports the accessible label and indicator shape. Keep the layout within the trainer workspace's compact type scale. See [TraineeInbox.tsx](../src/features/marketplace/TraineeInbox.tsx).
+
 ## Shared basics
 
 - **Font:** use Oxygen and the existing fallback stack. Keep each approved screen's sizes, weights, line heights and responsive behaviour. Do not enlarge text or make all headings bold simply to match another page.

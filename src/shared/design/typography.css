@@ -145,7 +145,3 @@
   line-height: 1.45;
   text-transform: none;
 }
-
-@media (max-width: 780px) {
-  .match-preview__card { --text-profile: 24px; }
-}

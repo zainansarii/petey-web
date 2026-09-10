@@ -59,6 +59,7 @@ export interface InboxItem {
   summary: SharedSummary; unlockedAt: string | null; firstReplyAt: string | null;
   withdrawnAt: string | null; blocked: boolean; unreadCount: number; lastSeq: number; readSeq: number;
   outcome?: Outcome;
+  latestMessage?: string;
 }
 export interface LeadTracking { notes: string; followUp: string | null; outcome: Outcome; version: number }
 export interface EnquiryDetail extends InboxItem {

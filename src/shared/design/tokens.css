@@ -15,6 +15,7 @@
   --lime: #c9ff5c;
   --lime-pressed: #b9ee50;
   --line: #e1e4d8;
+  --field-focus: #8a917e;
   --error: #b42318;
   --error-soft: #fff0ed;
   --success: #217a4a;
@@ -35,6 +36,17 @@
   --radius-md: 18px;
   --radius-lg: 28px;
   --radius-xl: 36px;
+  /* Shared compact-layout rhythm, used only below the desktop breakpoint. */
+  --page-gutter: clamp(16px, 4.5vw, 32px);
+  --page-inset-left: max(var(--page-gutter), env(safe-area-inset-left));
+  --page-inset-right: max(var(--page-gutter), env(safe-area-inset-right));
+  --page-top: 24px;
+  --section-gap: clamp(24px, 5vw, 40px);
+  --content-gap: 16px;
+  --card-gap: 24px;
+  --compact-radius: 24px;
+  --control-height: 44px;
+  --compact-header: calc(60px + env(safe-area-inset-top));
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -73,11 +85,16 @@ textarea {
 }
 
 button:focus-visible,
-a:focus-visible,
-input:focus-visible,
-textarea:focus-visible {
+a:focus-visible {
   outline: 3px solid var(--ink);
   outline-offset: 3px;
+}
+
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 1px solid var(--field-focus);
+  outline-offset: 0;
 }
 
 ::selection {
@@ -108,7 +125,7 @@ textarea:focus-visible {
   }
 }
 
-@media (max-width: 780px) {
+@media (max-width: 767px) {
   :root {
     --text-page: clamp(38px, 10.8vw, 48px);
     --text-heading: 30px;

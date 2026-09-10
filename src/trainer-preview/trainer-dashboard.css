@@ -4,7 +4,7 @@ body { overflow: auto; }
 .td-app button { font: inherit; }
 .td-app button:disabled { cursor: not-allowed; opacity: .5; }
 .td-app button, .td-app input, .td-app select, .td-app textarea { transition: background .16s ease, transform .16s ease, box-shadow .16s ease; }
-.td-app button:focus-visible, .td-app select:focus-visible, .td-app input:focus-visible, .td-app textarea:focus-visible { outline: 2px solid #577c23; outline-offset: 4px; }
+.td-app button:focus-visible { outline: 2px solid #577c23; outline-offset: 4px; }
 .td-app button:hover:not(:disabled) { filter: brightness(.975); }
 .td-app svg { flex-shrink: 0; }
 .td-app h1, .td-app h2, .td-app h3, .td-app p { margin: 0; }

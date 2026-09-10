@@ -474,8 +474,53 @@ describe("web onboarding V4 local conversation and secure handoff", () => {
     expect(screen.queryByRole("textbox", { name: /editable markdown brief/i })).not.toBeInTheDocument();
     expect(api.runWebOnboardingTurnV4).not.toHaveBeenCalled();
     expect(api.finalizeWebOnboardingV4).not.toHaveBeenCalled();
-    expect(screen.queryByRole("button", { name: /close secure details/i })).not.toBeInTheDocument();
     expect(document.querySelectorAll(".match-preview__card")).toHaveLength(3);
+    fireEvent.change(screen.getByLabelText(/full name/i), { target: { value: "Sam Example" } });
+    fireEvent.click(screen.getByRole("button", { name: "Close account dialog" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    fireEvent.click(screen.getAllByRole("button", { name: /choose match \d/i })[0]!);
+    expect(await screen.findByLabelText(/full name/i)).toHaveValue("Sam Example");
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  });
+
+  it.each([1, 2, 3])("keeps all %i mobile previews reachable in the card stack", async (count) => {
+    const originalMatchMedia = window.matchMedia;
+    vi.spyOn(window, "matchMedia").mockImplementation((query) => ({
+      ...originalMatchMedia(query),
+      matches: query === "(max-width: 767px)",
+    }));
+    api.readDraftCapability.mockReturnValue(capability);
+    api.getWebOnboardingDraftV3.mockResolvedValue({ snapshot: reviewSnapshot() });
+    api.matchWebOnboardingDraftV1.mockResolvedValue({
+      matching: { totalMatches: count, previews: TRAINERS.slice(0, count) },
+    });
+    try {
+      render(<Harness />);
+      await screen.findByRole("heading", { name: new RegExp(`we found ${count} match`, "i") });
+      expect(screen.getAllByRole("button", { name: /choose match/i })).toHaveLength(1);
+      if (count > 1) {
+        for (let index = 1; index < count; index += 1) {
+          fireEvent.click(screen.getByRole("button", { name: "Next match" }));
+          expect(screen.getByRole("button", { name: new RegExp(`choose match ${index + 1},`, "i") })).toBeInTheDocument();
+        }
+        const stack = screen.getByRole("list", { name: "Your trainer matches" });
+        fireEvent.touchStart(stack, { touches: [{ clientX: 260, clientY: 200 }] });
+        fireEvent.touchEnd(stack, { changedTouches: [{ clientX: 100, clientY: 205 }] });
+        const firstMatch = screen.getByRole("button", { name: /choose match 1,/i });
+        fireEvent.click(firstMatch);
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+        fireEvent.keyDown(stack, { key: "ArrowLeft" });
+        expect(screen.getByRole("button", { name: new RegExp(`choose match ${count},`, "i") })).toBeInTheDocument();
+        fireEvent.click(screen.getByRole("button", { name: "Next match" }));
+      } else {
+        expect(screen.queryByRole("button", { name: "Next match" })).not.toBeInTheDocument();
+      }
+      fireEvent.click(screen.getByRole("button", { name: /choose match 1,/i }));
+      expect(await screen.findByRole("dialog", { name: /create an account/i })).toBeInTheDocument();
+    } finally {
+      vi.mocked(window.matchMedia).mockRestore();
+    }
   });
 
 
