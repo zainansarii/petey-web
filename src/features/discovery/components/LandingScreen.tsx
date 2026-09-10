@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { ArrowDown, ArrowRight, FastForward } from "lucide-react";
 import { BrandMark } from "../../../shared/ui/BrandMark";
+import { usePhoneLayout } from "../../../shared/ui/usePhoneLayout";
 import { TrainerCard } from "./TrainerCard";
 import { TRAINERS } from "../data/trainers";
 import { trainerApplicationUrl } from "../model/trainerApplicationUrl";
@@ -16,16 +17,19 @@ const CAROUSEL_SPRING = {
 
 type CarouselSlot = -2 | -1 | 0 | 1 | 2;
 
-const cardRailPose = (slot: CarouselSlot) => ({
+const cardRailPose = (slot: CarouselSlot, phoneLayout: boolean) => ({
   opacity: slot === 0 ? 1 : Math.abs(slot) === 1 ? 0.42 : 0,
   scale: slot === 0 ? 1 : Math.abs(slot) === 1 ? 0.7 : 0.62,
-  x: `${slot * 30}%`,
+  x: `${slot * (phoneLayout ? 20 : 30)}%`,
   y: 0,
 });
 
 const trainerIndexAt = (position: number) => (
   (position % TRAINERS.length + TRAINERS.length) % TRAINERS.length
 );
+
+// Compact layouts scroll naturally to the imagery below the copy.
+const hasScrollableLanding = () => window.matchMedia("(max-width: 1023px)").matches;
 
 type LandingScreenProps = {
   onLogin: () => void;
@@ -40,6 +44,7 @@ export function LandingScreen({ onLogin, onPreviewHandoff, onStart }: LandingScr
   const transitionLocked = useRef(false);
   const touchStart = useRef<{ x: number; y: number } | null>(null);
   const reducedMotion = useReducedMotion();
+  const phoneLayout = usePhoneLayout();
   const activeIndex = trainerIndexAt(carouselPosition);
   const activeTrainer = TRAINERS[activeIndex];
 
@@ -78,7 +83,7 @@ export function LandingScreen({ onLogin, onPreviewHandoff, onStart }: LandingScr
         moveManually(-1);
         return;
       }
-      if (["ArrowDown", "PageDown", " "].includes(event.key) && !(event.target instanceof HTMLButtonElement)) {
+      if (!hasScrollableLanding() && ["ArrowDown", "PageDown", " "].includes(event.key) && !(event.target instanceof HTMLButtonElement)) {
         event.preventDefault();
         start();
       }
@@ -105,14 +110,14 @@ export function LandingScreen({ onLogin, onPreviewHandoff, onStart }: LandingScr
         if (!startPoint || !endPoint) return;
         const deltaX = endPoint.clientX - startPoint.x;
         const deltaY = endPoint.clientY - startPoint.y;
-        if (Math.abs(deltaY) > Math.abs(deltaX) && deltaY < -46) start();
-        else if (Math.abs(deltaX) > 46) moveManually(deltaX < 0 ? 1 : -1);
+        if (!hasScrollableLanding() && Math.abs(deltaY) > Math.abs(deltaX) && deltaY < -46) start();
+        else if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 46) moveManually(deltaX < 0 ? 1 : -1);
       }}
       onTouchStart={(event) => {
         touchStart.current = { x: event.touches[0].clientX, y: event.touches[0].clientY };
       }}
       onWheel={(event) => {
-        if (event.deltaY > 12) start();
+        if (!hasScrollableLanding() && event.deltaY > 12) start();
       }}
       transition={{ duration: reducedMotion ? 0 : 0.35 }}
     >
@@ -178,7 +183,7 @@ export function LandingScreen({ onLogin, onPreviewHandoff, onStart }: LandingScr
 
               return (
                 <motion.div
-                  animate={cardRailPose(slot)}
+                  animate={cardRailPose(slot, phoneLayout)}
                   aria-hidden={isActive ? undefined : true}
                   className={`hero-carousel__card hero-carousel__card--${isActive ? "active" : isVisibleSide ? "side" : "offstage"}`}
                   data-carousel-slot={slot}

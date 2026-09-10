@@ -5,6 +5,10 @@ import { active, contactable, defaults, eligible, emptyTracking, enqueue, fail, 
 
 const safeDifferences = (values: MatchDealbreakers) => Object.entries(values).flatMap(([key, value]) =>
   value === "not_met" || value === "unconfirmed" ? [`${MATCH_DEALBREAKER_LABELS[key as keyof MatchDealbreakers]} ${value === "not_met" ? "differs from your preferences" : "needs confirming"}.`] : []);
+const messagePreview = (text: string, own: boolean) => {
+  const characters = Array.from(text.replace(/\s+/g, " ").trim());
+  return `${own ? "You: " : ""}${characters.slice(0, 180).join("")}${characters.length > 180 ? "…" : ""}`;
+};
 export async function prepare(ctx: Context, trainerId: string, summarize: (brief: string) => Promise<SharedSummary>) {
   requirePilot(ctx); await active(ctx);
   const { candidate } = await eligible(ctx, trainerId);
@@ -102,8 +106,8 @@ export async function send(ctx: Context, id: string, requestId: string, text: st
     const episode = inbox.episode ?? `${seq}`;
     tx.create(messageRef, message);
     tx.update(ref, { lastSeq: seq, latestAt: at, firstReplyAt });
-    tx.update(inboxRef(ctx, ctx.actor.uid, id), { lastSeq: seq, latestAt: at, firstReplyAt });
-    tx.update(inboxRef(ctx, recipient, id), { lastSeq: seq, latestAt: at, firstReplyAt, unreadCount: inbox.unreadCount + 1, episode });
+    tx.update(inboxRef(ctx, ctx.actor.uid, id), { lastSeq: seq, latestAt: at, firstReplyAt, latestMessage: messagePreview(text, true) });
+    tx.update(inboxRef(ctx, recipient, id), { lastSeq: seq, latestAt: at, firstReplyAt, latestMessage: messagePreview(text, false), unreadCount: inbox.unreadCount + 1, episode });
     if (!inbox.episode) enqueue(ctx, tx, `message_${hash(`${id}:${recipient}:${episode}`)}`, { kind: "message", uid: recipient, enquiryId: id, episode }, 120_000);
     return message;
   });
@@ -148,11 +152,22 @@ export async function tracking(ctx: Context, id: string, patch: Omit<LeadTrackin
   }); return detail(ctx, id);
 }
 export async function inbox(ctx: Context, cursor?: string): Promise<InboxPage> {
-  await active(ctx);
+  const membership = await active(ctx);
   let query = userRef(ctx).collection("inbox").orderBy("latestAt", "desc");
   if (cursor) { const last = await inboxRef(ctx, ctx.actor.uid, cursor).get(); if (!last.exists) throw new HttpsError("invalid-argument", "Invalid inbox page."); query = query.startAfter(last); }
   const page = await query.limit(51).get();
-  return { items: page.docs.slice(0, 50).map(doc => doc.data() as InboxItem), nextCursor: page.size > 50 ? page.docs[49]!.id : null };
+  const items = await Promise.all(page.docs.slice(0, 50).map(async doc => {
+    const item = doc.data() as InboxItem;
+    // Older conversations predate the cached preview. Read only their latest
+    // message; locked introductions never enter inbox previews.
+    if (!membership && item.unlockedAt && item.lastSeq > 0 && item.latestMessage === undefined) {
+      const latest = await ctx.db.collection("webEnquiries").doc(item.id).collection("messages").where("seq", "==", item.lastSeq).limit(1).get();
+      const message = latest.docs[0]?.data() as Message | undefined;
+      if (message) return { ...item, latestMessage: messagePreview(message.text, message.senderId === ctx.actor.uid) };
+    }
+    return item;
+  }));
+  return { items, nextCursor: page.size > 50 ? page.docs[49]!.id : null };
 }
 export function aggregate(items: InboxItem[], leads: Map<string, LeadTracking>, unlocks: Unlock[], days: 7 | 28, now: Date): Dashboard {
   const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));

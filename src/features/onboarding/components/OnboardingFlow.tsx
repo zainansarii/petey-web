@@ -16,12 +16,13 @@ import {
 } from "@assistant-ui/react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type RefObject } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { ArrowLeft, ArrowRight, LoaderCircle, LockKeyhole, RotateCcw, Send, Trash2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, LoaderCircle, LockKeyhole, RotateCcw, Send, Trash2, X } from "lucide-react";
 import { requestMagicLink } from "../../auth/api/magicLink";
 import { TrainerCard } from "../../discovery/components/TrainerCard";
 import type { TrainerCardPreview } from "../../discovery/model/trainer";
 import { TextDots } from "../../../shared/ui/TextDots";
 import { TwinOrbit } from "../../../shared/ui/TwinOrbit";
+import { usePhoneLayout } from "../../../shared/ui/usePhoneLayout";
 import {
   clearLocalConversationV4,
   clearDraftCapability,
@@ -595,6 +596,7 @@ function ChatOnboarding({
           <SecureDetailsModal
             capability={capability}
             identity={identity}
+            onClose={() => setSelectedMatchId(null)}
             key="secure-details"
             onIdentityChange={onIdentityChange}
             onMagicLinkRequested={onMagicLinkRequested}
@@ -669,17 +671,7 @@ function PostChatHandoff({
                 : `We found ${matching.totalMatches} ${matching.totalMatches === 1 ? "match" : "matches"}`}
             </motion.h2>
             {matching.matchKind === "closest" && matching.totalMatches > 0 ? <p>We couldn’t find a close enough match for all your preferences. Here are the closest options to consider.</p> : null}
-            {matching.totalMatches > 0 ? <div aria-label={matching.matchKind === "closest" ? "Your closest trainer options" : "Your trainer matches"} className="match-preview" data-preview-count={Math.min(3, matching.previews.length)} role="list">
-              {matching.previews.slice(0, 3).map((trainer, index) => (
-                <MatchPreviewCard
-                  index={index}
-                  key={trainer.id}
-                  onSelect={onSelectMatch}
-                  reducedMotion={reducedMotion}
-                  trainer={trainer}
-                />
-              ))}
-            </div> : (
+            {matching.totalMatches > 0 ? <MatchPreviews matching={matching} onSelect={onSelectMatch} reducedMotion={reducedMotion} /> : (
               <div className="post-chat-results__empty">
                 <p>There are no available trainer profiles right now. You can still save your training brief by creating an account.</p>
                 <button className="primary-button" onClick={onCreateAccount} type="button">
@@ -711,30 +703,109 @@ function PostChatHandoff({
   );
 }
 
+function MatchPreviews({ matching, onSelect, reducedMotion }: {
+  matching: MatchPreviewResult;
+  onSelect: (trainerId: string) => void;
+  reducedMotion: boolean;
+}) {
+  const phoneLayout = usePhoneLayout();
+  const [position, setPosition] = useState(0);
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
+  const suppressClick = useRef(false);
+  const previews = matching.previews.slice(0, 3);
+  const count = previews.length;
+  const activeIndex = count ? (position % count + count) % count : 0;
+  const move = (direction: number) => setPosition((current) => current + direction);
+
+  return <>
+    <div
+      aria-label={matching.matchKind === "closest" ? "Your closest trainer options" : "Your trainer matches"}
+      aria-roledescription={phoneLayout && count > 1 ? "carousel" : undefined}
+      className="match-preview"
+      data-preview-count={count}
+      onClickCapture={(event) => {
+        if (!suppressClick.current) return;
+        event.preventDefault();
+        event.stopPropagation();
+        suppressClick.current = false;
+      }}
+      onKeyDown={(event) => {
+        if (!phoneLayout || count < 2 || !["ArrowLeft", "ArrowRight"].includes(event.key)) return;
+        event.preventDefault();
+        event.currentTarget.focus();
+        move(event.key === "ArrowRight" ? 1 : -1);
+      }}
+      onTouchStart={(event) => {
+        suppressClick.current = false;
+        const touch = event.touches[0];
+        touchStart.current = phoneLayout && touch ? { x: touch.clientX, y: touch.clientY } : null;
+      }}
+      onTouchEnd={(event) => {
+        const start = touchStart.current;
+        const end = event.changedTouches[0];
+        touchStart.current = null;
+        if (!start || !end || count < 2) return;
+        const dx = end.clientX - start.x;
+        const dy = end.clientY - start.y;
+        if (Math.abs(dx) > 46 && Math.abs(dx) > Math.abs(dy)) {
+          suppressClick.current = true;
+          move(dx < 0 ? 1 : -1);
+        }
+      }}
+      onTouchCancel={() => { touchStart.current = null; }}
+      role="list"
+      tabIndex={phoneLayout && count > 1 ? 0 : undefined}
+    >
+      {previews.map((trainer, index) => {
+        const offset = (index - activeIndex + count) % count;
+        return <MatchPreviewCard
+          index={index}
+          key={trainer.id}
+          onSelect={onSelect}
+          reducedMotion={reducedMotion}
+          slot={phoneLayout ? (offset > 1 ? -1 : offset) : undefined}
+          trainer={trainer}
+        />;
+      })}
+    </div>
+    {phoneLayout && count > 1 ? <div aria-label="Browse trainer matches" className="match-preview-nav">
+      <button aria-label="Previous match" className="icon-button" onClick={() => move(-1)} type="button"><ArrowLeft aria-hidden="true" size={18} /></button>
+      <span aria-live="polite" className="match-preview-nav__position">{activeIndex + 1} of {count}</span>
+      <button aria-label="Next match" className="icon-button" onClick={() => move(1)} type="button"><ArrowRight aria-hidden="true" size={18} /></button>
+    </div> : null}
+  </>;
+}
+
 function MatchPreviewCard({
   index,
   onSelect,
   reducedMotion,
+  slot,
   trainer,
 }: {
   index: number;
   onSelect: (trainerId: string) => void;
   reducedMotion: boolean;
+  slot?: number;
   trainer: TrainerCardPreview;
 }) {
   const [focused, setFocused] = useState(false);
   const restingPose = { scale: 1, y: 0 };
-  const raisedPose = reducedMotion ? restingPose : { scale: 1.025, y: -8 };
+  const raisedPose = reducedMotion || slot !== undefined ? restingPose : { scale: 1.025, y: -8 };
+  const behind = slot !== undefined && slot !== 0;
 
   return (
     <motion.div
-      animate={{ opacity: 1, y: 0 }}
+      animate={{ opacity: behind ? 0.42 : 1, y: 0, x: `${(slot ?? 0) * 20}%`, scale: behind ? 0.7 : 1 }}
+      aria-hidden={behind || undefined}
       className="match-preview__item"
       initial={reducedMotion ? false : { opacity: 0, y: 20 }}
+      inert={behind || undefined}
       role="listitem"
+      style={{ zIndex: slot === undefined ? undefined : behind ? 1 : 2 }}
       transition={{
-        delay: reducedMotion ? 0 : 0.28 + index * 0.13,
-        duration: reducedMotion ? 0 : 0.66,
+        delay: reducedMotion || slot !== undefined ? 0 : 0.28 + index * 0.13,
+        duration: reducedMotion ? 0 : slot !== undefined ? 0.32 : 0.66,
         ease: [0.22, 1, 0.36, 1],
       }}
     >
@@ -1016,6 +1087,7 @@ function ChatComposer({ inactive = false }: { inactive?: boolean }) {
 function SecureDetailsModal({
   capability,
   identity,
+  onClose,
   onIdentityChange,
   onMagicLinkRequested,
   onSnapshotChange,
@@ -1024,6 +1096,7 @@ function SecureDetailsModal({
 }: {
   capability: DraftCapability;
   identity: IdentityAnswers;
+  onClose: () => void;
   onIdentityChange: (identity: IdentityAnswers) => void;
   onMagicLinkRequested: OnboardingFlowProps["onMagicLinkRequested"];
   onSnapshotChange: (snapshot: OnboardingDraftSnapshotV3) => void;
@@ -1037,13 +1110,24 @@ function SecureDetailsModal({
   const reducedMotion = useReducedMotion();
 
   useEffect(() => {
+    const trigger = document.activeElement;
     const frame = requestAnimationFrame(() => {
       firstIdentityFieldRef.current?.focus({ preventScroll: true });
     });
-    return () => cancelAnimationFrame(frame);
+    return () => {
+      cancelAnimationFrame(frame);
+      requestAnimationFrame(() => {
+        if (trigger instanceof HTMLElement && trigger.isConnected) trigger.focus({ preventScroll: true });
+      });
+    };
   }, []);
 
   const keepFocusInDialog = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Escape" && !submitting) {
+      event.preventDefault();
+      onClose();
+      return;
+    }
     if (event.key !== "Tab") return;
     const focusable = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>(
       "input:not([disabled]), button:not([disabled]), [tabindex]:not([tabindex='-1'])",
@@ -1118,6 +1202,7 @@ function SecureDetailsModal({
             <div className="secure-identity__title">
               <span aria-hidden="true" className="secure-identity__icon"><LockKeyhole size={20} /></span>
               <h2 id="secure-details-title">Create an account</h2>
+              <button aria-label="Close account dialog" className="dialog-close secure-identity__close" disabled={submitting} onClick={onClose} type="button"><X aria-hidden="true" size={20} /></button>
             </div>
             <p id="secure-details-description">Add your basic details to access your matches. They stay separate from your conversation and are only used for your account and secure sign-in.</p>
           </div>

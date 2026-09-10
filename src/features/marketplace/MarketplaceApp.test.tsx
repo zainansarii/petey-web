@@ -52,13 +52,26 @@ describe("trainee inbox", () => {
     expect(api.mock.calls.some(([request]) => ["dashboard", "profile"].includes(request.action))).toBe(false);
   });
 
-  it("distinguishes no search results from an empty inbox and clears the search", async () => {
+  it("keeps the list minimal and saves email preferences when expanded", async () => {
     render(<MarketplaceApp trainer={false} />);
     await screen.findByRole("button", { name: /Alex Morgan/ });
-    fireEvent.change(screen.getByLabelText("Search conversations"), { target: { value: "someone else" } });
-    expect(screen.getByRole("heading", { name: "No conversations found" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Clear search" }));
-    expect(screen.getByRole("button", { name: /Alex Morgan/ })).toBeInTheDocument();
+    expect(screen.queryByRole("searchbox")).not.toBeInTheDocument();
+    expect(screen.queryByText("North London")).not.toBeInTheDocument();
+    expect(screen.queryByText("1 conversation")).not.toBeInTheDocument();
+    expect(screen.getByRole("checkbox")).not.toBeVisible();
+    fireEvent.click(screen.getByText("Email preferences"));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Unread message emails" }));
+    await waitFor(() => expect(api).toHaveBeenCalledWith({ action: "preferences", preferences: { enquiries: false, messages: false } }));
+  });
+
+  it("shows the latest message and activity date with an accessible unread count", async () => {
+    api.mockResolvedValue({ items: [{ ...enquiry, unlockedAt: enquiry.createdAt, latestAt: "2026-09-10T10:24:00Z", latestMessage: "Thanks for your message! I’m free next week.", unreadCount: 2 }], nextCursor: null });
+    render(<MarketplaceApp trainer={false} />);
+    const row = await screen.findByRole("button", { name: /Alex Morgan.*Thanks for your message.*2 unread messages/ });
+    expect(row.querySelector("time")).toHaveAttribute("dateTime", "2026-09-10T10:24:00Z");
+    expect(row).not.toHaveTextContent(enquiry.summary.goals);
+    fireEvent.click(row);
+    await waitFor(() => expect(location.hash).toBe(`#${enquiry.id}`));
   });
 
   it("provides a route back to matches for an empty inbox", async () => {

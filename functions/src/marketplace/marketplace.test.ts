@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { initializeApp } from "firebase-admin/app";
-import { getFirestore } from "firebase-admin/firestore";
+import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { marketplaceRequestSchema, type InboxItem, type SharedSummary, type Unlock } from "../../../src/features/marketplace/model.js";
 import { publicDraftSchema } from "../../../src/features/marketplace/model.js";
@@ -8,7 +8,7 @@ import { matchingProfileHash } from "../webMatching.js";
 import { importApplication, reviewApplication, saveApplication, type StoredApplication } from "../webTrainerApplications.js";
 import type { FormImport } from "../webTrainerApplicationDomain.js";
 import { invite, redeem, revoke, access } from "./access.js";
-import { acknowledge, aggregate, block, dashboard, detail, enquire, messages, preferences, send, tracking, unlock, withdraw } from "./enquiries.js";
+import { acknowledge, aggregate, block, dashboard, detail, enquire, inbox, messages, preferences, send, tracking, unlock, withdraw } from "./enquiries.js";
 import { cleanupMarketplaceAccount } from "../webMarketplace.js";
 import { capacity, publish, saveDraft, reviewCredential } from "./profile.js";
 import { processNotifications } from "./notifications.js";
@@ -106,6 +106,25 @@ describe.skipIf(!emulator)("web pilot transactions and privacy", () => {
     await capacity(s.trainer, false, c.profileVersion);
     const client = { ...s.client, actor: { ...s.client.actor, uid: "new_client" } };
     await expect(enquire(client, s.id, summary, "Hello there")).rejects.toMatchObject({ code: "failed-precondition" });
+  });
+  it("previews the latest message, supports older inboxes and keeps locked introductions private", async () => {
+    const s = await matched(await seed());
+    const { enquiryId: id } = await enquire(s.client, s.id, summary, "PRIVATE introduction");
+    expect(JSON.stringify(await inbox(s.client))).not.toContain("PRIVATE");
+    expect(JSON.stringify(await inbox(s.trainer))).not.toContain("PRIVATE");
+    await unlock(s.trainer, id);
+    const firstRequest = randomUUID();
+    await send(s.trainer, id, firstRequest, "Hello\n  Sam");
+    expect((await inbox(s.client)).items[0]?.latestMessage).toBe("Hello Sam");
+    expect((await inbox(s.trainer)).items[0]?.latestMessage).toBe("You: Hello Sam");
+    await send(s.client, id, randomUUID(), "Thanks!");
+    await send(s.trainer, id, firstRequest, "Hello\n  Sam");
+    expect((await inbox(s.client)).items[0]?.latestMessage).toBe("You: Thanks!");
+    const row = db.collection("webMarketplaceUsers").doc(s.client.actor.uid).collection("inbox").doc(id);
+    await row.update({ latestMessage: FieldValue.delete() });
+    expect((await inbox(s.client)).items[0]?.latestMessage).toBe("You: Thanks!");
+    await send(s.trainer, id, randomUUID(), "👍".repeat(200));
+    expect(Array.from((await inbox(s.client)).items[0]!.latestMessage!)).toHaveLength(181);
   });
   it("publishes public edits, detects conflicts and preserves edits across imports and credential reviews", async () => {
     const s = await matched(await seed()); let a = (await s.ref.get()).data() as StoredApplication;
