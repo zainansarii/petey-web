@@ -273,6 +273,105 @@ describe("web onboarding V4 local conversation and secure handoff", () => {
     expect(screen.queryByRole("button", { name: "I want to build strength" })).not.toBeInTheDocument();
   });
 
+  it("does not open the mobile keyboard for quick replies or send an answer twice", async () => {
+    const originalMatchMedia = window.matchMedia;
+    vi.spyOn(window, "matchMedia").mockImplementation((query) => ({
+      ...originalMatchMedia(query),
+      matches: query.includes("pointer: coarse"),
+    }));
+    let finish!: () => void;
+    api.runWebOnboardingTurnV4.mockImplementation(() => new Promise((resolve) => {
+      finish = () => resolve(streamedTurn({
+        reply: "What kind of trainer would help you?",
+        readyForReview: false,
+        quickReplies: ["Someone patient", "Someone energetic"],
+      }));
+    }));
+    try {
+      render(<Harness />);
+      const input = await screen.findByRole("textbox", { name: "Your answer" });
+      expect(input).not.toHaveFocus();
+      const quickReply = screen.getByRole("button", { name: "I want to build strength" });
+      fireEvent.click(quickReply);
+      fireEvent.click(quickReply);
+      await waitFor(() => expect(api.runWebOnboardingTurnV4).toHaveBeenCalledTimes(1));
+      expect(quickReply).toBeDisabled();
+      expect(input).not.toHaveFocus();
+      await act(async () => finish());
+      expect(await screen.findByRole("button", { name: "Someone patient" })).toBeEnabled();
+      expect(input).not.toHaveFocus();
+    } finally {
+      vi.mocked(window.matchMedia).mockRestore();
+    }
+  });
+
+  it("keeps the focused composer outside the scroller while sending and replacing replies", async () => {
+    api.runWebOnboardingTurnV4.mockImplementation(() => streamedTurn({
+      reply: "What would you like your sessions to feel like?",
+      readyForReview: false,
+      quickReplies: ["Calm and encouraging", "Challenging and focused"],
+    }));
+    render(<Harness />);
+    const input = await screen.findByRole("textbox", { name: "Your answer" });
+    input.focus();
+    expect(document.querySelector(".chat-thread__viewport")).not.toContainElement(input);
+    expect(fireEvent.mouseDown(screen.getByRole("button", { name: "I want to build strength" }), { button: 0 })).toBe(false);
+    fireEvent.click(screen.getByRole("button", { name: "I want to build strength" }));
+    await screen.findByRole("button", { name: "Calm and encouraging" });
+    expect(screen.getByRole("textbox", { name: "Your answer" })).toBe(input);
+    expect(input).toHaveFocus();
+    fireEvent.change(input, { target: { value: "I like encouragement" } });
+    expect(fireEvent.mouseDown(screen.getByRole("button", { name: "Send answer" }), { button: 0 })).toBe(false);
+    expect(input).toHaveFocus();
+  });
+
+  it("follows viewport resizing, pauses while reading, and resumes at the bottom", async () => {
+    const observers: { callback: ResizeObserverCallback; elements: Set<Element> }[] = [];
+    const observerMock = vi.spyOn(window, "ResizeObserver").mockImplementation(function (callback: ResizeObserverCallback) {
+      const elements = new Set<Element>();
+      observers.push({ callback, elements });
+      return {
+        observe: (element: Element) => { elements.add(element); },
+        unobserve: (element: Element) => { elements.delete(element); },
+        disconnect: () => elements.clear(),
+      };
+    });
+    try {
+      render(<Harness />);
+      await screen.findByRole("textbox", { name: "Your answer" });
+      const viewport = document.querySelector<HTMLElement>(".chat-thread__viewport")!;
+      const messages = document.querySelector<HTMLElement>(".chat-thread__messages")!;
+      const resize = (target: Element) => {
+        const observer = observers.find(({ elements }) => elements.has(viewport) && elements.has(messages))!;
+        act(() => observer.callback([{ target } as ResizeObserverEntry], {} as ResizeObserver));
+      };
+      Object.defineProperties(viewport, {
+        clientHeight: { configurable: true, value: 400 },
+        scrollHeight: { configurable: true, value: 1_000 },
+      });
+      resize(viewport);
+      expect(viewport.scrollTop).toBe(600);
+      Object.defineProperty(viewport, "clientHeight", { configurable: true, value: 240 });
+      resize(viewport);
+      expect(viewport.scrollTop).toBe(760);
+
+      fireEvent.touchStart(viewport);
+      viewport.scrollTop = 300;
+      fireEvent.scroll(viewport);
+      Object.defineProperty(viewport, "scrollHeight", { configurable: true, value: 1_200 });
+      resize(messages);
+      expect(viewport.scrollTop).toBe(300);
+
+      viewport.scrollTop = 960;
+      fireEvent.scroll(viewport);
+      Object.defineProperty(viewport, "scrollHeight", { configurable: true, value: 1_400 });
+      resize(messages);
+      expect(viewport.scrollTop).toBe(1_160);
+    } finally {
+      observerMock.mockRestore();
+    }
+  });
+
   it("advances from a completed result even when the reply stream stays open", async () => {
     const openTurn = openStreamedTurn({
       reply: "Thanks! We have everything needed now to find your match.",

@@ -1,6 +1,6 @@
 # Trainee responsive pass
 
-Local branch: `mobile-ui-refactor`. Reviewed on 10 September 2026.
+Original pass: `mobile-ui-refactor`, subsequently merged. Mobile chat follow-up reviewed locally on `main`, 10 September 2026.
 
 ## Layout system
 
@@ -9,6 +9,9 @@ Local branch: `mobile-ui-refactor`. Reviewed on 10 September 2026.
 - Component-specific feed and inbox rules remain in their own stylesheets. Inbox changes are scoped to `.mp-app--trainee`; trainer workspace styles are preserved.
 - Match previews use 4:5 portraits: an overlapping carousel on phones, two columns on tablets, the existing three-column desktop presentation. Phone previews support swiping, previous/next buttons and arrow keys; only the front card is focusable. Badges, names, specialties, areas, prices and selection remain available.
 - Mobile quick replies use 13px text and wrap into additional rows as needed, retaining 44px tap targets. Homepage rear cards sit within the carousel boundary so their rounded corners remain visible.
+- The chat composer is a separate grid row outside the transcript scroller. Neither the composer nor its ancestors use movement transforms. The chat shell follows the visible viewport height and offset as the keyboard opens, closes or pans the page; pinch zoom retains its native behaviour.
+- Quick replies do not open or refocus the mobile keyboard. Sending retains an already-focused input, disables repeated quick-reply submissions while waiting, and removes touch-only hover stickiness. On phones, suggestions tuck away while a draft is being typed and reappear when it is cleared or sent; in short viewports, their wrapped rows can scroll vertically.
+- The transcript follows new replies and keyboard/composer resizing, pauses when someone reads older messages, and resumes when they scroll back to the bottom. The input grows to four lines before scrolling internally.
 - Form fields share a muted neutral focus color across trainee, trainer, messaging and reviewer entry points. The dark input outline and shaded halo are removed; keyboard focus remains visible.
 - The landing description and both CTAs remain visible. Compact layouts scroll naturally; vertical swipes, wheel events and Page Down no longer start onboarding there. Desktop retains its existing interaction.
 - In the stacked landing layout, the heading, description and CTA group share the horizontal centre with the profile cards. Checked at 320, 390, 768 and 926px; desktop keeps its existing alignment. The trainer CTA has no underline at any width.
@@ -39,7 +42,11 @@ The 1440×900 landing headline/copy/carousel measurements and match-preview head
 - Added a regression check for scrolling the compact landing page while retaining desktop scroll-to-onboarding, and extended signup coverage for cancellation and retained input.
 - Covered one, two and three mobile previews, next/previous navigation, swipe wraparound, arrow keys, and preventing a swipe from accidentally opening signup.
 - After the focus-style follow-up, rebuilt all web entry points and checked profile inputs/textareas in the local trainer workspace at 390px and 1440px: neutral 1px focus cue with no shadow.
+- Chat follow-up: `npm run verify` passed (106 frontend tests, 190 Functions tests, plus Apps Script tests; existing skips unchanged). New regressions cover visual-viewport resize/pan/dismissal, pinch zoom, listener cleanup, no automatic mobile focus, repeated taps, retained input focus and manual scroll-follow behaviour.
+- Used `?onboardingFixture=1&chatFixture=1` for a five-turn local conversation with streamed replies, including the coaching question from the reported screenshot. Checked 320×568, 390×360, 390×844, 430×400, 844×390, 768×1024 and 1440×900. The input stayed inside its composer, the composer stayed within the screen, and no horizontal overflow occurred. Sending retained focus; scrolling to the top stayed there during the next streamed reply. Matching, account-field scrolling at 390×360 and Escape dismissal also passed.
 - `git diff --check`.
 - Browser QA used development fixtures and a temporary component preview, removed after inspection. No login email, enquiry or trainer message was sent.
-- These are browser viewport checks, including a reduced-height check; a physical iOS/Android keyboard and device safe-area behavior were not tested on hardware.
+- These are browser viewport checks, including reduced heights and mocked visual-viewport events. The iOS simulator is installed, but its UI could not be controlled because desktop-control permissions were unavailable. The actual iPhone software-keyboard caret rendering and physical device safe-area behaviour still need on-device verification.
 - Existing environment-dependent skipped tests remain skipped. This pass does not certify backend delivery or production marketplace readiness.
+
+The viewport implementation follows the [VisualViewport API](https://developer.mozilla.org/en-US/docs/Web/API/VisualViewport): software keyboards can reduce the visible area without resizing the layout viewport. This informed the layout fix; it does not establish which Safari rendering bug caused the reported caret offset.

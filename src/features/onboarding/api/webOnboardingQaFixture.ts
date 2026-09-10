@@ -131,6 +131,32 @@ export const runFixtureTurnV4 = async (
   data: Promise<RunWebOnboardingTurnV4Response>;
 }> => {
   if (abortSignal?.aborted) throw new DOMException("The request was cancelled.", "AbortError");
+  // Opt-in, local-only conversation for keyboard, streaming and scroll QA.
+  // The default fixture still completes in one turn for handoff checks.
+  const chatFixture = new URLSearchParams(window.location.search).get("chatFixture") === "1";
+  const turns = [
+    { reply: "What would you most like to feel different about your training?", quickReplies: ["More confident in the gym", "Stronger and more consistent", "Ready for my first marathon"] },
+    { reply: "What sort of personality would you like your trainer to have?", quickReplies: ["Friendly and understanding", "Focused and challenging", "Calm and patient"] },
+    { reply: "How would you like that patience and encouragement to show up in your sessions?", quickReplies: ["Explaining things clearly without rushing", "Checking in on how I feel", "Celebrating small wins with me"] },
+    { reply: "What days and times would usually work for training with your trainer?", quickReplies: ["Weekday evenings", "Weekend mornings", "My schedule changes each week"] },
+  ];
+  const turn = chatFixture ? turns[request.messages.filter(({ role }) => role === "user").length - 1] : undefined;
+  if (turn) {
+    const result = { ...turn, readyForReview: false };
+    return {
+      stream: (async function* () {
+        for (const word of turn.reply.split(" ")) {
+          await new Promise((resolve) => setTimeout(resolve, 45));
+          if (abortSignal?.aborted) throw new DOMException("The request was cancelled.", "AbortError");
+          yield { type: "reply_delta", text: `${word} ` } as const;
+        }
+      })(),
+      data: new Promise((resolve) => setTimeout(() => resolve({
+        result,
+        timings: { rateLimitMs: 0, modelFirstChunkMs: 45, firstReplyChunkMs: 45, modelTotalMs: 1_500, totalMs: 1_500 },
+      }), 1_500)),
+    };
+  }
   const reply = "Thanks! We have everything needed now to find your match.";
   const data = Promise.resolve({
     result: { reply, readyForReview: true, quickReplies: [] },

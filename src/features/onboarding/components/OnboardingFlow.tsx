@@ -14,7 +14,7 @@ import {
   type TextMessagePartProps,
   type ThreadMessageLike,
 } from "@assistant-ui/react";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type RefObject } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type MouseEvent, type RefObject } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ArrowLeft, ArrowRight, LoaderCircle, LockKeyhole, RotateCcw, Send, Trash2, X } from "lucide-react";
 import { requestMagicLink } from "../../auth/api/magicLink";
@@ -23,6 +23,7 @@ import type { TrainerCardPreview } from "../../discovery/model/trainer";
 import { TextDots } from "../../../shared/ui/TextDots";
 import { TwinOrbit } from "../../../shared/ui/TwinOrbit";
 import { usePhoneLayout } from "../../../shared/ui/usePhoneLayout";
+import { useChatViewport } from "./useChatViewport";
 import {
   clearLocalConversationV4,
   clearDraftCapability,
@@ -242,7 +243,9 @@ function ChatOnboarding({
   const savedRetuneAttemptRef = useRef<string | null>(null);
   const matchingAttemptedDraftRef = useRef<string | null>(null);
   const threadViewportRef = useRef<HTMLDivElement | null>(null);
+  const shellRef = useRef<HTMLElement | null>(null);
   const reducedMotion = Boolean(useReducedMotion());
+  useChatViewport(shellRef);
 
   useEffect(() => { sessionRef.current = session; }, [session]);
 
@@ -526,7 +529,7 @@ function ChatOnboarding({
   };
 
   return (
-    <main className="onboarding-shell onboarding-shell--chat">
+    <main className="onboarding-shell onboarding-shell--chat" ref={shellRef}>
       <ChatHeader
         deleteError={deleteError}
         deleting={deleting}
@@ -539,13 +542,16 @@ function ChatOnboarding({
       <AssistantRuntimeProvider runtime={runtime}>
         <ThreadPrimitive.Root aria-hidden={showingSecureDetails || undefined} className="chat-thread" inert={showingSecureDetails || undefined}>
           <ThreadPrimitive.Viewport
+            aria-label="Conversation"
             autoScroll={false}
             className="chat-thread__viewport"
             data-handoff-phase={handoffPhase}
             ref={threadViewportRef}
+            role="region"
             scrollToBottomOnInitialize={false}
             scrollToBottomOnRunStart={false}
             scrollToBottomOnThreadSwitch={false}
+            tabIndex={0}
           >
             <ChatScrollAnimator
               enabled={handoffPhase === "chat" || handoffPhase === "confirmation"}
@@ -569,26 +575,26 @@ function ChatOnboarding({
               />
             ) : null}
 
-            <ThreadPrimitive.ViewportFooter className="chat-thread__footer" hidden={chatRetired}>
-              <AnimatePresence initial={false}>
-                {showComposer ? (
-                  <motion.div
-                    animate={{ opacity: 1, y: 0 }}
-                    aria-hidden={handoffPhase === "confirmation" || undefined}
-                    className="chat-thread__controls"
-                    exit={{ opacity: 0, y: reducedMotion ? 0 : 8 }}
-                    inert={handoffPhase === "confirmation" || undefined}
-                    initial={false}
-                    key="chat-controls"
-                    transition={{ duration: reducedMotion ? 0 : 0.32, ease: [0.22, 1, 0.36, 1] }}
-                  >
-                    {session.status === "collecting" ? <QuickReplies prompts={session.quickReplies} /> : null}
-                    <ChatComposer inactive={handoffPhase === "confirmation"} />
-                  </motion.div>
-                ) : null}
-              </AnimatePresence>
-            </ThreadPrimitive.ViewportFooter>
           </ThreadPrimitive.Viewport>
+          <div className="chat-thread__footer" hidden={chatRetired}>
+            <AnimatePresence initial={false}>
+              {showComposer ? (
+                <motion.div
+                  animate={{ opacity: 1 }}
+                  aria-hidden={handoffPhase === "confirmation" || undefined}
+                  className="chat-thread__controls"
+                  exit={{ opacity: 0 }}
+                  inert={handoffPhase === "confirmation" || undefined}
+                  initial={false}
+                  key="chat-controls"
+                  transition={{ duration: reducedMotion ? 0 : 0.32, ease: [0.22, 1, 0.36, 1] }}
+                >
+                  {session.status === "collecting" ? <QuickReplies prompts={session.quickReplies} /> : null}
+                  <ChatComposer inactive={handoffPhase === "confirmation"} />
+                </motion.div>
+              ) : null}
+            </AnimatePresence>
+          </div>
         </ThreadPrimitive.Root>
       </AssistantRuntimeProvider>
       <AnimatePresence initial={false}>
@@ -838,13 +844,16 @@ function MatchPreviewCard({
 
 function QuickReplies({ prompts }: { prompts: string[] }) {
   const aui = useAui();
+  const running = useAuiState((state) => state.thread.isRunning);
+  const composing = useAuiState((state) => state.composer.text.trim().length > 0);
   const labels = prompts.map((prompt) => prompt.trim().replace(/\.+$/, "").trim())
     .filter(Boolean);
   if (labels.length === 0) return null;
   return (
-    <div aria-label="Suggested replies" className="chat-suggestions">
+    <div aria-label="Suggested replies" className="chat-suggestions" data-composing={composing}>
       {labels.map((prompt, index) => (
-        <button className="chat-suggestion" key={`${index}-${prompt}`} onClick={() => {
+        <button className="chat-suggestion" disabled={running} key={`${index}-${prompt}`} onMouseDown={keepComposerFocus} onClick={() => {
+          if (aui.thread.getState().isRunning) return;
           aui.thread.composer().setText(prompt);
           aui.thread.composer().send();
         }} type="button">{prompt}</button>
@@ -1043,24 +1052,47 @@ function ChatScrollAnimator({
       followingBottomRef.current = false;
       cancelAnimation();
     };
+    const resumeAtBottom = () => {
+      // Scrolling back down opts into following new replies again. Programmatic
+      // animation frames must not be mistaken for someone reading older turns.
+      if (animationFrameRef.current !== null) return;
+      followingBottomRef.current = viewport.scrollHeight - viewport.clientHeight - viewport.scrollTop <= 8;
+    };
+    const handleScrollKey = (event: globalThis.KeyboardEvent) => {
+      if (["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End"].includes(event.key)) stopFollowing();
+    };
     viewport.addEventListener("wheel", stopFollowing, { passive: true });
     viewport.addEventListener("touchstart", stopFollowing, { passive: true });
     viewport.addEventListener("pointerdown", stopFollowing, { passive: true });
+    viewport.addEventListener("scroll", resumeAtBottom, { passive: true });
+    viewport.addEventListener("keydown", handleScrollKey);
 
-    const resizeObserver = new ResizeObserver(() => {
-      if (followingBottomRef.current) measureAndAnimate();
+    const resizeObserver = new ResizeObserver((entries) => {
+      if (!enabled || !followingBottomRef.current) return;
+      if (entries.some(({ target }) => target === viewport)) {
+        // Match keyboard/composer resizing immediately; easing this movement
+        // creates a second animation that lags behind the keyboard.
+        cancelAnimation();
+        targetScrollTopRef.current = Math.max(0, viewport.scrollHeight - viewport.clientHeight);
+        viewport.scrollTop = targetScrollTopRef.current;
+      } else {
+        measureAndAnimate();
+      }
     });
-    viewport.querySelectorAll(":scope > .chat-thread__messages, :scope > .chat-thread__footer")
+    resizeObserver.observe(viewport);
+    viewport.querySelectorAll(":scope > .chat-thread__messages")
       .forEach((element) => resizeObserver.observe(element));
 
     return () => {
       viewport.removeEventListener("wheel", stopFollowing);
       viewport.removeEventListener("touchstart", stopFollowing);
       viewport.removeEventListener("pointerdown", stopFollowing);
+      viewport.removeEventListener("scroll", resumeAtBottom);
+      viewport.removeEventListener("keydown", handleScrollKey);
       resizeObserver.disconnect();
       cancelAnimation();
     };
-  }, [cancelAnimation, measureAndAnimate, viewportRef]);
+  }, [cancelAnimation, enabled, measureAndAnimate, viewportRef]);
 
   return null;
 }
@@ -1071,17 +1103,26 @@ function UserMessage() {
 
 function ChatComposer({ inactive = false }: { inactive?: boolean }) {
   const running = useAuiState((state) => state.thread.isRunning);
+  const [autoFocus] = useState(() => !window.matchMedia("(pointer: coarse), (max-width: 767px)").matches);
   return (
     <div className="chat-composer-wrap">
       <ComposerPrimitive.Root className="chat-composer">
-        <ComposerPrimitive.Input aria-label="Your answer" autoFocus className="chat-composer__input" disabled={inactive} maxLength={2_000} placeholder="Answer naturally…" rows={1} />
-        <ComposerPrimitive.Send aria-label="Send answer" className="chat-composer__send" disabled={inactive}>
+        <ComposerPrimitive.Input aria-label="Your answer" autoCapitalize="sentences" autoFocus={autoFocus} className="chat-composer__input" disabled={inactive} enterKeyHint="send" maxLength={2_000} maxRows={4} placeholder="Answer naturally…" rows={1} unstable_focusOnRunStart={false} unstable_focusOnScrollToBottom={false} unstable_focusOnThreadSwitched={false} />
+        <ComposerPrimitive.Send aria-label="Send answer" className="chat-composer__send" disabled={inactive} onMouseDown={keepComposerFocus}>
           {running ? <LoaderCircle className="status-spinner" size={18} /> : <Send size={18} />}
         </ComposerPrimitive.Send>
       </ComposerPrimitive.Root>
       <span className="sr-only" role="status">{running ? "Reading your answer" : "Ready for your answer"}</span>
     </div>
   );
+}
+
+function keepComposerFocus(event: MouseEvent<HTMLButtonElement>) {
+  // Sending is an action on the current draft. Keep an already-open keyboard
+  // steady, but never open it just because someone picked a suggested answer.
+  if (event.button === 0 && document.activeElement?.matches(".chat-composer__input")) {
+    event.preventDefault();
+  }
 }
 
 function SecureDetailsModal({
@@ -1186,12 +1227,12 @@ function SecureDetailsModal({
       transition={{ delay: reducedMotion ? 0 : 0.48, duration: reducedMotion ? 0 : 0.26, ease: [0.22, 1, 0.36, 1] }}
     >
       <motion.div
-        animate={{ opacity: 1, scale: 1, y: 0 }}
+        animate={{ opacity: 1 }}
         aria-describedby="secure-details-description"
         aria-labelledby="secure-details-title"
         aria-modal="true"
         className="secure-details-modal__panel"
-        initial={reducedMotion ? false : { opacity: 0, scale: 0.985, y: 12 }}
+        initial={reducedMotion ? false : { opacity: 0 }}
         onKeyDown={keepFocusInDialog}
         ref={dialogRef}
         role="dialog"

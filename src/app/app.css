@@ -1407,6 +1407,11 @@
 /* Conversational onboarding */
 
 .onboarding-shell--chat {
+  position: fixed;
+  top: var(--chat-viewport-top, 0px);
+  right: 0;
+  left: 0;
+  height: var(--chat-viewport-height, 100dvh);
   min-height: 0;
   grid-template-columns: minmax(0, 1fr);
 }
@@ -1481,6 +1486,8 @@
 }
 
 .chat-thread {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
   width: min(100%, 860px);
   min-width: 0;
   min-height: 0;
@@ -1501,7 +1508,6 @@
   padding-inline: max(0px, calc((100% - 780px) / 2));
   scroll-behavior: auto;
   scrollbar-width: none;
-  will-change: scroll-position;
 }
 
 /* Keep the automatic handoff scroll, but prevent user input reversing it. */
@@ -1639,14 +1645,11 @@
 .chat-typing i:nth-child(3) { animation-delay: 240ms; }
 
 .chat-thread__footer {
-  position: sticky;
-  z-index: 4;
-  bottom: 0;
-  width: 100%;
+  width: min(100%, 780px);
   min-width: 0;
-  margin-top: auto;
+  margin-inline: auto;
   padding: 16px 0 max(48px, calc(env(safe-area-inset-bottom) + 40px));
-  background: linear-gradient(to bottom, rgba(247, 248, 242, 0), var(--cream) 22%, var(--cream));
+  background: var(--cream);
 }
 
 .chat-thread__controls {
@@ -1672,15 +1675,28 @@
   background: rgba(255, 255, 255, 0.74);
   color: var(--ink);
   cursor: pointer;
-  transition: border-color 160ms ease, background 160ms ease, color 160ms ease, transform 160ms ease;
+  touch-action: manipulation;
+  transition: border-color 160ms ease, background 160ms ease, color 160ms ease;
 }
 
-.chat-suggestion:hover,
-.chat-suggestion:focus-visible {
+.chat-suggestion:focus-visible,
+.chat-suggestion:active:not(:disabled) {
   border-color: var(--ink);
   background: var(--ink);
   color: var(--lime);
-  transform: translateY(-1px);
+}
+
+@media (hover: hover) {
+  .chat-suggestion:hover:not(:disabled) {
+    border-color: var(--ink);
+    background: var(--ink);
+    color: var(--lime);
+  }
+}
+
+.chat-suggestion:disabled {
+  cursor: default;
+  opacity: 0.55;
 }
 
 .chat-composer {
@@ -1699,16 +1715,20 @@
 }
 
 .chat-composer__input {
+  display: block;
   width: 100%;
   max-height: 120px;
   min-height: 40px;
   resize: none;
+  margin: 0;
   padding: 9px 0;
   border: 0;
   outline: 0;
   background: transparent;
   color: var(--ink);
   font: inherit;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .chat-composer__input:focus-visible {
@@ -1726,6 +1746,7 @@
   background: var(--ink);
   color: var(--lime);
   cursor: pointer;
+  touch-action: manipulation;
 }
 
 .chat-composer__send:disabled {
@@ -2005,7 +2026,7 @@
 }
 
 .secure-details-modal {
-  position: fixed;
+  position: absolute;
   z-index: 30;
   inset: 0;
   display: grid;
@@ -2020,7 +2041,7 @@
   --text-heading: 28px;
   --text-body: 15px;
   width: min(100%, 480px);
-  max-height: calc(100dvh - 32px);
+  max-height: calc(var(--chat-viewport-height, 100dvh) - 32px);
   overflow-y: auto;
   border: 1px solid rgba(46, 46, 46, 0.12);
   border-radius: 24px;

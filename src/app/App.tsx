@@ -221,10 +221,10 @@ export function App() {
 
         {phase === "onboarding" ? (
           <motion.div
-            animate={{ opacity: 1, y: 0 }}
+            animate={{ opacity: 1 }}
             className="screen-frame"
-            exit={{ opacity: 0, y: reducedMotion ? 0 : -18 }}
-            initial={{ opacity: 0, y: reducedMotion ? 0 : 28 }}
+            exit={{ opacity: 0 }}
+            initial={{ opacity: 0 }}
             key="onboarding"
             transition={{ duration: reducedMotion ? 0 : 0.32, ease: [0.22, 1, 0.36, 1] }}
           >
