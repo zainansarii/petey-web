@@ -1,4 +1,4 @@
-body { overflow: auto; }
+body.review-page { overflow: auto; }
 .review-app { min-height: 100svh; color: var(--ink); font-size: 15px; line-height: 1.6; }
 .review-app h1, .review-app h2, .review-app h3, .review-app p { margin-top: 0; }
 .review-app h1 { font-size: clamp(30px, 4vw, 42px); letter-spacing: -.055em; line-height: 1.15; margin-bottom: 12px; }
