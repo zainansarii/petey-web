@@ -23,6 +23,14 @@ Email delivery is configured and verified on 2026-09-23. The web app is deployed
 - [ ] Replace a photo; publish public edits; confirm fresh matching. Submit/review credentials with the reviewer account. Check deployed Storage upload/signing permissions and preservation of published content.
 - [ ] Check dashboard/CSV reconciliation and email delivery with the controlled accounts. Only then invite pilot trainers.
 
+## Privacy and support — implementation 2026-09-23
+
+- [x] Build public `/privacy/`, `/terms/` and `/support/` pages in the Cass legal-page font/layout, with verified company details and Petey-specific data descriptions.
+- [x] Link policies at onboarding/account entry and provide support, correction, access/export, account deletion and legacy health-consent withdrawal email routes to `hello@joinpetey.com`.
+- [x] Document [processor/retention inventory and request handling](web-privacy-operations.md); verify live draft/receipt TTL; remove provider exception text from onboarding error logs.
+- [ ] Controller review of the notice, lawful bases including incidental health input, provider contract/transfer evidence, retention and mailbox ownership. Publishing pages does not constitute this approval.
+- [ ] Complete the deployed deletion/correction acceptance checks with controlled accounts (step 5 below).
+
 ## Operations
 
 - [ ] Assign a staff owner to review `webMarketplaceReports` and pending credential submissions. Reports are stored privately; this pilot does not introduce a separate moderation console.

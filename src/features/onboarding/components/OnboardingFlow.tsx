@@ -1,3 +1,4 @@
+import { AccountTerms } from "../../../shared/ui/LegalLinks";
 import {
   ActionBarPrimitive,
   AssistantRuntimeProvider,
@@ -591,6 +592,7 @@ function ChatOnboarding({
                 >
                   {session.status === "collecting" ? <QuickReplies prompts={session.quickReplies} /> : null}
                   <ChatComposer inactive={handoffPhase === "confirmation"} />
+                  <p className="legal-notice chat-privacy-note">AI-assisted matching. Please leave out medical details. <a href="/privacy/" target="_blank" rel="noopener noreferrer">Privacy<span className="sr-only"> (opens in a new tab)</span></a></p>
                 </motion.div>
               ) : null}
             </AnimatePresence>
@@ -1289,6 +1291,7 @@ function SecureDetailsModal({
           <label className="input-field"><span>Email address</span><input autoCapitalize="none" autoComplete="email" inputMode="email" maxLength={320} onChange={(event) => onIdentityChange({ ...identity, email: event.target.value })} placeholder="you@example.com" type="email" value={identity.email} /><small>No password. We’ll send one secure sign-in link.</small></label>
           {error ? <p aria-live="polite" className="flow-error secure-identity__error" role="alert">{error}</p> : null}
           <button className="primary-button" disabled={submitting} type="submit">{submitting ? "Sending link…" : "Confirm and email my link"}{!submitting ? <ArrowRight aria-hidden="true" size={18} /> : null}</button>
+          <AccountTerms />
         </form>
       </motion.div>
     </motion.div>

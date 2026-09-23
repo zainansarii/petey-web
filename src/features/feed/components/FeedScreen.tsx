@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import "./feed.css";
 import { BrandMark } from "../../../shared/ui/BrandMark";
+import { LegalLinks } from "../../../shared/ui/LegalLinks";
 import { TrainerCard } from "../../discovery/components/TrainerCard";
 import { TrainerAvailability } from "./TrainerAvailability";
 import { EnquiryComposer } from "../../marketplace/EnquiryComposer";
@@ -101,6 +102,7 @@ export function FeedScreen({
           <p>Your training brief is saved. There are no available profiles to show right now. You can update your preferences and search again.</p>
           <button className="primary-button" onClick={onEditMatch} type="button">Update my preferences <ArrowRight aria-hidden="true" size={18} /></button>
         </section>
+        <LegalLinks />
       </main>
     );
   }
@@ -148,6 +150,7 @@ export function FeedScreen({
               </div>
               <button aria-label="Next trainer" onClick={() => move(1)} type="button"><ChevronRight size={21} /></button>
             </div>
+            <LegalLinks />
           </aside>
 
           <section className="feed-stage" aria-live="polite">

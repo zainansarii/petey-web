@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { finishMagicLink, getFirebaseAuth, observeFirebaseAuthSession, requestMagicLink } from "../auth/api/magicLink";
 import { BrandMark } from "../../shared/ui/BrandMark";
+import { AccountTerms, LegalLinks } from "../../shared/ui/LegalLinks";
 import { errorMessage, marketplace, watchAccess } from "./api";
 import type { Access } from "./model";
 
@@ -56,5 +57,7 @@ export function AccessGate({ trainer, children }: { trainer: boolean; children: 
     {state === "error" && <button className="td-text-button" onClick={() => { const url = new URL(location.href); for (const key of ["mode", "oobCode", "apiKey", "finishSignUp"]) url.searchParams.delete(key); history.replaceState(null, "", url); setState("login"); setError(""); }}>Request a new sign-in link</button>}
     {state === "access-error" && <button className="td-text-button" onClick={() => { setState("loading"); setAttempt(value => value + 1); }}>Retry access</button>}
     {["ready", "revoked", "access-error"].includes(state) && <button className="td-text-button" onClick={async () => { const { signOut } = await import("firebase/auth"); await signOut(await getFirebaseAuth()); location.assign(location.pathname); }}>Use another account</button>}
+    {state === "login" && <AccountTerms />}
+    <LegalLinks />
   </div></main>;
 }

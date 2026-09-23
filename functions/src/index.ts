@@ -1,3 +1,4 @@
+import { providerErrorDetails } from "./providerErrorDetails.js";
 import { createHash, randomUUID } from "node:crypto";
 export { webMarketplaceV1, deliverWebMarketplaceNotificationsV1, deleteWebMarketplaceAccountV1 } from "./webMarketplace.js";
 import {
@@ -236,22 +237,6 @@ export const validateAndCanonicalizeConversationTranscriptV4 = (
 
 const ensureAppCheck = (request: CallableRequest<unknown>) => {
   if (!request.app) throw new HttpsError("failed-precondition", "App Check is required.");
-};
-
-const providerErrorDetails = (error: unknown) => {
-  const record = typeof error === "object" && error !== null
-    ? error as Record<string, unknown>
-    : {};
-  return {
-    errorType: error instanceof Error ? error.name : "unknown",
-    errorMessage: error instanceof Error ? error.message.slice(0, 500) : "Unknown provider error",
-    errorStatus: typeof record.status === "number" || typeof record.status === "string"
-      ? record.status
-      : null,
-    errorCode: typeof record.code === "number" || typeof record.code === "string"
-      ? record.code
-      : null,
-  };
 };
 
 const requestIpKey = (request: CallableRequest<unknown>) => {
@@ -1259,7 +1244,7 @@ async function handleWebOnboardingTurnV4(
       if (project === DEVELOPMENT_PROJECT_ID) {
         throw new HttpsError(
           "unavailable",
-          `Gemini dev error: ${details.errorStatus ?? details.errorCode ?? "unknown"} ${details.errorMessage}`,
+          `Gemini dev error: ${details.errorStatus ?? details.errorCode ?? "unknown"}`,
         );
       }
       throw new HttpsError("unavailable", "I couldn’t reply just now. Your answer is still here — please try again.");

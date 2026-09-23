@@ -2,6 +2,7 @@ import { type FormEvent, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { BrandMark } from "../../../shared/ui/BrandMark";
+import { AccountTerms, LegalLinks } from "../../../shared/ui/LegalLinks";
 import { requestMagicLink } from "../api/magicLink";
 
 type LoginScreenProps = {
@@ -75,6 +76,8 @@ export function LoginScreen({ onBack, onLinkRequested }: LoginScreenProps) {
             {!sending ? <ArrowRight aria-hidden="true" size={19} /> : null}
           </button>
         </form>
+        <AccountTerms />
+        <LegalLinks />
       </motion.section>
     </main>
   );

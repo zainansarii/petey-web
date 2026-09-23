@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { ArrowRight, CalendarDays, Check, LayoutDashboard, MapPin, MessageCircle, Pencil, UserRound, Wallet } from "lucide-react";
 import { BrandMark } from "../../shared/ui/BrandMark";
+import { LegalLinks } from "../../shared/ui/LegalLinks";
 import { EnquiryActivityChart } from "../../shared/ui/EnquiryActivityChart";
 import { getFirebaseAuth } from "../auth/api/magicLink";
 import { AccessGate } from "./AccessGate";
@@ -66,6 +67,7 @@ function Workspace({ access, trainer }: { access: Access; trainer: boolean }) {
       </>}
       {trainer ? <footer className="mp-inbox-preferences"><details><summary>Email preferences</summary><div>{(["enquiries", "messages"] as const).map(key => <label className="mp-checkbox" key={key}><input type="checkbox" checked={preferences[key]} onChange={async event => { const next = { ...preferences, [key]: event.target.checked }; try { await marketplace({ action: "preferences", preferences: next }); setPreferences(next); } catch (e) { setError(errorMessage(e)); } }} />{key === "enquiries" ? "New enquiry emails" : "Unread message emails"}</label>)}</div></details></footer> : !conversation && <footer className="mp-inbox-preferences"><details><summary>Email preferences</summary><label className="mp-checkbox"><input type="checkbox" checked={preferences.messages} onChange={async event => { const next = { ...preferences, messages: event.target.checked }; try { await marketplace({ action: "preferences", preferences: next }); setPreferences(next); } catch (e) { setError(errorMessage(e)); } }} />Unread message emails</label></details></footer>}
 
+      <LegalLinks />
     </div></main></>;
 }
 function Metric({ title, number, dark, onClick }: { title: string; number: number; dark: boolean; onClick: () => void }) { return <button className={`td-metric td-metric--${dark ? "dark" : "lime"}`} onClick={onClick}><span className="td-metric-top">{title}<span className="td-metric-icon"><MessageCircle size={18} /></span></span><strong className="td-metric-number">{number}</strong><span className="td-metric-footer">View all dates <ArrowRight size={15} /></span></button>; }

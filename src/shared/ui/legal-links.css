@@ -1,0 +1,12 @@
+.legal-links { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 20px; font-size: 12px; color: var(--ink-soft, #62666d); }
+.legal-links a { display: inline-flex; align-items: center; min-height: 44px; color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+.legal-links a:focus-visible, .legal-notice a:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+.legal-notice { margin: 12px 0 0; color: var(--ink-soft, #62666d); font-size: 12px; line-height: 1.6; }
+.legal-notice a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+.landing__legal { position: absolute; left: 46px; bottom: max(18px, env(safe-area-inset-bottom)); z-index: 7; }
+.login-screen__content > .legal-links { justify-content: center; margin-top: 16px; }
+.chat-privacy-note { text-align: center; margin: 8px auto 0; max-width: 60ch; padding: 0 12px; }
+.feed-intro .legal-links { margin-top: 20px; }
+.feed--empty > .legal-links { justify-content: center; padding: 16px; }
+.td-page > .legal-links { padding-top: 20px; }
+@media (max-width: 1023px) { .landing__legal { position: static; justify-content: center; margin-top: 8px; } }

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { ArrowDown, ArrowRight, FastForward } from "lucide-react";
 import { BrandMark } from "../../../shared/ui/BrandMark";
+import { LegalLinks } from "../../../shared/ui/LegalLinks";
 import { usePhoneLayout } from "../../../shared/ui/usePhoneLayout";
 import { TrainerCard } from "./TrainerCard";
 import { TRAINERS } from "../data/trainers";
@@ -72,7 +73,7 @@ export function LandingScreen({ onLogin, onPreviewHandoff, onStart }: LandingScr
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.target instanceof HTMLButtonElement) return;
+      if (event.target instanceof HTMLElement && event.target.closest("button, a")) return;
       if (event.key === "ArrowRight") {
         event.preventDefault();
         moveManually(1);
@@ -221,6 +222,7 @@ export function LandingScreen({ onLogin, onPreviewHandoff, onStart }: LandingScr
       <button aria-label="Start matching" className="scroll-cue" onClick={start} type="button">
         <span className="scroll-cue__icon"><ArrowDown aria-hidden="true" size={16} /></span>
       </button>
+      <LegalLinks className="landing__legal" />
     </motion.main>
   );
 }
