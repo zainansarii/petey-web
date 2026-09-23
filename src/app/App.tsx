@@ -193,11 +193,15 @@ export function App() {
             key="landing"
             transition={{ duration: reducedMotion ? 0 : 0.28, ease: [0.22, 1, 0.36, 1] }}
           >
-            <LandingScreen
-              onLogin={openLogin}
-              onPreviewHandoff={import.meta.env.DEV ? () => openOnboarding(true) : undefined}
-              onStart={() => openOnboarding(false)}
-            />
+            {/* Keep the cycling cards out of the screen's exit completion. */}
+            <AnimatePresence initial={false}>
+              <LandingScreen
+                key="landing-content"
+                onLogin={openLogin}
+                onPreviewHandoff={import.meta.env.DEV ? () => openOnboarding(true) : undefined}
+                onStart={() => openOnboarding(false)}
+              />
+            </AnimatePresence>
           </motion.div>
         ) : null}
 
