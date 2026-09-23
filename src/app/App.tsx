@@ -102,15 +102,18 @@ export function App() {
     });
   }, []);
 
-  const consumeDraftIntoFeed = useCallback(async () => {
+  const consumeDraftIntoFeed = useCallback(async (startOnboardingWhenEmpty = true) => {
     try {
       const consumed = await consumeWebOnboardingDraftV3();
       const result = consumed ?? await getWebClientProfileV3();
       const profile = result.profileMarkdown;
       if (!profile?.trim()) {
+        setHasSavedProfile(false);
+        // Restoring a session must not start onboarding or discard a chat.
+        // Only an explicit sign-in completion continues an incomplete signup.
+        if (!startOnboardingWhenEmpty) return;
         clearLocalConversationV4();
         clearDraftCapability();
-        setHasSavedProfile(false);
         setHandoffPreview(false);
         setPhase("onboarding");
         return;
@@ -133,7 +136,7 @@ export function App() {
     void observeFirebaseAuthSession((isSignedIn) => {
       if (!active) return;
       setSignedIn(isSignedIn);
-      if (isSignedIn) void consumeDraftIntoFeed();
+      if (isSignedIn) void consumeDraftIntoFeed(false);
       else setHasSavedProfile(false);
     }).then((stopObserving) => {
       if (active) unsubscribe = stopObserving;

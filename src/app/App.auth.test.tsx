@@ -1,4 +1,5 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { App } from "./App";
 import { DEMO_TRAINER_FIXTURES as TRAINERS } from "../features/discovery/data/demoTrainerFixture";
 import type { ConsumeWebOnboardingDraftV3Response, DraftCapability, MatchedTrainer } from "../features/onboarding/model/onboarding";
@@ -15,6 +16,11 @@ const onboardingMocks = vi.hoisted(() => ({
     profileMarkdown: "# Training brief\n\n## The trainee\nWants to improve general fitness." as string | null,
     matches: [] as MatchedTrainer[],
   })),
+}));
+
+vi.mock("motion/react", async (importOriginal) => ({
+  ...await importOriginal<typeof import("motion/react")>(),
+  AnimatePresence: ({ children }: { children: ReactNode }) => children,
 }));
 
 vi.mock("../features/auth/api/magicLink", () => ({
@@ -61,6 +67,18 @@ describe("App auth restoration", () => {
     expect(screen.getByRole("heading", { name: "Rohan Kapoor" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Maya Chen" })).not.toBeInTheDocument();
     expect(screen.getByText("Your boxing interests and evening schedule fit.", { exact: false })).toBeInTheDocument();
+  });
+
+  it.each(["Find my trainer", "Start matching", "scroll"])("waits for %s before onboarding a restored account without a profile", async (entry) => {
+    onboardingMocks.getWebClientProfileV3.mockResolvedValue({ profileMarkdown: null, matches: [] });
+    render(<App />);
+    await waitFor(() => expect(onboardingMocks.getWebClientProfileV3).toHaveBeenCalledOnce());
+    expect(screen.getByRole("heading", { name: /find your personal trainer/i })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Sign-up flow chat" })).not.toBeInTheDocument();
+
+    if (entry === "scroll") fireEvent.wheel(screen.getByRole("main"), { deltaY: 80 });
+    else fireEvent.click(screen.getByRole("button", { name: entry }));
+    expect(await screen.findByRole("heading", { name: "Sign-up flow chat" })).toBeInTheDocument();
   });
 
   it("uses the matches from a newly consumed draft", async () => {

@@ -694,7 +694,7 @@ describe("web onboarding V4 local conversation and secure handoff", () => {
     expect(await screen.findByRole("heading", { name: /we found 5 matches/i })).toBeInTheDocument();
     fireEvent.click(screen.getAllByRole("button", { name: /choose match \d/i })[0]!);
     expect(await screen.findByRole("dialog", { name: /create an account/i })).toBeInTheDocument();
-    expect(screen.getByText(/stay separate from your conversation/i)).toBeInTheDocument();
+    expect(screen.getByText(/stay separate from the AI chat/i)).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText(/full name/i), { target: { value: "Sam Taylor" } });
     fireEvent.change(screen.getByLabelText(/date of birth/i), { target: { value: "01/01/1990" } });
     fireEvent.change(screen.getByLabelText(/email address/i), { target: { value: "sam@example.com" } });

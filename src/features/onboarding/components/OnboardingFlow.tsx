@@ -1284,7 +1284,7 @@ function SecureDetailsModal({
               <h2 id="secure-details-title">Create an account</h2>
               <button aria-label="Close account dialog" className="dialog-close secure-identity__close" disabled={submitting} onClick={onClose} type="button"><X aria-hidden="true" size={20} /></button>
             </div>
-            <p id="secure-details-description">Add your basic details to access your matches. They stay separate from your conversation and are only used for your account and secure sign-in.</p>
+            <p id="secure-details-description">Add your basic details to access your matches. These stay separate from the AI chat. You choose whether to share your name and contact details in a trainer enquiry.</p>
           </div>
           <label className="input-field"><span>Full name</span><input autoComplete="name" maxLength={100} onChange={(event) => onIdentityChange({ ...identity, fullName: event.target.value })} placeholder="Your name" ref={firstIdentityFieldRef} value={identity.fullName} /></label>
           <label className="input-field"><span>Date of birth</span><input autoComplete="bday" inputMode="numeric" maxLength={10} onChange={(event) => onIdentityChange({ ...identity, dateOfBirth: formatDobInput(event.target.value) })} placeholder="DD/MM/YYYY" value={identity.dateOfBirth} /><small>You must be 18 or over. Your date of birth stays private.</small></label>
