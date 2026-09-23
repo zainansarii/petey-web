@@ -17,12 +17,12 @@ npm install
 npm run dev
 ```
 
-The interactive trainer dashboard concept is available at `/petey-web/trainer-preview/`.
+The interactive trainer dashboard concept is available at `/trainer-preview/`.
 It uses sample data and simulated unlocks, with no live payments or messaging.
 See [the wireframe specification](./docs/trainer-dashboard-wireframe.md) for the
 codebase findings, metric definitions, interaction coverage and implementation gaps.
 
-The live pilot entry points are `/petey-web/trainer/` and `/petey-web/messages/`.
+The live pilot entry points are `/trainer/` and `/messages/`.
 They use authenticated server data and are separate from the sample wireframe.
 See [the pilot implementation guide](./docs/trainer-pilot.md) and
 [post-implementation to-do list](./docs/trainer-pilot-todo.md), including the
@@ -88,7 +88,7 @@ The configured app reads approved catalogue profiles and supports real introduct
 
 For real web magic links and secure onboarding drafts, copy `.env.example` to `.env.local` and provide the Firebase Web app configuration plus the reCAPTCHA Enterprise App Check site key. Local development should additionally use a registered `VITE_FIREBASE_APPCHECK_DEBUG_TOKEN`; that value must stay in ignored local environment files and must never be added to a deployed build. Enable Email/Password > Email link in Firebase Authentication and add both `localhost` and the deployed custom domain to Firebase Authentication's authorised domains.
 
-The mobile app's current callable and redirect are intentionally not reused: they enforce App Check and hand links to the native app. This web build uses Firebase's Web SDK and returns to the current GitHub Pages URL.
+The mobile app's current callable and redirect are intentionally not reused: they enforce App Check and hand links to the native app. This web build uses Firebase's Web SDK and returns to the current web origin, preserving trainer invitations and inbox destinations.
 
 ## GitHub Pages
 
@@ -96,7 +96,7 @@ The included workflow builds and deploys `dist/` on pushes to `main`.
 
 1. In the GitHub repository, open **Settings → Pages** and choose **GitHub Actions** as the source.
 2. Push this repository to GitHub.
-3. Optional: add the following repository variables under **Settings → Secrets and variables → Actions → Variables** to enable real email delivery:
+3. Set the following required repository variables under **Settings → Secrets and variables → Actions → Variables** for Firebase authentication and App Check:
    - `VITE_FIREBASE_API_KEY`
    - `VITE_FIREBASE_AUTH_DOMAIN`
    - `VITE_FIREBASE_PROJECT_ID`
@@ -105,7 +105,9 @@ The included workflow builds and deploys `dist/` on pushes to `main`.
    - `VITE_FIREBASE_APP_ID`
    - `VITE_FIREBASE_APPCHECK_SITE_KEY`
 
-Vite uses relative asset paths, so the same build works at a project Pages URL such as `https://zainansarii.github.io/petey-web/` and at a custom domain.
+The launch build uses `/` as its Vite base for `https://joinpetey.com`. Configure that custom domain in **Settings → Pages** and enforce HTTPS once the certificate is ready. This build is not intended to be served beneath the old `/petey-web/` path. Google Workspace MX and authentication records must be preserved when changing the website DNS.
+
+Firebase Authentication and the reCAPTCHA Enterprise key used by App Check must allow `joinpetey.com` and `www.joinpetey.com`. Set `WEB_MARKETPLACE_SITE_URL=https://joinpetey.com` in Functions so invitation and activity email links use the same origin. Resend marketplace emails require their own verified sender and backend secret; the frontend Firebase settings above do not configure Resend.
 
 Use the default project Pages URL only for the Firebase-free prototype. Before enabling real authentication or collecting user information, use a dedicated custom domain: every repository under `username.github.io/*` shares the same browser-storage origin.
 

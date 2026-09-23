@@ -2,7 +2,7 @@ import { configDefaults, defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 
 export default defineConfig({
-  base: "/petey-web/",
+  base: "/",
   build: {
     rollupOptions: {
       input: { main: "index.html", admin: "admin/index.html", trainerPreview: "trainer-preview/index.html", trainer: "trainer/index.html", messages: "messages/index.html" },

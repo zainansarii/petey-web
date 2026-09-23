@@ -18,7 +18,7 @@ import { processNotifications, resendDelivery } from "./marketplace/notification
 
 const pilot = defineBoolean("WEB_TRAINER_PILOT_ENABLED", { default: false });
 const mailEnabled = defineBoolean("WEB_TRAINER_EMAIL_ENABLED", { default: false });
-const siteUrl = defineString("WEB_MARKETPLACE_SITE_URL", { default: "https://zainansarii.github.io/petey-web" });
+const siteUrl = defineString("WEB_MARKETPLACE_SITE_URL", { default: "https://joinpetey.com" });
 const sender = defineString("WEB_MARKETPLACE_EMAIL_FROM", { default: "" });
 const runtimeAccount = defineString("WEB_ONBOARDING_SERVICE_ACCOUNT_V3");
 const summaryModel = defineString("WEB_MARKETPLACE_SUMMARY_MODEL", { default: "gemini-3.5-flash-lite" });
