@@ -48,10 +48,8 @@ button { -webkit-appearance: none; }
 .ts-landing h1 { font-family: var(--ts-display); font-size: clamp(56px, min(7.7vw, 15dvh), 116px); font-weight: 400; letter-spacing: -.048em; line-height: .91; }
 .ts-landing h1 em { font-weight: 400; }
 .ts-landing__content > p { margin-top: 31px; color: #eeece9; font-size: clamp(14px, 1.14vw, 17px); line-height: 1.8; }
-.ts-landing__content > .ts-button { margin-top: 31px; min-width: 202px; }
-.ts-landing__foot { display: flex; justify-content: space-between; gap: 20px; color: #cccac6; font-size: 11px; }
-.ts-landing__foot > span:first-child { color: #f1efec; font-family: var(--ts-display); font-size: 20px; }
-.ts-landing__foot > span:last-child { align-self: center; }
+.ts-landing__content > .ts-button { margin-top: 31px; width: 202px; height: 53px; padding: 12px 18px; font-size: 15px; }
+.ts-landing__foot { display: flex; justify-content: flex-end; color: #cccac6; font-size: 11px; }
 .ts-landing__foot a, .ts-results__footer a { text-decoration: none; color: white; }
 .ts-landing__foot a:hover, .ts-results__footer a:hover { text-decoration: underline; }
 .ts-app--chat { height: 100dvh; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
@@ -63,6 +61,7 @@ button { -webkit-appearance: none; }
 .ts-conversation__viewport { overflow-y: auto; flex: 1; min-height: 0; scrollbar-width: thin; scrollbar-color: #454545 transparent; overscroll-behavior: contain; }
 .ts-conversation__messages { padding: 36px 7px 22px; }
 .ts-message { position: relative; white-space: pre-wrap; overflow-wrap: anywhere; }
+.ts-message__word { display: inline-block; }
 .ts-message--assistant { font-family: inherit; font-size: 16px; line-height: 1.75; max-width: 92%; margin-bottom: 28px; }
 .ts-message--user { font-size: 16px; line-height: 1.65; background: #232323; width: fit-content; max-width: 86%; border-radius: 15px 15px 3px 15px; padding: 13px 18px; margin: 0 0 30px auto; }
 .ts-conversation__footer { flex-shrink: 0; padding: 7px 0 0; }
@@ -75,8 +74,7 @@ button { -webkit-appearance: none; }
 .ts-composer textarea:focus-visible { outline: none; }
 .ts-composer textarea::placeholder { color: #aba8a2; }
 .ts-send { border: 0; display: flex; align-items: center; justify-content: center; width: 43px; height: 43px; flex-shrink: 0; border-radius: 50%; color: #151515; background: #f5f3ef; }
-.ts-privacy-note { font-size: 10px; line-height: 1.6; text-align: center; color: var(--ts-muted); padding: 12px 18px 0; }
-.ts-chat-attribution { text-align: center; font-size: 10px; line-height: 1.4; color: #adaba7; padding: 12px 12px max(15px, env(safe-area-inset-bottom)); }
+.ts-privacy-note { font-size: 10px; line-height: 1.6; text-align: center; color: var(--ts-muted); padding: 12px 18px max(15px, env(safe-area-inset-bottom)); }
 .ts-thinking { padding: 0 0 25px 3px; }
 .ts-thinking__dots { display: inline-flex; align-items: center; gap: 5px; height: 25px; }
 .ts-thinking__dots i { height: 5px; width: 5px; border-radius: 50%; background: #c6c2ba; animation: ts-pulse 1.4s infinite; }
@@ -177,8 +175,7 @@ button { -webkit-appearance: none; }
   .ts-landing__shade { background: linear-gradient(90deg, #000c, #0006 70%, #0004), linear-gradient(0deg, #000b, transparent 45%, #0003); }
   .ts-landing h1 { font-size: clamp(56px, min(10.6vw, 15dvh), 92px); }
   .ts-landing__content > p { font-size: 14px; max-width: 370px; margin-top: 27px; }
-  .ts-landing__foot { flex-direction: column; gap: 12px; }
-  .ts-landing__foot > span:last-child { align-self: flex-start; font-size: 10px; }
+  .ts-landing__foot { justify-content: flex-start; font-size: 10px; }
   .ts-conversation { padding: 0 24px; }
   .ts-conversation__heading { padding: 23px 0 20px; }
   .ts-conversation__messages { padding-top: 28px; }
@@ -199,7 +196,6 @@ button { -webkit-appearance: none; }
   .ts-landing__content > p { max-width: 300px; font-size: 13px; margin-top: 24px; }
   .ts-desktop-break { display: none; }
   .ts-landing__content > .ts-button { margin-top: 26px; }
-  .ts-landing__foot > span:first-child { font-size: 18px; }
   .ts-conversation { padding: 0 19px; }
   .ts-conversation__heading { padding-top: 22px; padding-bottom: 19px; }
   .ts-conversation__heading h1 { font-size: 34px; }
@@ -210,8 +206,7 @@ button { -webkit-appearance: none; }
   .ts-composer { padding: 9px 9px 9px 14px; gap: 7px; }
   .ts-composer textarea { font-size: 16px; line-height: 23px; }
   .ts-send { width: 41px; height: 41px; }
-  .ts-privacy-note { font-size: 9px; padding: 10px 4px 0; line-height: 1.6; }
-  .ts-chat-attribution { font-size: 9px; padding-top: 8px; padding-bottom: max(10px, env(safe-area-inset-bottom)); }
+  .ts-privacy-note { font-size: 9px; padding: 10px 4px max(10px, env(safe-area-inset-bottom)); line-height: 1.6; }
   .ts-results { padding: 33px 24px 0; }
   .ts-results__heading { gap: 24px; }
   .ts-results__heading h1 { font-size: 44px; max-width: 320px; }
@@ -254,12 +249,10 @@ button { -webkit-appearance: none; }
   .ts-app { --ts-header-height: 64px; }
   .ts-landing { padding-top: calc(var(--ts-header-height) + 16px); padding-bottom: max(16px, env(safe-area-inset-bottom)); gap: 20px; }
   .ts-landing__content > p, .ts-landing__content > .ts-button { margin-top: 18px; }
-  .ts-landing__foot { gap: 8px; }
   .ts-conversation__heading { padding: 12px 0; }
   .ts-conversation__heading h1 { font-size: 32px; }
   .ts-conversation__messages { padding-top: 20px; }
-  .ts-privacy-note { padding-top: 6px; }
-  .ts-chat-attribution { padding-top: 6px; padding-bottom: max(6px, env(safe-area-inset-bottom)); }
+  .ts-privacy-note { padding-top: 6px; padding-bottom: max(6px, env(safe-area-inset-bottom)); }
   .ts-matching { padding-block: 24px; }
   .ts-match-mark { margin-bottom: 24px; }
 }

@@ -22,12 +22,12 @@ function Landing({ onStart }: { onStart: () => void }) {
   return <main className="ts-landing">
     <img className="ts-landing__image" src="/third-space-demo/hero.webp" alt="Personal training at Third Space London" fetchPriority="high" />
     <div className="ts-landing__shade" />
-    <motion.div className="ts-landing__content" initial={{ opacity: 0, y: reducedMotion ? 0 : 22 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reducedMotion ? 0 : 0.7, delay: 0.1 }}>
+    <motion.div className="ts-landing__content" initial={{ opacity: 0, y: reducedMotion ? 0 : 22 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reducedMotion ? 0 : 0.7, delay: reducedMotion ? 0 : 0.1 }}>
       <h1>Find your<br /><em>kind of trainer.</em></h1>
       <p>Your goals. Your routine. Your way of training.<br className="ts-desktop-break" /> Let’s find the person to bring it all together.</p>
       <button className="ts-button ts-button--light" onClick={onStart}>Find my trainer <ArrowRight size={19} strokeWidth={1.6} /></button>
     </motion.div>
-    <div className="ts-landing__foot"><span>Personal training, made personal.</span><span>AI matchmaking demo <span aria-hidden="true">·</span> Powered by <a href="https://joinpetey.com" target="_blank" rel="noopener noreferrer">Petey<span className="ts-sr-only"> (opens in a new tab)</span></a></span></div>
+    <div className="ts-landing__foot"><span>AI matchmaking demo <span aria-hidden="true">·</span> Powered by <a href="https://joinpetey.com" target="_blank" rel="noopener noreferrer">Petey<span className="ts-sr-only"> (opens in a new tab)</span></a></span></div>
   </main>;
 }
 
@@ -168,7 +168,14 @@ export function ThirdSpaceDemo() {
   };
   const selectedTrainer = selected ? TRAINERS.find((trainer) => trainer.id === selected.trainerId) : undefined;
 
-  return <div className={`ts-app ts-app--${screen}`}>
+  return <AnimatePresence initial={false} mode="wait"><motion.div
+    key={screen === "landing" ? "landing" : "journey"}
+    className={`ts-app ts-app--${screen}`}
+    initial={reducedMotion ? false : { opacity: 0 }}
+    animate={{ opacity: 1, y: 0 }}
+    exit={{ opacity: 0, y: reducedMotion || screen !== "landing" ? 0 : -22 }}
+    transition={{ duration: reducedMotion ? 0 : screen === "landing" ? 0.28 : 0.32, ease: [0.22, 1, 0.36, 1] }}
+  >
     <a className="ts-skip-link" href="#ts-main">Skip to content</a>
     <header className="ts-header"><Brand />{screen === "landing" ? <span className="ts-header__label">Find a personal trainer</span> : <div className="ts-header__actions">{screen === "chat" && refining && matches ? <button className="ts-text-button" onClick={() => setScreen("matches")} disabled={pending}><ArrowLeft size={16} />My matches</button> : null}<button className="ts-text-button" ref={resetTrigger} onClick={() => setResetRequested(true)}><RotateCcw size={15} /><span>Start again</span></button></div>}</header>
     <div id="ts-main" tabIndex={-1}>
@@ -177,8 +184,7 @@ export function ThirdSpaceDemo() {
       {screen === "matching" ? <main className="ts-matching"><motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: reducedMotion ? 0 : 0.5 }}><div className={`ts-match-mark${error ? " ts-match-mark--still" : ""}`} aria-hidden="true"><i /><i /><i /></div><h1>{error ? "Let’s try that again." : "Finding your people."}</h1><p role={error ? "alert" : "status"}>{error || "Connecting your goals, your routine and the right expertise."}</p>{error ? <button className="ts-button ts-button--light" onClick={() => void retry()}><RotateCcw size={17} />Try again</button> : null}</motion.div></main> : null}
       {screen === "matches" && matches ? <Matches result={matches} onRefine={refine} onOpen={setSelected} /> : null}
     </div>
-    {screen === "chat" ? <div className="ts-chat-attribution">Demo <span aria-hidden="true">·</span> Powered by Petey</div> : null}
     <AnimatePresence>{selected && selectedTrainer ? <ProfilePanel trainer={selectedTrainer} club={CLUBS.find((club) => club.id === selected.clubId)} match={selected} onClose={() => setSelected(null)} /> : null}</AnimatePresence>
     {resetRequested ? <dialog ref={resetDialog} className="ts-reset-dialog" aria-labelledby="ts-reset-title" onCancel={(event) => { event.preventDefault(); setResetRequested(false); }}><h2 id="ts-reset-title">Start a new conversation?</h2><p>Your current answers and matches will be cleared.</p><div><button className="ts-button ts-button--outline" autoFocus onClick={() => setResetRequested(false)}>Keep my conversation</button><button className="ts-button ts-button--light" onClick={reset}>Start again</button></div></dialog> : null}
-  </div>;
+  </motion.div></AnimatePresence>;
 }

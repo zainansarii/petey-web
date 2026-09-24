@@ -14,9 +14,23 @@ const convertMessage = (message: DemoMessage, index: number): ThreadMessageLike 
 function AssistantMessage() {
   const hasText = useAuiState((state) => state.message.content.some((part) => part.type === "text" && part.text.trim()));
   if (!hasText) return null;
-  return <MessagePrimitive.Root className="ts-message ts-message--assistant"><span className="ts-sr-only">Assistant: </span><MessagePrimitive.Parts components={{ Text: PlainText }} /></MessagePrimitive.Root>;
+  return <MessagePrimitive.Root className="ts-message ts-message--assistant"><span className="ts-sr-only">Assistant: </span><MessagePrimitive.Parts components={{ Text: GenerativeText }} /></MessagePrimitive.Root>;
 }
-function PlainText({ text }: TextMessagePartProps) { return <p>{text}</p>; }
+function GenerativeText({ text }: TextMessagePartProps) {
+  const messageIndex = useAuiState((state) => state.message.index);
+  const isLast = useAuiState((state) => state.message.isLast);
+  const reducedMotion = useReducedMotion();
+  // Match Petey's GenerativeText timing while leaving earlier turns fully visible.
+  const openingDelay = messageIndex === 0 ? 120 : 45;
+  return <p>
+    <span className="ts-sr-only">{text}</span>
+    <span aria-hidden="true">{text.split(/(\s+)/).map((segment, index) => {
+      if (/^\s+$/.test(segment)) return segment;
+      const delay = openingDelay + Math.min(index * 28, 715);
+      return <motion.span key={`${segment}-${index}`} className="ts-message__word" initial={reducedMotion || !isLast ? false : { opacity: 0, y: 3 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: reducedMotion || !isLast ? 0 : delay / 1000, duration: reducedMotion || !isLast ? 0 : 0.18 }}>{segment}</motion.span>;
+    })}</span>
+  </p>;
+}
 function UserMessage() {
   return <MessagePrimitive.Root className="ts-message ts-message--user"><span className="ts-sr-only">You: </span><MessagePrimitive.Parts /></MessagePrimitive.Root>;
 }
@@ -97,7 +111,7 @@ export function Conversation({ messages, quickReplies, pending, error, onSend, o
           <ComposerPrimitive.Input ref={input} aria-label="Your message" placeholder="Tell us in your own words…" rows={1} maxRows={4} maxLength={2000} autoComplete="off" addAttachmentOnPaste={false} disabled={Boolean(error)} unstable_focusOnRunStart={false} unstable_focusOnScrollToBottom={false} unstable_focusOnThreadSwitched={false} />
           <ComposerPrimitive.Send className="ts-send" aria-label="Send message" disabled={pending || Boolean(error)} onMouseDown={(event) => { if (document.activeElement === input.current) event.preventDefault(); }}><ArrowUp size={21} strokeWidth={1.7} /></ComposerPrimitive.Send>
         </ComposerPrimitive.Root>
-        <p className="ts-privacy-note">AI-assisted. Your answers are sent to our AI service to find matches; they aren’t saved as a profile. Please leave out medical details.</p>
+        <p className="ts-privacy-note">AI-assisted. Please leave out medical details. Demo Powered by Petey.</p>
       </div>
     </ThreadPrimitive.Root>
   </AssistantRuntimeProvider>;
