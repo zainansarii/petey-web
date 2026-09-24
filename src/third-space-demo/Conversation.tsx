@@ -81,7 +81,7 @@ export function Conversation({ messages, quickReplies, pending, error, onSend, o
 
   return <AssistantRuntimeProvider runtime={runtime}>
     <ThreadPrimitive.Root className="ts-conversation">
-      <div className="ts-conversation__heading"><h1>{refining ? "Make it more you." : "Let’s find your fit."}</h1><p>A few questions. A more personal match.</p></div>
+      <div className="ts-conversation__heading"><h1>{refining ? "Make it more you." : "Let’s find your fit."}</h1></div>
       <ThreadPrimitive.Viewport ref={viewport} className="ts-conversation__viewport" autoScroll={false} role="log" aria-label="Your trainer matching conversation" aria-live="polite" aria-relevant="additions text">
         <div className="ts-conversation__messages" ref={messageList}>
           <ThreadPrimitive.Messages components={{ AssistantMessage, UserMessage }} />
