@@ -26,7 +26,6 @@ function Landing({ onStart }: { onStart: () => void }) {
       <h1>Find your<br /><em>kind of trainer.</em></h1>
       <p>Your goals. Your routine. Your way of training.<br className="ts-desktop-break" /> Let’s find the person to bring it all together.</p>
       <button className="ts-button ts-button--light" onClick={onStart}>Find my trainer <ArrowRight size={19} strokeWidth={1.6} /></button>
-      <span className="ts-landing__detail">A short conversation. A personal shortlist.</span>
     </motion.div>
     <div className="ts-landing__foot"><span>Personal training, made personal.</span><span>AI matchmaking demo <span aria-hidden="true">·</span> Powered by <a href="https://joinpetey.com" target="_blank" rel="noopener noreferrer">Petey<span className="ts-sr-only"> (opens in a new tab)</span></a></span></div>
   </main>;
@@ -175,7 +174,7 @@ export function ThirdSpaceDemo() {
     <div id="ts-main" tabIndex={-1}>
       {screen === "landing" ? <Landing onStart={() => setScreen("chat")} /> : null}
       {screen === "chat" ? <Conversation messages={messages} quickReplies={quickReplies} pending={pending} error={error} onSend={send} onRetry={() => void retry()} refining={refining} /> : null}
-      {screen === "matching" ? <main className="ts-matching"><motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: reducedMotion ? 0 : 0.5 }}><div className={`ts-match-mark${error ? " ts-match-mark--still" : ""}`} aria-hidden="true"><i /><i /><i /></div><h1>{error ? "Let’s try that again." : "Finding your people."}</h1><p role={error ? "alert" : "status"}>{error || "Connecting your goals, your routine and the right expertise."}</p>{error ? <button className="ts-button ts-button--light" onClick={() => void retry()}><RotateCcw size={17} />Try again</button> : <p className="ts-matching__note">Your personal shortlist is on its way.</p>}</motion.div></main> : null}
+      {screen === "matching" ? <main className="ts-matching"><motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: reducedMotion ? 0 : 0.5 }}><div className={`ts-match-mark${error ? " ts-match-mark--still" : ""}`} aria-hidden="true"><i /><i /><i /></div><h1>{error ? "Let’s try that again." : "Finding your people."}</h1><p role={error ? "alert" : "status"}>{error || "Connecting your goals, your routine and the right expertise."}</p>{error ? <button className="ts-button ts-button--light" onClick={() => void retry()}><RotateCcw size={17} />Try again</button> : null}</motion.div></main> : null}
       {screen === "matches" && matches ? <Matches result={matches} onRefine={refine} onOpen={setSelected} /> : null}
     </div>
     {screen === "chat" ? <div className="ts-chat-attribution">Demo <span aria-hidden="true">·</span> Powered by Petey</div> : null}

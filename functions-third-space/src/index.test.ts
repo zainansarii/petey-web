@@ -34,6 +34,7 @@ vi.mock("./service.js", async importOriginal => {
 });
 
 import { matchThirdSpaceTrainersV1, runThirdSpaceOnboardingTurnV1 } from "./index.js";
+import { DemoModelError } from "./service.js";
 
 type TestRequest = { app?: object; data: unknown; rawRequest: { headers: Record<string, string>; ip: string } };
 const callTurn = runThirdSpaceOnboardingTurnV1 as unknown as (request: TestRequest) => Promise<unknown>;
@@ -92,5 +93,28 @@ describe("Third Space callable security and failure handling", () => {
     await expect(callMatch(request())).rejects.toMatchObject({ code: "unavailable" });
     expect(JSON.stringify(state.log.mock.calls)).not.toContain("Private goal wording");
     expect(JSON.stringify(state.write.mock.calls)).not.toContain("Private goal wording");
+  });
+
+  it("logs an allowlisted validation reason without logging generated content", async () => {
+    state.match.mockRejectedValue(new DemoModelError("A match explanation has unsupported evidence."));
+    await expect(callMatch(request())).rejects.toMatchObject({ code: "unavailable" });
+    expect(state.log).toHaveBeenCalledWith("third_space_demo_request_failed", expect.objectContaining({
+      failureKind: "model-validation", validationReason: "A match explanation has unsupported evidence.",
+    }));
+    state.match.mockRejectedValue(new DemoModelError("Private goal wording"));
+    await expect(callMatch(request())).rejects.toMatchObject({ code: "unavailable" });
+    expect(JSON.stringify(state.log.mock.calls)).not.toContain("Private goal wording");
+  });
+
+  it("records only a known provider class and numeric status, never provider messages or bodies", async () => {
+    const provider = Object.assign(new Error("Private goal wording"), { name: "ApiError", status: 429, body: "Private goal wording" });
+    state.match.mockRejectedValue(provider);
+    await expect(callMatch(request())).rejects.toMatchObject({ code: "unavailable" });
+    expect(state.log).toHaveBeenCalledWith("third_space_demo_request_failed", expect.objectContaining({
+      failureKind: "provider", errorName: "ApiError", providerStatus: 429,
+    }));
+    state.match.mockRejectedValue(Object.assign(new Error("Private goal wording"), { name: "Private goal wording", status: "Private goal wording" }));
+    await expect(callMatch(request())).rejects.toMatchObject({ code: "unavailable" });
+    expect(JSON.stringify(state.log.mock.calls)).not.toContain("Private goal wording");
   });
 });

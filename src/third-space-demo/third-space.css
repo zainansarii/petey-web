@@ -49,7 +49,6 @@ button { -webkit-appearance: none; }
 .ts-landing h1 em { font-weight: 400; }
 .ts-landing__content > p { margin-top: 31px; color: #eeece9; font-size: clamp(14px, 1.14vw, 17px); line-height: 1.8; }
 .ts-landing__content > .ts-button { margin-top: 31px; min-width: 202px; }
-.ts-landing__detail { display: block; margin-top: 17px; font-size: 11px; color: #d5d3cf; }
 .ts-landing__foot { position: absolute; left: clamp(24px, 4.8vw, 80px); right: clamp(24px, 4.8vw, 80px); bottom: 34px; display: flex; justify-content: space-between; gap: 20px; color: #cccac6; font-size: 11px; }
 .ts-landing__foot > span:first-child { color: #f1efec; font-family: var(--ts-display); font-size: 20px; }
 .ts-landing__foot > span:last-child { align-self: center; }
@@ -91,7 +90,6 @@ button { -webkit-appearance: none; }
 .ts-matching > div { max-width: 520px; }
 .ts-matching h1 { font: 400 clamp(43px, 5vw, 62px)/1.1 var(--ts-display); letter-spacing: -.025em; }
 .ts-matching p { color: var(--ts-muted); margin: 22px auto 0; max-width: 365px; font-size: 14px; line-height: 1.8; }
-.ts-matching .ts-matching__note { font-size: 11px; margin-top: 34px; }
 .ts-matching .ts-button { margin-top: 30px; }
 .ts-match-mark { width: 70px; height: 70px; margin: 0 auto 50px; position: relative; }
 .ts-match-mark i { position: absolute; border: 1px solid #e6e2da; width: 48px; height: 48px; left: 10px; top: 10px; animation: ts-orbit 6s ease-in-out infinite; }
@@ -204,7 +202,6 @@ button { -webkit-appearance: none; }
   .ts-landing__content > p { max-width: 300px; font-size: 13px; margin-top: 24px; }
   .ts-desktop-break { display: none; }
   .ts-landing__content > .ts-button { margin-top: 26px; }
-  .ts-landing__detail { font-size: 10px; }
   .ts-landing__foot > span:first-child { font-size: 18px; }
   .ts-conversation { padding: 0 19px; }
   .ts-conversation__heading { padding-top: 22px; padding-bottom: 19px; }
