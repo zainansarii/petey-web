@@ -24,4 +24,6 @@ The project's existing Cloud Run invocation pattern may require disabling the IA
 
 The dedicated codebase label prevents a later deployment of `web-onboarding-v3` from treating these functions as omitted source. Shared TypeScript and catalogue modules are compiled into this package's own `lib/` directory before upload, so deployment has no runtime dependency on files outside its source package.
 
+Transient model HTTP 429/502/503/504 responses receive at most two retries with 2s/5s backoff plus up to 500ms jitter. Each retry uses the identical model and request; SDK retries are disabled. Attempts time out after 20s for chat or 25s for brief/ranking, keeping the worst-case two-stage match within the 180s callable limit. Invalid model output and other failures are not retried. Retry telemetry contains only operation type, retry number, HTTP status and delay.
+
 Membership and approximate geographic filtering run before the AI ranking. The AI selects only real candidate IDs, with source-quoted evidence for each explanation. Unknown locations or access yield a refinement message. Individual rates, gender and diary availability are not in the catalogue and do not affect ranking. A provider failure is surfaced for retry; there is no simulated matching fallback.

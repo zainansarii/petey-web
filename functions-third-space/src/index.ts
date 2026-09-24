@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { GoogleGenAI, ThinkingLevel } from "@google/genai";
+import { GoogleGenAI, ThinkingLevel, type GenerateContentParameters } from "@google/genai";
 import { getApps, initializeApp } from "firebase-admin/app";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { defineString } from "firebase-functions/params";
@@ -9,6 +9,7 @@ import { TRAINERS } from "../../third-space-shared/catalogue.js";
 import { CLUBS, LONDON_LOCATIONS } from "../../third-space-shared/locations.js";
 import type { DemoMessage, ThirdSpaceMatches, ThirdSpaceTurn } from "../../third-space-shared/contract.js";
 import { createThirdSpaceService, DemoInputError, DemoModelError, validateTranscript, type GenerateRequest } from "./service.js";
+import { withTransientProviderRetry } from "./provider-retry.js";
 
 const app = getApps()[0] ?? initializeApp();
 const db = getFirestore(app);
@@ -24,17 +25,23 @@ let ai: GoogleGenAI | undefined;
 const generate = async (request: GenerateRequest) => {
   const project = process.env.GCLOUD_PROJECT ?? process.env.GOOGLE_CLOUD_PROJECT;
   if (!project) throw new Error("The model project is not configured.");
-  ai ??= new GoogleGenAI({ vertexai: true, project, location: "global" });
+  const client = ai ??= new GoogleGenAI({ vertexai: true, project, location: "global" });
   const model = request.kind === "chat" ? chatModel.value() : matchingModel.value();
-  const response = await ai.models.generateContent({
+  const generationRequest: GenerateContentParameters = {
     model, contents: request.contents,
     config: {
+      // Bound each attempt and disable nested SDK retries. A two-stage match stays below its 180s callable limit:
+      // at most 6 * 25s model attempts + 2 * (2.5s + 5.5s) backoff = 166s, before small handler overhead.
+      httpOptions: { timeout: request.kind === "chat" ? 20_000 : 25_000, retryOptions: { attempts: 1 } },
       systemInstruction: request.systemInstruction,
       responseMimeType: "application/json", responseJsonSchema: request.responseJsonSchema,
       temperature: 0.35, maxOutputTokens: request.kind === "ranking" ? 4_000 : 3_000,
       thinkingConfig: model.startsWith("gemini-2.") ? { thinkingBudget: 0 }
         : { thinkingLevel: model.startsWith("gemini-3.7") ? ThinkingLevel.LOW : ThinkingLevel.MINIMAL },
     },
+  };
+  const response = await withTransientProviderRetry(() => client.models.generateContent(generationRequest), {
+    onRetry: event => logger.info("third_space_demo_model_retry", { kind: request.kind, ...event }),
   });
   if (!response.text) throw new Error("The model returned no response.");
   return response.text;
