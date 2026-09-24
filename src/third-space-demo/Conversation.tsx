@@ -3,9 +3,10 @@ import {
   useAuiState, type ThreadMessageLike, type TextMessagePartProps,
 } from "@assistant-ui/react";
 import { ArrowUp, RotateCcw } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import type { DemoMessage } from "../../third-space-shared/contract";
+import { createChatScrollController } from "./chatScroll";
 
 const convertMessage = (message: DemoMessage, index: number): ThreadMessageLike => ({
   id: String(index), role: message.role, content: [{ type: "text", text: message.content }],
@@ -13,8 +14,11 @@ const convertMessage = (message: DemoMessage, index: number): ThreadMessageLike 
 
 function AssistantMessage() {
   const hasText = useAuiState((state) => state.message.content.some((part) => part.type === "text" && part.text.trim()));
+  const messageIndex = useAuiState((state) => state.message.index);
+  const isLast = useAuiState((state) => state.message.isLast);
+  const reducedMotion = useReducedMotion();
   if (!hasText) return null;
-  return <MessagePrimitive.Root className="ts-message ts-message--assistant"><span className="ts-sr-only">Assistant: </span><MessagePrimitive.Parts components={{ Text: GenerativeText }} /></MessagePrimitive.Root>;
+  return <MessagePrimitive.Root className="ts-message ts-message--assistant" data-animate={isLast && !reducedMotion} style={{ animationDelay: !reducedMotion && messageIndex === 0 ? "80ms" : "0ms" }}><span className="ts-sr-only">Assistant: </span><MessagePrimitive.Parts components={{ Text: GenerativeText }} /></MessagePrimitive.Root>;
 }
 function GenerativeText({ text }: TextMessagePartProps) {
   const messageIndex = useAuiState((state) => state.message.index);
@@ -32,7 +36,9 @@ function GenerativeText({ text }: TextMessagePartProps) {
   </p>;
 }
 function UserMessage() {
-  return <MessagePrimitive.Root className="ts-message ts-message--user"><span className="ts-sr-only">You: </span><MessagePrimitive.Parts /></MessagePrimitive.Root>;
+  const isLast = useAuiState((state) => state.message.isLast || (state.thread.isRunning && state.thread.messages.at(-2)?.id === state.message.id));
+  const reducedMotion = useReducedMotion();
+  return <MessagePrimitive.Root className="ts-message ts-message--user" data-animate={isLast && !reducedMotion}><span className="ts-sr-only">You: </span><MessagePrimitive.Parts /></MessagePrimitive.Root>;
 }
 
 export function Conversation({ messages, quickReplies, pending, error, onSend, onRetry, refining }: {
@@ -47,66 +53,50 @@ export function Conversation({ messages, quickReplies, pending, error, onSend, o
   const reducedMotion = useReducedMotion();
   const viewport = useRef<HTMLDivElement>(null);
   const messageList = useRef<HTMLDivElement>(null);
-  const followingBottom = useRef(true);
+  const scroll = useRef<ReturnType<typeof createChatScrollController> | null>(null);
   const input = useRef<HTMLTextAreaElement>(null);
+  const send = (text: string) => {
+    scroll.current?.followLatest();
+    return onSend(text);
+  };
   const runtime = useExternalStoreRuntime<DemoMessage>({
     messages, convertMessage, isRunning: pending, isSendDisabled: pending || Boolean(error),
     onNew: async (message) => {
       const text = message.content.filter((part) => part.type === "text").map((part) => part.text).join("\n");
-      await onSend(text);
+      await send(text);
     },
   });
-  useEffect(() => {
+  useLayoutEffect(() => {
     const container = viewport.current;
     const content = messageList.current;
     if (!container || !content) return;
-    const follow = () => {
-      if (followingBottom.current) container.scrollTop = Math.max(0, container.scrollHeight - container.clientHeight);
-    };
-    const onScroll = () => {
-      if (container.scrollHeight - container.clientHeight - container.scrollTop < 36) followingBottom.current = true;
-    };
-    const onWheel = (event: WheelEvent) => { if (event.deltaY < 0) followingBottom.current = false; };
-    const stopFollowing = () => { followingBottom.current = false; };
-    const onKeyDown = (event: KeyboardEvent) => { if (["ArrowUp", "PageUp", "Home"].includes(event.key)) stopFollowing(); };
-    const observer = new ResizeObserver(follow);
-    observer.observe(container);
-    observer.observe(content);
-    container.addEventListener("scroll", onScroll, { passive: true });
-    container.addEventListener("wheel", onWheel, { passive: true });
-    container.addEventListener("touchstart", stopFollowing, { passive: true });
-    container.addEventListener("pointerdown", stopFollowing);
-    container.addEventListener("keydown", onKeyDown);
-    follow();
+    const controller = createChatScrollController(container, content);
+    scroll.current = controller;
     return () => {
-      observer.disconnect();
-      container.removeEventListener("scroll", onScroll);
-      container.removeEventListener("wheel", onWheel);
-      container.removeEventListener("touchstart", stopFollowing);
-      container.removeEventListener("pointerdown", stopFollowing);
-      container.removeEventListener("keydown", onKeyDown);
+      controller.dispose();
+      scroll.current = null;
     };
   }, []);
+  useLayoutEffect(() => { scroll.current?.setReducedMotion(Boolean(reducedMotion)); }, [reducedMotion]);
   useEffect(() => {
-    if (messages.at(-1)?.role === "user") followingBottom.current = true;
-    if (followingBottom.current && viewport.current) viewport.current.scrollTop = Math.max(0, viewport.current.scrollHeight - viewport.current.clientHeight);
+    scroll.current?.scheduleMeasurement();
   }, [messages, pending, error, quickReplies]);
   useEffect(() => { input.current?.focus(); }, []);
 
   return <AssistantRuntimeProvider runtime={runtime}>
     <ThreadPrimitive.Root className="ts-conversation">
       <div className="ts-conversation__heading"><h1>{refining ? "Make it more you." : "Let’s find your fit."}</h1></div>
-      <ThreadPrimitive.Viewport ref={viewport} className="ts-conversation__viewport" autoScroll={false} role="log" aria-label="Your trainer matching conversation" aria-live="polite" aria-relevant="additions text">
+      <ThreadPrimitive.Viewport ref={viewport} className="ts-conversation__viewport" autoScroll={false} scrollToBottomOnInitialize={false} scrollToBottomOnRunStart={false} scrollToBottomOnThreadSwitch={false} tabIndex={0} role="log" aria-label="Your trainer matching conversation" aria-live="polite" aria-relevant="additions text">
         <div className="ts-conversation__messages" ref={messageList}>
           <ThreadPrimitive.Messages components={{ AssistantMessage, UserMessage }} />
           {pending ? <div className="ts-thinking" role="status"><span className="ts-thinking__dots" aria-hidden="true"><i /><i /><i /></span><span className="ts-sr-only">Thinking about your answer</span></div> : null}
-          {error ? <div className="ts-error" role="alert"><p>{error}</p><button className="ts-text-button" onClick={onRetry}><RotateCcw size={16} />Try again</button></div> : null}
+          {error ? <div className="ts-error" role="alert"><p>{error}</p><button className="ts-text-button" onClick={() => { scroll.current?.followLatest(); onRetry(); }}><RotateCcw size={16} />Try again</button></div> : null}
         </div>
       </ThreadPrimitive.Viewport>
       <div className="ts-conversation__footer">
-        {!pending && !error && quickReplies.length > 0 ? <motion.div className="ts-quick-replies" aria-label="Suggested answers" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: reducedMotion ? 0 : 0.2 }}>
-          {quickReplies.map((reply) => <button key={reply} onClick={() => void onSend(reply)}>{reply}</button>)}
-        </motion.div> : null}
+        {!pending && !error && quickReplies.length > 0 ? <div className="ts-quick-replies" aria-label="Suggested answers">
+          {quickReplies.map((reply) => <button key={reply} onClick={() => void send(reply)}>{reply}</button>)}
+        </div> : null}
         <ComposerPrimitive.Root className="ts-composer">
           <ComposerPrimitive.Input ref={input} aria-label="Your message" placeholder="Tell us in your own words…" rows={1} maxRows={4} maxLength={2000} autoComplete="off" addAttachmentOnPaste={false} disabled={Boolean(error)} unstable_focusOnRunStart={false} unstable_focusOnScrollToBottom={false} unstable_focusOnThreadSwitched={false} />
           <ComposerPrimitive.Send className="ts-send" aria-label="Send message" disabled={pending || Boolean(error)} onMouseDown={(event) => { if (document.activeElement === input.current) event.preventDefault(); }}><ArrowUp size={21} strokeWidth={1.7} /></ComposerPrimitive.Send>
