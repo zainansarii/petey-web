@@ -36,6 +36,14 @@ git diff --check
 
 The verification command runs lint/type checks, demo component tests, the production build, backend compilation/tests and catalogue/build validation. Validation checks 40 unique trainers, all 16 current clubs with at least two trainers each, provenance fields, local source images, isolated build paths and `noindex`. Backend tests cover transcript validation, membership/location constraints and invalid model output. Browser acceptance must additionally cover a real App Check-protected conversation, recommendation evidence, refinement, errors/retry, keyboard dialogs and 320–430px/mobile plus tablet/desktop layouts.
 
+The conversation preserves Petey's goal clarification, practical goal follow-up and personalised coaching follow-up. Third Space membership, access, training area and hourly budget remain required coverage; uncertain answers and explicit skips are accepted. There is no target turn count. To check prompt behaviour using synthetic transcripts against the actual chat model, after building the backend and authenticating with Google Cloud, run:
+
+```sh
+node scripts/eval-third-space-onboarding.mjs --gcloud-auth
+```
+
+Omit `--gcloud-auth` to use Application Default Credentials. This opt-in check makes model requests and prints their replies for human review. It checks vague goals, practical and coaching follow-ups, skips, missing Third Space details, completion and refinement. It does not deploy changes or test the hosted callable. Review the wording as well as the topic/coverage assertions; a passing topic label alone does not establish a good follow-up.
+
 Use `npm run preview:third-space` after building to inspect the production bundle locally. The backend's more detailed contract and deployment notes are in [its README](../functions-third-space/README.md).
 
 ## Deploy the isolated backend
