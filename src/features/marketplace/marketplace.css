@@ -97,7 +97,13 @@
 .mp-profile-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 24px; }
 .mp-profile-photo { display: flex; align-items: center; gap: 22px; }
 .mp-profile-photo img { width: 95px; height: 95px; border-radius: 50%; object-fit: cover; }
-.mp-profile-photo input { max-width: 250px; font-size: 12px; padding: 5px; }
+.mp-profile-photo > div { min-width: 0; max-width: 100%; }
+.mp-app input[type="file"] { max-width: 100%; padding: 0; border: 0; border-radius: 0; background: transparent; color: var(--ink-soft); font: 400 12px/1.5 var(--body); }
+.mp-app input[type="file"]::file-selector-button { min-height: 44px; margin-right: 12px; padding: 13px 19px; border: 1px solid var(--line); border-radius: 25px; background: var(--paper); color: var(--ink); font: inherit; cursor: pointer; transition: background .15s ease; }
+.mp-app input[type="file"]:not(:disabled)::file-selector-button:hover { background: var(--cream-deep); }
+.mp-app input[type="file"]:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; border-radius: 25px; }
+.mp-app input[type="file"]:disabled { opacity: .5; }
+.mp-app input[type="file"]:disabled::file-selector-button { cursor: not-allowed; }
 .mp-form-actions { display: flex; gap: 12px; flex-wrap: wrap; }
 .mp-conflict { background: var(--coral-soft); padding: 18px; border-radius: 14px; margin: 20px 0; }
 .mp-conflict pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; }
