@@ -8,6 +8,10 @@
   },
   "scripts": {
     "dev": "vite",
+    "dev:third-space": "vite --config vite.third-space.config.ts",
+    "build:third-space": "tsc -b && vite build --config vite.third-space.config.ts",
+    "preview:third-space": "vite preview --config vite.third-space.config.ts",
+    "verify:third-space": "npm run lint && npm run typecheck && vitest run src/third-space-demo && npm run build:third-space && npm --prefix functions-third-space run build && npm --prefix functions-third-space test && node scripts/validate-third-space.mjs",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "lint": "eslint .",
@@ -23,6 +27,8 @@
   },
   "dependencies": {
     "@assistant-ui/react": "^0.15.17",
+    "@fontsource/cormorant-garamond": "^5.3.0",
+    "@fontsource/dm-sans": "^5.3.0",
     "@fontsource/jetbrains-mono": "^5.3.0",
     "@fontsource/oxygen": "^5.3.0",
     "d3-shape": "^3.2.0",

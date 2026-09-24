@@ -5,7 +5,7 @@ import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["dist", "coverage", "functions/lib", "functions/node_modules"] },
+  { ignores: ["dist", "dist-third-space", "coverage", "functions/lib", "functions/node_modules", "functions-third-space/lib", "functions-third-space/node_modules"] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
@@ -30,7 +30,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ["functions/src/**/*.ts", "functions/vitest.config.ts", "scripts/**/*.mjs"],
+    files: ["functions/src/**/*.ts", "functions/vitest.config.ts", "functions-third-space/**/*.ts", "scripts/**/*.mjs"],
     languageOptions: {
       globals: globals.node,
     },
