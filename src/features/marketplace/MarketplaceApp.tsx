@@ -15,7 +15,7 @@ import type { Access, Dashboard, InboxItem, InboxPage, ProfileWorkspace } from "
 const nav = [{ id: "overview", label: "Overview", icon: LayoutDashboard }, { id: "enquiries", label: "Enquiries", icon: MessageCircle }, { id: "profile", label: "My profile", icon: UserRound }, { id: "spending", label: "Spending", icon: Wallet }];
 const route = () => location.hash.slice(1).split("/");
 const go = (hash: string) => { location.hash = hash; };
-export function MarketplaceApp({ trainer = true }: { trainer?: boolean }) { return <div className={`td-app mp-app${trainer ? "" : " mp-app--trainee"}`}><AccessGate trainer={trainer}>{access => <Workspace access={access} trainer={trainer} />}</AccessGate></div>; }
+export function MarketplaceApp({ trainer = true }: { trainer?: boolean }) { return <AccessGate trainer={trainer}>{access => <div className={`td-app mp-app${trainer ? "" : " mp-app--trainee"}`}><Workspace access={access} trainer={trainer} /></div>}</AccessGate>; }
 function Workspace({ access, trainer }: { access: Access; trainer: boolean }) {
   const [path, setPath] = useState(route); const [days, setDays] = useState<7 | 28>(28); const [data, setData] = useState<Dashboard | null>(null);
   const [profile, setProfile] = useState<ProfileWorkspace | null>(null); const [items, setItems] = useState<InboxItem[]>([]);

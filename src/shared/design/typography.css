@@ -1,7 +1,6 @@
 /* Shared type roles across every screen. Layout styles do not redefine these. */
 
 .landing__copy h1,
-.login-screen__content h1,
 .check-email__content h1,
 .feed-intro h1,
 .feed-empty h1,
@@ -49,7 +48,6 @@
 }
 
 .landing__lede,
-.login-screen__content > p,
 .check-email__lede,
 .status-screen p,
 .request-dialog > p,
@@ -106,7 +104,6 @@
 .feed-header__title small,
 .check-email__status,
 .check-email__resend,
-.login-form__error,
 .chat-delete-error {
   font-family: var(--body);
   font-size: var(--text-caption);
@@ -118,7 +115,6 @@
 
 .input-field > input,
 .input-field__control input,
-.login-form .input-field > input,
 .textarea-field textarea,
 .chat-composer__input {
   font-family: var(--body);

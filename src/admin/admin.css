@@ -23,9 +23,7 @@ body.review-page { overflow: auto; }
 .review-skip { position: fixed; top: -100px; left: 16px; background: var(--lime); z-index: 20; padding: 12px; }
 .review-skip:focus { top: 8px; }
 .review-fixture { text-align: center; font-size: 13px; padding: 7px 16px; background: var(--cream-deep); }
-.review-login { max-width: 520px; margin: 8vh auto; }
-.review-login p, .review-title-row p, .review-detail-heading p { color: var(--ink-soft); }
-.review-login button + button { margin-left: 10px; }
+.review-title-row p, .review-detail-heading p { color: var(--ink-soft); }
 .review-title-row, .review-detail-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
 .review-title-row > button { flex-shrink: 0; }
 .review-sync { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 20px; color: var(--ink-soft); font-size: 13px; padding: 14px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); margin: 24px 0; }

@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { finishMagicLink, getFirebaseAuth, observeFirebaseAuthSession, requestMagicLink } from "../auth/api/magicLink";
-import { BrandMark } from "../../shared/ui/BrandMark";
-import { AccountTerms, LegalLinks } from "../../shared/ui/LegalLinks";
+import { AuthScreen } from "../auth/components/AuthScreen";
+import { EmailLinkScreen } from "../auth/components/EmailLinkScreen";
 import { errorMessage, marketplace, watchAccess } from "./api";
 import type { Access } from "./model";
 
@@ -47,17 +47,55 @@ export function AccessGate({ trainer, children }: { trainer: boolean; children: 
     return () => { alive = false; stop(); stopAccess(); };
   }, [attempt]);
   if (state === "ready" && access && (!trainer || access.membership?.status === "active")) return <>{children(access)}</>;
-  return <main className="mp-access"><header className="mp-access-header"><a href={import.meta.env.BASE_URL} aria-label="Petey home"><BrandMark /></a></header><div className="mp-access-panel">
-    <h1>{state === "loading" ? trainer ? "Opening your workspace…" : "Opening your inbox…" : state === "sent" ? "Check your email" : state === "missing-email" ? "Confirm your email" : state === "ready" ? "Your trainer workspace starts with an invitation" : state === "revoked" ? trainer ? "Trainer access is unavailable" : "Inbox access is unavailable" : "Welcome back"}</h1>
-    {state === "ready" ? <><p>Approved web applicants receive a personal invitation from Petey. Use the link sent to your application email to connect your trainer profile.</p><p>Signed in as {access?.email}.</p></> : state === "revoked" ? <p>{trainer ? "Your trainer access has changed. Contact Petey for help." : "Your inbox access has changed. Contact Petey for help."}</p> : state === "sent" ? <p>Open the secure sign-in link sent to <strong>{email}</strong>. You can complete it on another device by confirming this email address.</p> : state !== "loading" && <form onSubmit={async event => { event.preventDefault(); setError(""); try {
-      if (state === "missing-email" || state === "error") { const result = await finishMagicLink(email); if (result !== "signed-in") throw new Error("This link could not be completed. Request a new sign-in link."); setAttempt(value => value + 1); setState("loading"); }
-      else { await requestMagicLink(email, `${location.pathname}${location.search}${location.hash}`); setState("sent"); }
-    } catch (e) { setError(errorMessage(e)); } }}><p>{state === "missing-email" ? "Enter the email address that received this sign-in link." : "Sign in with your email to continue securely."}</p><label>Email address<input type="email" autoComplete="email" required value={email} onChange={event => setEmail(event.target.value)} /></label><button className="td-button" type="submit">{state === "missing-email" ? "Confirm email" : "Email me a sign-in link"}</button></form>}
-    {error && <p className="mp-error" role="alert">{error}</p>}
-    {state === "error" && <button className="td-text-button" onClick={() => { const url = new URL(location.href); for (const key of ["mode", "oobCode", "apiKey", "finishSignUp"]) url.searchParams.delete(key); history.replaceState(null, "", url); setState("login"); setError(""); }}>Request a new sign-in link</button>}
-    {state === "access-error" && <button className="td-text-button" onClick={() => { setState("loading"); setAttempt(value => value + 1); }}>Retry access</button>}
-    {["ready", "revoked", "access-error"].includes(state) && <button className="td-text-button" onClick={async () => { const { signOut } = await import("firebase/auth"); await signOut(await getFirebaseAuth()); location.assign(location.pathname); }}>Use another account</button>}
-    {state === "login" && <AccountTerms />}
-    <LegalLinks />
-  </div></main>;
+  const newLink = () => {
+    const url = new URL(location.href);
+    for (const key of ["mode", "oobCode", "apiKey", "finishSignUp"]) url.searchParams.delete(key);
+    history.replaceState(null, "", url);
+    setState("login"); setError("");
+  };
+  if (["login", "missing-email", "error"].includes(state)) {
+    const confirming = state !== "login";
+    return <EmailLinkScreen
+      key={confirming ? "confirm" : "login"}
+      title={confirming ? "Confirm your email" : undefined}
+      description={confirming ? "Enter the email address that received this sign-in link." : undefined}
+      submitLabel={confirming ? "Confirm email" : undefined}
+      busyLabel={confirming ? "Signing in…" : undefined}
+      showTerms={!confirming}
+      failureMessage={errorMessage}
+      onSubmit={async address => {
+        setError("");
+        if (confirming) {
+          const result = await finishMagicLink(address);
+          if (result !== "signed-in") throw new Error("This link could not be completed. Request a new sign-in link.");
+          setAttempt(value => value + 1); setState("loading");
+        } else {
+          const mode = await requestMagicLink(address, `${location.pathname}${location.search}${location.hash}`);
+          setEmail(address); setState(mode === "preview" ? "preview" : "sent");
+        }
+      }}
+    >
+      {confirming && <button className="auth-text-button" type="button" onClick={newLink}>Request a new sign-in link</button>}
+    </EmailLinkScreen>;
+  }
+  const title = state === "loading" ? trainer ? "Opening your workspace…" : "Opening your inbox…"
+    : state === "sent" || state === "preview" ? "Check your email"
+    : state === "ready" ? "Your trainer workspace starts with an invitation"
+    : state === "revoked" ? trainer ? "Trainer access is unavailable" : "Inbox access is unavailable"
+    : "We couldn’t open your account";
+  const description = state === "ready" ? "Approved web applicants receive a personal invitation from Petey. Use the link sent to your application email to connect your trainer profile."
+    : state === "revoked" ? trainer ? "Your trainer access has changed. Contact Petey for help." : "Your inbox access has changed. Contact Petey for help."
+    : state === "sent" ? <>Open the secure login link sent to <strong>{email}</strong>. You can also open it on another device and confirm this email address.</>
+    : state === "preview" ? "Email sign-in isn’t configured in this preview, so no email was sent."
+    : undefined;
+  return <AuthScreen title={title} description={description}>
+    {state === "loading" && <span className="sr-only" role="status">Checking your account access.</span>}
+    {state === "ready" && <p className="auth-screen__status">Signed in as {access?.email}.</p>}
+    {error && <p className="auth-screen__status" role="alert">{error}</p>}
+    {state !== "loading" && <div className="auth-screen__actions">
+      {["sent", "preview"].includes(state) && <button className="auth-text-button" type="button" onClick={newLink}>Use a different email</button>}
+      {state === "access-error" && <button className="auth-primary-button" type="button" onClick={() => { setError(""); setState("loading"); setAttempt(value => value + 1); }}>Retry access</button>}
+      {["ready", "revoked", "access-error"].includes(state) && <button className="auth-text-button" type="button" onClick={async () => { const { signOut } = await import("firebase/auth"); await signOut(await getFirebaseAuth()); location.assign(location.pathname); }}>Use another account</button>}
+    </div>}
+  </AuthScreen>;
 }

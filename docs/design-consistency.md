@@ -6,6 +6,8 @@ The home page, signup chat and matching experience establish the brand. The orig
 
 This rule covers all web entry points, including trainer access, messaging, reviewer tools, dialogs, loading, empty and error states.
 
+Login and account-access pages follow the standard login design, rather than the compact signed-in dashboard controls. Use the shared `AuthScreen` layout for the main, trainer, inbox and admin entry points, including invitation, email-confirmation and session-renewal states. Use `EmailLinkScreen` for email login forms. Keep dashboard wrappers outside these access screens so workspace styles cannot change their typography or inputs.
+
 ## Simplicity first
 
 This is an MVP. Keep only the text and controls needed to understand the current screen and take the next action. Remove repeated explanations, decorative labels and incidental metadata. Put occasional settings behind a clear disclosure.
@@ -32,6 +34,7 @@ Normal navigation, field labels, timestamps, status indicators and useful step i
 | --- | --- |
 | Home page | [LandingScreen.tsx](../src/features/discovery/components/LandingScreen.tsx) |
 | Signup chat and matching handoff | [OnboardingFlow.tsx](../src/features/onboarding/components/OnboardingFlow.tsx) |
+| Login and account access | [AuthScreen.tsx](../src/features/auth/components/AuthScreen.tsx), [EmailLinkScreen.tsx](../src/features/auth/components/EmailLinkScreen.tsx) |
 | Matched trainer feed and profiles | [FeedScreen.tsx](../src/features/feed/components/FeedScreen.tsx) |
 | Approved trainer layout and density | [TrainerDashboard.tsx](../src/trainer-preview/TrainerDashboard.tsx), [trainer-dashboard.css](../src/trainer-preview/trainer-dashboard.css) |
 | Live inbox and profile editor | [MarketplaceApp.tsx](../src/features/marketplace/MarketplaceApp.tsx), [marketplace.css](../src/features/marketplace/marketplace.css) |

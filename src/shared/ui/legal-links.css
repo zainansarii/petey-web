@@ -4,7 +4,6 @@
 .legal-notice { margin: 12px 0 0; color: var(--ink-soft, #62666d); font-size: 12px; line-height: 1.6; }
 .legal-notice a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
 .landing__legal { position: absolute; left: 46px; bottom: max(18px, env(safe-area-inset-bottom)); z-index: 7; }
-.login-screen__content > .legal-links { justify-content: center; margin-top: 16px; }
 .chat-privacy-note { text-align: center; margin: 8px auto 0; max-width: 60ch; padding: 0 12px; }
 .feed-intro .legal-links { margin-top: 20px; }
 .feed--empty > .legal-links { justify-content: center; padding: 16px; }

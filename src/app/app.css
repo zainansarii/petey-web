@@ -450,7 +450,6 @@
 /* Onboarding */
 
 .onboarding-shell,
-.login-screen,
 .check-email,
 .status-screen {
   height: 100svh;
@@ -915,59 +914,6 @@
 }
 
 /* Check email and auth return */
-
-.login-screen {
-  display: grid;
-  grid-template-rows: 66px minmax(0, 1fr);
-  padding: max(22px, env(safe-area-inset-top)) 46px max(24px, env(safe-area-inset-bottom));
-}
-
-.login-screen__header {
-  align-items: flex-start;
-  justify-content: space-between;
-}
-
-.login-screen__back {
-  flex: 0 0 auto;
-}
-
-.login-screen__content {
-  display: flex;
-  width: min(100%, 680px);
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
-  margin: 0 auto;
-  padding: 30px 0 96px;
-  text-align: center;
-}
-
-.login-screen__content h1 {
-  margin: 0;
-}
-
-.login-screen__content > p {
-  max-width: 540px;
-  margin: 24px 0 0;
-  color: var(--ink-soft);
-}
-
-.login-form {
-  width: min(100%, 460px);
-  margin-top: 30px;
-  text-align: left;
-}
-
-.login-form__error {
-  min-height: 20px;
-  margin: 8px 0 0;
-  color: var(--error);
-}
-
-.login-form__submit {
-  width: 100%;
-  margin-top: 8px;
-}
 
 .check-email {
   display: grid;

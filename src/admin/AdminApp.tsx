@@ -3,6 +3,8 @@ import { applicationStatuses, type ApplicationDetail, type ApplicationPage, type
 import { isReviewFixture, reviewApi, type ReviewApi } from "./api";
 import { observeReviewSession, reviewErrorMessage, signInReviewer, signOutReviewer, type ReviewSession } from "./auth";
 import { BrandMark } from "../shared/ui/BrandMark";
+import { AuthScreen } from "../features/auth/components/AuthScreen";
+import { ArrowRight } from "lucide-react";
 import { ReviewEditor } from "./ReviewEditor";
 
 const labels: Record<ApplicationStatus, string> = { pending_review: "Pending review", needs_changes: "Needs changes", approved: "Approved", rejected: "Rejected", suspended: "Suspended" };
@@ -71,20 +73,34 @@ export function AdminApp({ api = reviewApi }: { api?: ReviewApi }) {
     try { await signOutReviewer(); setAccess(null); } catch (failure) { setError(reviewErrorMessage(failure)); } finally { setLoading(false); }
   };
 
-  return <div className="review-app">
+  const needsSignIn = authReady && (!session || expired);
+  const hasCurrentAccess = !!session && !expired && access?.reviewer.uid === session.uid && accessSessionTime === session.authTime;
+  const showEntry = !authReady || !hasCurrentAccess;
+
+  return <>
+    {showEntry && <AuthScreen
+      title={!authReady ? "Opening trainer review…" : needsSignIn ? expired ? "Renew your review session" : "Welcome back" : "Reviewer access"}
+      description={!authReady ? undefined : needsSignIn ? expired ? "Sign in again to continue reviewing. Your open draft is kept while you renew." : "Sign in with your authorised Petey reviewer account." : undefined}
+    >
+      {(!authReady || (!needsSignIn && !error)) && <p className="auth-screen__status" role="status">{!authReady ? "Checking your session…" : "Checking reviewer access…"}</p>}
+      {error && <p className="auth-screen__status" role="alert">{error}</p>}
+      {authReady && <div className="auth-screen__actions">
+        {needsSignIn ? <button type="button" className="auth-primary-button" onClick={login} disabled={loading}>{loading ? "Opening Google…" : "Sign in with Google"}{!loading && <ArrowRight aria-hidden="true" size={19} />}</button>
+          : error && <><button type="button" className="auth-primary-button" onClick={() => { setError(""); setRetry(value => value + 1); }}>Try again<ArrowRight aria-hidden="true" size={19} /></button><button type="button" className="auth-text-button" onClick={login} disabled={loading}>{loading ? "Opening Google…" : "Sign in again"}</button></>}
+        {session && <button type="button" className="auth-text-button" onClick={logout} disabled={loading}>Sign out</button>}
+      </div>}
+    </AuthScreen>}
+    <div className="review-app" hidden={showEntry} inert={showEntry}>
     <a className="review-skip" href="#review-main" onClick={(event) => { event.preventDefault(); document.getElementById("review-main")?.focus(); }}>Skip to content</a>
     <header className="review-header"><a className="review-brand" href="#/" aria-label="Petey trainer applications"><BrandMark /><span>Trainer review</span></a>{session && <div className="review-account"><span>{session.email}</span>{!fixtureMode && <><button type="button" disabled={loading} onClick={login}>Renew session</button><button type="button" disabled={loading} onClick={logout}>Sign out</button></>}</div>}</header>
     {fixtureMode && <div className="review-fixture">Development preview — changes stay in this browser session.</div>}
     <main id="review-main" tabIndex={-1}>
-      {!authReady && <p role="status">Checking your session…</p>}
-      {authReady && (!session || expired) && <section className="review-login"><h1>{expired ? "Renew your review session" : "Trainer applications"}</h1><p>{expired ? "Sign in again to continue reviewing. Your open draft is kept while you renew." : "Sign in with your authorised reviewer account."}</p><button type="button" className="review-primary" onClick={login} disabled={loading}>{loading ? "Opening Google…" : "Sign in with Google"}</button>{error && <p className="review-error" role="alert">{error}</p>}</section>}
-      {authReady && session && !expired && (access?.reviewer.uid !== session.uid || accessSessionTime !== session.authTime) && <section className="review-login"><h1>Reviewer access</h1>{error ? <><p role="alert" className="review-error">{error}</p><button onClick={() => setRetry((value) => value + 1)}>Try again</button><button onClick={login}>Sign in again</button></> : <p role="status">Checking reviewer access…</p>}</section>}
       {authReady && session && access?.reviewer.uid === session.uid && <div hidden={expired || accessSessionTime !== session.authTime} inert={expired || accessSessionTime !== session.authTime}>
         {error && <p className="review-error" role="alert">{error}</p>}
         {applicationId ? <Application key={applicationId} id={applicationId} api={api} onDirtyChange={setDirty} /> : <Inbox api={api} access={access} refreshAccess={() => setRetry((value) => value + 1)} />}
       </div>}
     </main>
-  </div>;
+  </div></>;
 }
 
 function Inbox({ api, access, refreshAccess }: { api: ReviewApi; access: ReviewAccess; refreshAccess: () => void }) {

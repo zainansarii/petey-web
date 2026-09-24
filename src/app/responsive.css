@@ -4,7 +4,6 @@
   .app-shell,
   .screen-frame,
   .landing,
-  .login-screen,
   .check-email,
   .status-screen,
   .feed {
@@ -12,7 +11,6 @@
   }
 
   .landing,
-  .login-screen,
   .check-email {
     min-height: 0;
     overflow-y: auto;
@@ -22,7 +20,6 @@
   }
 
   .landing__header,
-  .flow-header.login-screen__header,
   .flow-header.check-email__header {
     display: flex;
     height: auto;
@@ -33,14 +30,12 @@
   }
 
   .landing__logo,
-  .login-screen__header .flow-header__logo,
   .check-email__header .flow-header__logo {
     width: 112px;
     flex: 0 0 auto;
   }
 
   .landing__header-actions { flex-wrap: wrap; justify-content: flex-end; gap: 8px 16px; }
-  .flow-header.login-screen__header .icon-button,
   .flow-header.check-email__header .icon-button { width: var(--control-height); height: var(--control-height); }
   .landing { grid-template-rows: max-content max-content max-content; align-content: start; }
   .landing__skip-button { min-height: var(--control-height); padding-inline: 12px; font-size: 12px; }
@@ -66,15 +61,12 @@
   .scroll-cue { position: static; justify-self: center; margin-top: 16px; transform: none; }
   .scroll-cue__icon { width: var(--control-height); height: var(--control-height); }
 
-  .login-screen__content,
   .check-email__content {
     min-width: 0;
     align-self: start;
     width: min(100%, 640px);
     padding: var(--section-gap) 0;
   }
-  .login-screen__content > p { margin-top: var(--content-gap); }
-  .login-form { margin-top: 24px; }
   .check-email__content h1 { margin: 0; }
   .check-email__lede { margin: 16px 0 24px; overflow-wrap: anywhere; }
   .check-email__resend { flex-wrap: wrap; justify-content: center; }
@@ -179,7 +171,6 @@
     --text-profile: clamp(30px, 8.2vw, 38px);
   }
   .landing__logo,
-  .login-screen__header .flow-header__logo,
   .check-email__header .flow-header__logo,
   .status-screen > .brand-mark { width: 96px; }
   .landing__header { display: grid; height: max-content; grid-template-columns: auto minmax(0, 1fr); gap: 8px 16px; }

@@ -6,6 +6,8 @@ import type { ReviewSession } from "./auth";
 
 const auth = vi.hoisted(() => ({ observer: vi.fn(), signIn: vi.fn(), signOut: vi.fn() }));
 vi.mock("./auth", async (actual) => ({ ...await actual<typeof import("./auth")>(), observeReviewSession: auth.observer, signInReviewer: auth.signIn, signOutReviewer: auth.signOut }));
+// Session-expiry tests jump the clock; decorative entrance motion is verified in the browser.
+vi.mock("motion/react", async actual => ({ ...await actual<typeof import("motion/react")>(), useReducedMotion: () => true }));
 
 function mockApi(): ReviewApi {
   const detail = makeReviewFixture();
@@ -18,6 +20,18 @@ function mockApi(): ReviewApi {
 
 beforeEach(() => { window.history.replaceState(null, "", "/petey-web/admin/"); vi.clearAllMocks(); vi.spyOn(window, "scrollTo").mockImplementation(() => undefined); });
 afterEach(() => { vi.useRealTimers(); });
+
+it("shows the standard entry screen before sign-in without exposing reviewer content", async () => {
+  auth.observer.mockImplementation(async change => { change(null); return vi.fn(); });
+  const api = mockApi();
+  render(<AdminApp api={api} />);
+  expect(await screen.findByRole("heading", { name: "Welcome back" })).toBeVisible();
+  expect(screen.getByRole("button", { name: "Sign in with Google" })).toBeVisible();
+  expect(screen.getByRole("link", { name: "Back to home" })).toHaveAttribute("href", "/");
+  expect(screen.queryByRole("button", { name: "Renew session" })).not.toBeInTheDocument();
+  expect(api.access).not.toHaveBeenCalled();
+  expect(api.list).not.toHaveBeenCalled();
+});
 
 it("does not load applications for an unauthorised reviewer", async () => {
   auth.observer.mockImplementation(async (change) => { change({ uid: "reviewer", email: "reviewer@example.com", authTime: Date.now() }); return vi.fn(); });
@@ -68,9 +82,12 @@ it("renews an hourly session without discarding the open unsaved draft", async (
   await screen.findByRole("heading", { name: "Alex Morgan", level: 1 });
   fireEvent.change(screen.getByLabelText("Profile bio"), { target: { value: "Unsaved review correction." } });
   await act(async () => { vi.setSystemTime(startedAt + 3_601_000); vi.advanceTimersByTime(30_000); });
-  expect(screen.getByRole("heading", { name: "Renew your review session" })).toBeVisible();
+  await waitFor(() => expect(screen.getByRole("heading", { name: "Renew your review session" })).toBeVisible());
   expect(screen.getByLabelText("Profile bio")).not.toBeVisible();
+  expect(screen.getByRole("button", { name: "Sign in with Google" })).toBeVisible();
+  expect(screen.getAllByRole("main")).toHaveLength(1);
   await act(async () => sessionChanged({ uid: "reviewer", email: "reviewer@example.com", authTime: Date.now() }));
   expect(screen.getByLabelText("Profile bio")).toBeVisible();
   expect(screen.getByLabelText("Profile bio")).toHaveValue("Unsaved review correction.");
+  expect(screen.queryByRole("button", { name: "Sign in with Google" })).not.toBeInTheDocument();
 });
