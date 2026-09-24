@@ -41,14 +41,13 @@ function UserMessage() {
   return <MessagePrimitive.Root className="ts-message ts-message--user" data-animate={isLast && !reducedMotion}><span className="ts-sr-only">You: </span><MessagePrimitive.Parts /></MessagePrimitive.Root>;
 }
 
-export function Conversation({ messages, quickReplies, pending, error, onSend, onRetry, refining }: {
+export function Conversation({ messages, quickReplies, pending, error, onSend, onRetry }: {
   messages: DemoMessage[];
   quickReplies: string[];
   pending: boolean;
   error: string | null;
   onSend: (text: string) => Promise<void>;
   onRetry: () => void;
-  refining: boolean;
 }) {
   const reducedMotion = useReducedMotion();
   const viewport = useRef<HTMLDivElement>(null);
@@ -85,7 +84,6 @@ export function Conversation({ messages, quickReplies, pending, error, onSend, o
 
   return <AssistantRuntimeProvider runtime={runtime}>
     <ThreadPrimitive.Root className="ts-conversation">
-      <div className="ts-conversation__heading"><h1>{refining ? "Make it more you." : "Let’s find your fit."}</h1></div>
       <ThreadPrimitive.Viewport ref={viewport} className="ts-conversation__viewport" autoScroll={false} scrollToBottomOnInitialize={false} scrollToBottomOnRunStart={false} scrollToBottomOnThreadSwitch={false} tabIndex={0} role="log" aria-label="Your trainer matching conversation" aria-live="polite" aria-relevant="additions text">
         <div className="ts-conversation__messages" ref={messageList}>
           <ThreadPrimitive.Messages components={{ AssistantMessage, UserMessage }} />
