@@ -46,6 +46,8 @@ Omit `--gcloud-auth` to use Application Default Credentials. This opt-in check m
 
 Use `npm run preview:third-space` after building to inspect the production bundle locally. The backend's more detailed contract and deployment notes are in [its README](../functions-third-space/README.md).
 
+To exercise real brief extraction and evidence-checked ranking with synthetic profiles, run `node scripts/eval-third-space-matching.mjs --gcloud-auth`. Add `--force-fallback` to simulate a temporary preferred-model outage in each stage and verify real output from the alternate model. Both modes check extracted location/membership and actual catalogue matches, including a single-club access restriction. They do not replace hosted App Check acceptance.
+
 ## Deploy the isolated backend
 
 From the demo branch, after verification:

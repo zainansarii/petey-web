@@ -239,6 +239,8 @@ For example "I would like someone with Olympic weightlifting expertise" means sp
 Do not replace a named discipline with generic strength or fitness. specialistNeeds should contain needs each recommended trainer must evidence;
 put clearly optional/nice-to-have specialisms in additionalPreferences. Preserve alternatives such as "boxing or Pilates" as one entry.
 General goals stay in goal, experience in experience, and personality/style in coachingStyle; do not invent a specialist requirement from them.
+An exercise someone wants to improve is a goal, not a required specialist discipline. For example "build strength and improve my squat
+technique" stays in goal with specialistNeeds [] unless they separately request a named specialism such as powerlifting.
 Use empty strings/arrays for unknown preferences. Preserve "not sure" or a skipped budget as uncertainty.
 Do not carry identity, exact addresses, health histories, diagnoses, treatment details or medical identifiers into any field.
 Budget is an hourly preference, not evidence of any individual trainer's price. Preserve the stated range or uncertainty verbatim where possible.

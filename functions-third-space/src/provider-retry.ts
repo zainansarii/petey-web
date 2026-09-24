@@ -7,16 +7,18 @@ export interface ProviderRetryEvent {
   delayMs: number;
 }
 
-export async function withTransientProviderRetry<T>(operation: () => Promise<T>, options: {
+export interface ProviderRetryOptions {
   sleep?: (milliseconds: number) => Promise<void>;
   random?: () => number;
   onRetry?: (event: ProviderRetryEvent) => void;
-} = {}): Promise<T> {
+}
+
+export async function withTransientProviderRetry<T>(operation: (attempt: number) => Promise<T>, options: ProviderRetryOptions = {}): Promise<T> {
   const sleep = options.sleep ?? (milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds)));
   const random = options.random ?? Math.random;
   for (let attempt = 0; ; attempt += 1) {
     try {
-      return await operation();
+      return await operation(attempt);
     } catch (error) {
       const status = typeof error === "object" && error !== null && "status" in error ? error.status : undefined;
       if (typeof status !== "number" || !transientStatuses.has(status) || attempt >= retryDelaysMs.length) throw error;
