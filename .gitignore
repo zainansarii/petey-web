@@ -7,5 +7,6 @@ coverage
 functions/lib
 functions-third-space/lib
 dist-third-space
+dist-third-space-admin
 *.log
 .DS_Store

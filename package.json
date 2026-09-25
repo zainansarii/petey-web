@@ -9,6 +9,9 @@
   "scripts": {
     "dev": "vite",
     "dev:third-space": "vite --config vite.third-space.config.ts",
+    "dev:third-space-admin": "vite --config vite.third-space-admin.config.ts",
+    "build:third-space-admin": "tsc -b && vite build --config vite.third-space-admin.config.ts",
+    "preview:third-space-admin": "vite preview --config vite.third-space-admin.config.ts",
     "build:third-space": "tsc -b && vite build --config vite.third-space.config.ts",
     "preview:third-space": "vite preview --config vite.third-space.config.ts",
     "verify:third-space": "npm run lint && npm run typecheck && vitest run src/third-space-demo && npm run build:third-space && npm --prefix functions-third-space run build && npm --prefix functions-third-space test && node scripts/validate-third-space.mjs",

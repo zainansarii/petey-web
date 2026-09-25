@@ -5,7 +5,7 @@ export default defineConfig({
   base: "/",
   build: {
     rollupOptions: {
-      input: { main: "index.html", admin: "admin/index.html", trainerPreview: "trainer-preview/index.html", trainer: "trainer/index.html", messages: "messages/index.html", privacy: "privacy/index.html", terms: "terms/index.html", support: "support/index.html" },
+      input: { main: "index.html", admin: "admin/index.html", thirdSpaceAdmin: "third-space-demo-admin/index.html", trainerPreview: "trainer-preview/index.html", trainer: "trainer/index.html", messages: "messages/index.html", privacy: "privacy/index.html", terms: "terms/index.html", support: "support/index.html" },
     },
   },
   optimizeDeps: {

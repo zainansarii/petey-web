@@ -5,7 +5,7 @@ import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["dist", "dist-third-space", "coverage", "functions/lib", "functions/node_modules", "functions-third-space/lib", "functions-third-space/node_modules"] },
+  { ignores: ["dist", "dist-third-space", "dist-third-space-admin", "coverage", "functions/lib", "functions/node_modules", "functions-third-space/lib", "functions-third-space/node_modules"] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
