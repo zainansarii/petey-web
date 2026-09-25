@@ -109,8 +109,9 @@ button { -webkit-appearance: none; }
 .ts-match-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(20px, 2.4vw, 38px); margin-top: 35px; align-items: start; }
 .ts-match { min-width: 0; }
 .ts-trainer-card { width: 100%; aspect-ratio: .79; border-radius: 16px; border: 0; padding: 0; overflow: hidden; position: relative; text-align: left; display: block; isolation: isolate; background: #202020; }
-.ts-trainer-card > img { position: absolute; inset: -18px; width: calc(100% + 36px); height: calc(100% + 36px); object-fit: cover; filter: grayscale(1) blur(6px); z-index: -2; transition: transform .65s cubic-bezier(.2,.65,.3,1); }
-.ts-trainer-card::after { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(0deg, #000d, #0002 38%, #0001 65%, #0004); }
+.ts-trainer-card > img { position: absolute; inset: -48px; width: calc(100% + 96px); height: calc(100% + 96px); object-fit: cover; filter: grayscale(1); z-index: -2; transition: transform .65s cubic-bezier(.2,.65,.3,1); }
+.ts-trainer-card::after { content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit; background: linear-gradient(180deg, #ffffff1a, #ffffff08 48%, #000b); box-shadow: inset 0 1px 0 #ffffff24, inset 0 0 0 1px #ffffff12; }
+.ts-trainer-card::after, .ts-profile__portrait::after { -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); }
 .ts-trainer-card__club { position: absolute; top: 20px; left: 20px; font-size: 11px; line-height: 1.4; padding: 8px 12px; border-radius: 30px; background: #f7f5f1; color: #171717; }
 .ts-trainer-card__bottom { position: absolute; left: 23px; right: 20px; bottom: 24px; display: flex; align-items: flex-end; gap: 13px; justify-content: space-between; }
 .ts-trainer-card__name { max-width: 80%; font-family: var(--ts-display); font-size: clamp(26px, 2.7vw, 42px); line-height: .99; letter-spacing: -.025em; }
@@ -124,8 +125,6 @@ button { -webkit-appearance: none; }
 .ts-reasons li::before { position: absolute; content: ""; top: .7em; left: 0; height: 3px; width: 3px; border-radius: 50%; background: #b7b3ac; }
 .ts-match__location { display: flex; align-items: flex-start; gap: 7px; font-size: 11px; color: #b9b5ad; line-height: 1.7; margin-top: 17px !important; }
 .ts-match__location svg { margin-top: 2px; }
-.ts-results__notes { border-top: 1px solid #ffffff21; margin-top: 43px; padding-top: 23px; }
-.ts-results__notes p { color: #b9b5ad; font-size: 11px; line-height: 1.8; margin-top: 4px; }
 .ts-results__footer { margin-top: 49px; border-top: 1px solid #ffffff21; padding: 23px 0 30px; display: flex; justify-content: space-between; gap: 20px; color: #b9b5ad; font-size: 10px; line-height: 1.6; }
 .ts-empty { padding: 75px 0 45px; max-width: 470px; }
 .ts-empty p { font-size: 15px; line-height: 1.8; color: #c3bfb7; }
@@ -136,8 +135,11 @@ button { -webkit-appearance: none; }
 .ts-icon-button { background: #111c; border: 1px solid #ffffff6e; border-radius: 50%; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; }
 .ts-profile__close { position: absolute; top: 23px; right: 25px; z-index: 5; }
 .ts-profile__portrait { position: relative; height: min(570px, 58svh); min-height: 310px; isolation: isolate; overflow: hidden; }
-.ts-profile__portrait > img { position: absolute; inset: -18px; width: calc(100% + 36px); height: calc(100% + 36px); object-fit: cover; object-position: 50% 30%; filter: grayscale(1) blur(6px); z-index: -2; }
-.ts-profile__portrait::after { position: absolute; inset: 0; content: ""; background: linear-gradient(0deg, #141414, transparent 65%); z-index: -1; }
+.ts-profile__portrait > img { position: absolute; inset: -48px; width: calc(100% + 96px); height: calc(100% + 96px); object-fit: cover; object-position: 50% 30%; filter: grayscale(1); z-index: -2; }
+.ts-profile__portrait::after { position: absolute; inset: 0; content: ""; background: linear-gradient(180deg, #ffffff1a, #ffffff08 40%, #141414); z-index: -1; }
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .ts-trainer-card > img, .ts-profile__portrait > img { filter: grayscale(1) blur(20px); }
+}
 .ts-profile__identity { position: absolute; bottom: 32px; left: 36px; right: 36px; }
 .ts-profile__identity > span { font-size: 12px; }
 .ts-profile__identity h2 { font: 400 clamp(45px, 5vw, 63px)/1.02 var(--ts-display); letter-spacing: -.03em; margin-top: 14px; }
@@ -231,8 +233,6 @@ button { -webkit-appearance: none; }
   .ts-match__reasons { padding-top: 20px; }
   .ts-match__reasons h2 { font-size: 13px; margin-bottom: 9px; }
   .ts-reasons { font-size: 12px; }
-  .ts-results__notes { margin-top: 34px; }
-  .ts-results__notes p { font-size: 10px; }
   .ts-results__footer { flex-direction: column; gap: 12px; font-size: 10px; padding: 20px 0 24px; }
   .ts-profile__close { right: 20px; top: 19px; }
   .ts-profile__identity { left: 24px; right: 24px; bottom: 27px; }

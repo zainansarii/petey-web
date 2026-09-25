@@ -33,13 +33,14 @@ function Landing({ onStart }: { onStart: () => void }) {
 
 function MatchCard({ match, index, onOpen }: { match: ThirdSpaceMatch; index: number; onOpen: (match: ThirdSpaceMatch) => void }) {
   const trainer = TRAINERS.find((item) => item.id === match.trainerId)!;
+  const firstName = trainer.name.split(" ")[0];
   const club = CLUBS.find((item) => item.id === match.clubId);
   const reducedMotion = useReducedMotion();
   return <motion.article className="ts-match" initial={{ opacity: 0, y: reducedMotion ? 0 : 22 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reducedMotion ? 0 : 0.5, delay: reducedMotion ? 0 : index * 0.1 }}>
-    <button className="ts-trainer-card" aria-label={`View ${trainer.name}’s profile`} onClick={() => onOpen(match)}>
+    <button className="ts-trainer-card" aria-label={`View ${firstName}’s profile`} onClick={() => onOpen(match)}>
       <img src={trainer.photoUrl} alt="" loading={index === 0 ? "eager" : "lazy"} />
       <span className="ts-trainer-card__club">{club?.name}</span>
-      <span className="ts-trainer-card__bottom"><span className="ts-trainer-card__name">{trainer.name}</span><span className="ts-trainer-card__arrow" aria-hidden="true"><ArrowUpRight size={21} strokeWidth={1.5} /></span></span>
+      <span className="ts-trainer-card__bottom"><span className="ts-trainer-card__name">{firstName}</span><span className="ts-trainer-card__arrow" aria-hidden="true"><ArrowUpRight size={21} strokeWidth={1.5} /></span></span>
     </button>
     <div className="ts-match__reasons"><h2>A fit for you</h2><ul className="ts-reasons">{match.reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul><p className="ts-match__location"><MapPin size={15} aria-hidden="true" />{match.locationReason}</p></div>
   </motion.article>;
@@ -50,7 +51,6 @@ function Matches({ result, onRefine, onOpen }: { result: ThirdSpaceMatches; onRe
     <div className="ts-results__heading"><div><h1>{result.matches.length > 0 ? "Your people. Your potential." : "Let’s open up the possibilities."}</h1><p>{result.matches.length > 0 ? "Selected around you, with a reason for every match." : (result.emptyReason || "We couldn’t find a strong match within your current preferences.")}</p></div><button className="ts-button ts-button--outline" onClick={onRefine}><SlidersHorizontal size={17} />Refine my matches</button></div>
     {result.brief.goal ? <p className="ts-results__brief">{result.brief.goal}</p> : null}
     {result.matches.length > 0 ? <div className="ts-match-grid">{result.matches.map((match, index) => <MatchCard key={match.trainerId} match={match} index={index} onOpen={onOpen} />)}</div> : <div className="ts-empty"><p>Tell us what you’d be happy to adjust — such as your training area or coaching preferences.</p><button className="ts-button ts-button--light" onClick={onRefine}>Talk it through <ArrowRight size={18} /></button></div>}
-    <div className="ts-results__notes"><p>Personal training starts from £85/hour. Individual prices and availability need confirming.</p>{result.brief.membership !== "member" ? <p>A Third Space membership is needed to train at the clubs.</p> : null}{result.unconfirmed.filter((note) => !/^Individual trainer (prices|rates).*availability/i.test(note) && !(result.brief.membership !== "member" && /membership.*(?:is needed to train|is required)/i.test(note))).map((note) => <p key={note}>{note}</p>)}</div>
     <footer className="ts-results__footer"><span>AI matchmaking demo <span aria-hidden="true">·</span> 40 trainers from the Third Space directory</span><span>Powered by <a href="https://joinpetey.com" target="_blank" rel="noopener noreferrer">Petey<span className="ts-sr-only"> (opens in a new tab)</span></a></span></footer>
   </main>;
 }

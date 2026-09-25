@@ -53,9 +53,7 @@ it("completes an anonymous journey, opens the real profile and preserves valid h
   expect(api.findThirdSpaceMatches).toHaveBeenCalledTimes(1);
   expect(screen.queryByText(/sign in|create an account|email address/i)).not.toBeInTheDocument();
   expect(storage).not.toHaveBeenCalled();
-  expect(screen.getAllByText(/prices.*availability.*confirming/i)).toHaveLength(1);
-  expect(screen.getAllByText(/membership.*needed|membership.*required/i)).toHaveLength(1);
-  const card = screen.getByRole("button", { name: `View ${trainer.name}’s profile` });
+  const card = screen.getByRole("button", { name: `View ${trainer.name.split(" ")[0]}’s profile` });
   card.focus();
   fireEvent.click(card);
   const panel = screen.getByRole("dialog", { name: trainer.name });
