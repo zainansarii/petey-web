@@ -38,7 +38,7 @@ function MatchCard({ match, index, onOpen }: { match: ThirdSpaceMatch; index: nu
   const reducedMotion = useReducedMotion();
   return <motion.article className="ts-match" initial={{ opacity: 0, y: reducedMotion ? 0 : 22 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reducedMotion ? 0 : 0.5, delay: reducedMotion ? 0 : index * 0.1 }}>
     <button className="ts-trainer-card" aria-label={`View ${firstName}’s profile`} onClick={() => onOpen(match)}>
-      <img src={trainer.photoUrl} alt="" loading={index === 0 ? "eager" : "lazy"} />
+      <span className="ts-trainer-card__portrait" aria-hidden="true"><img src={trainer.photoUrl} alt="" loading={index === 0 ? "eager" : "lazy"} /></span>
       <span className="ts-trainer-card__club">{club?.name}</span>
       <span className="ts-trainer-card__bottom"><span className="ts-trainer-card__name">{firstName}</span><span className="ts-trainer-card__arrow" aria-hidden="true"><ArrowUpRight size={21} strokeWidth={1.5} /></span></span>
     </button>
