@@ -24,7 +24,9 @@ async function main() {
     ...(authClient ? { googleAuthOptions: { authClient } } : {}),
   });
   const forcedFallback = process.argv.includes("--force-fallback");
+  let rankingCandidates = [];
   const service = createThirdSpaceService(request => {
+    if (request.kind === "ranking") rankingCandidates = JSON.parse(request.contents).candidates;
     let attempts = 0;
     return generateModelResponse(request, {
       chatModel: process.env.THIRD_SPACE_CHAT_MODEL || "gemini-3.5-flash-lite",
@@ -51,6 +53,18 @@ async function main() {
       answer: "I want to build strength and improve my squat technique. I have trained twice weekly for six months. I prefer direct coaching with technique feedback. I have Club membership at Soho only, no access to other clubs, and I want to train in Soho. My hourly budget is £100–£125.",
       membershipType: "club", homeClubId: "soho", location: "Soho", onlyClubId: "soho",
     },
+    ...["club", "group", "group-plus"].map(membershipType => ({
+      name: `${membershipType} member at City with no training-area answer`,
+      answer: `I want to build muscle and improve my lifting technique. I have trained twice weekly for six months. I have no coaching style preference. I am a Third Space member with ${membershipType === "club" ? "Single Club" : membershipType === "group-plus" ? "Group Plus" : "Group"} membership and my home club is City. My hourly budget is £100–£125.`,
+      membershipType, homeClubId: "city", ...(membershipType === "club" ? { onlyClubId: "city" } : {}),
+      expectedClubCount: membershipType === "club" ? 1 : membershipType === "group" ? 14 : 16,
+      nearestFirst: true,
+    })),
+    {
+      name: "City Group member with current access limited by waiting lists",
+      answer: "I want to build muscle. I am a beginner and have no coaching style preference. I have Group membership and my home club is City. Currently I can only access City and Moorgate, but I am still waitlisted for Moorgate so I cannot use it yet. My budget is £100 an hour.",
+      membershipType: "group", homeClubId: "city", onlyClubId: "city", expectedClubCount: 1,
+    },
   ];
   for (const scenario of scenarios) {
     const started = Date.now();
@@ -62,9 +76,15 @@ async function main() {
     }));
     assert.equal(result.brief.membershipType, scenario.membershipType);
     assert.ok(result.brief.homeClubIds.includes(scenario.homeClubId));
-    assert.ok(result.brief.locationAnchors.includes(scenario.location));
+    if (scenario.location) assert.ok(result.brief.locationAnchors.includes(scenario.location));
+    else assert.deepEqual(result.brief.locationAnchors, [], "Keep inferred home-club defaults separate from explicit preferences");
     assert.ok(result.matches.length > 0 && result.matches.length <= 3, "Expected real catalogue matches");
     if (scenario.onlyClubId) assert.ok(result.matches.every(match => match.clubId === scenario.onlyClubId));
+    if (scenario.expectedClubCount) assert.equal(new Set(rankingCandidates.map(candidate => candidate.clubId)).size, scenario.expectedClubCount);
+    if (scenario.nearestFirst) {
+      assert.equal(result.matches[0].clubId, "city", "A general lifting goal should prioritise a suitable City trainer");
+      assert.ok(result.matches.every(match => ["city", "moorgate", "paternoster-square", "tower-bridge", "shoreditch"].includes(match.clubId)), "Prefer nearby suitable trainers for a general goal");
+    }
   }
   console.log(`${scenarios.length}/${scenarios.length} matching checks passed with real model output.`);
 }

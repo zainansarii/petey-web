@@ -101,6 +101,7 @@ export interface ThirdSpaceCandidate {
   trainer: ThirdSpaceTrainer;
   clubId: string;
   locationReason: string;
+  location: { anchor: string; source: "home-club" | "training-preference"; distanceKm: number; atHomeClub: boolean };
 }
 
 export interface CandidateSelection {
@@ -121,11 +122,19 @@ export function selectCandidates(
   }
   if (brief.membership === "non-member") unconfirmed.push("Club membership is needed to train at Third Space.");
   if (brief.membership === "unsure") unconfirmed.push("Your membership access is unconfirmed; these clubs are options to explore.");
-  if (!brief.locationAnchors.length) return {
+  // A volunteered training preference wins; otherwise members train around their home club.
+  // Use the club's exact map point, not an ambiguous neighbourhood alias such as "City".
+  const useHomeClub = !brief.locationAnchors.length && !brief.trainingClubIds?.length && brief.membership === "member";
+  const anchorClubIds = useHomeClub ? brief.homeClubIds : brief.trainingClubIds ?? [];
+  const anchors = brief.locationAnchors.length
+    ? brief.locationAnchors.map(anchor => ({ label: locationAnchorLabel(anchor, locations), location: resolveLocation(anchor, locations) }))
+    : clubs.filter(club => anchorClubIds.includes(club.id)).map(club => ({ label: club.name, location: club }));
+  if (!anchors.length) return {
     candidates: [], unconfirmed,
-    emptyReason: "Tell us the London area where you would like to train so we can narrow down the clubs.",
+    emptyReason: brief.membership === "member"
+      ? "Tell us your home club so we can find trainers around it."
+      : "Tell us the London area where you would like to train so we can narrow down the clubs.",
   };
-  const anchors = brief.locationAnchors.map(anchor => ({ anchor, location: resolveLocation(anchor, locations) }));
   if (anchors.some(({ location }) => !location)) return {
     candidates: [], unconfirmed,
     emptyReason: "We could not confidently locate every area you mentioned. Try a nearby London neighbourhood or station.",
@@ -138,19 +147,23 @@ export function selectCandidates(
   if (brief.membership === "member" && brief.membershipType === "unknown" && !brief.accessibleClubIds.length) {
     unconfirmed.push("We have used only the home clubs you confirmed; your wider membership access is unconfirmed.");
   }
+  if (brief.membership === "member" && ["group", "group-plus"].includes(brief.membershipType) && !brief.accessibleClubIds.length) {
+    unconfirmed.push("Club options follow your membership tier and stated restrictions; individual access dates still apply.");
+  }
   const trainingClubIds = new Set(brief.trainingClubIds ?? []);
   const eligible = accessible.filter(club => !trainingClubIds.size || trainingClubIds.has(club.id));
-  if (brief.maxDistanceKm !== undefined && brief.maxDistanceKm !== null) {
-    unconfirmed.push("Distances are approximate straight-line distances, not travel times.");
-  }
+  unconfirmed.push("Distances are approximate straight-line distances, not travel times.");
   const preferred = new Map<string, { distance: number; label: string }>();
-  for (const { anchor, location } of anchors) {
+  for (const { label, location } of anchors) {
     const nearest = eligible.map(club => ({ club, distance: distanceKm(location!, club) }))
       .filter(({ distance }) => brief.maxDistanceKm === undefined || brief.maxDistanceKm === null || distance <= brief.maxDistanceKm)
-      .sort((a, b) => a.distance - b.distance || a.club.id.localeCompare(b.club.id)).slice(0, 3);
-    for (const { club, distance } of nearest) {
+      .sort((a, b) => a.distance - b.distance || a.club.id.localeCompare(b.club.id));
+    // Member entitlements define the pool; distance is a ranking preference, not a hidden access limit.
+    // Non-members still explore the nearest clubs to their stated area.
+    const considered = brief.membership === "member" ? nearest : nearest.slice(0, 3);
+    for (const { club, distance } of considered) {
       if (!preferred.has(club.id) || distance < preferred.get(club.id)!.distance) {
-        preferred.set(club.id, { distance, label: locationAnchorLabel(anchor, locations) });
+        preferred.set(club.id, { distance, label });
       }
     }
   }
@@ -159,20 +172,27 @@ export function selectCandidates(
     emptyReason: "No clubs meet your confirmed access and training-location limits. Refine your area, distance limit or club access.",
   };
   const clubById = new Map(clubs.map(club => [club.id, club]));
-  const candidates = trainers.flatMap(trainer => {
+  const candidates: ThirdSpaceCandidate[] = trainers.flatMap(trainer => {
     const clubId = trainer.clubIds.filter(id => preferred.has(id))
       .sort((a, b) => preferred.get(a)!.distance - preferred.get(b)!.distance || a.localeCompare(b))[0];
     if (!clubId) return [];
-    const label = preferred.get(clubId)!.label;
-    return [{ trainer, clubId, locationReason: `${clubById.get(clubId)!.name} is one of the nearest eligible clubs to ${label}.` }];
-  });
+    const { label, distance } = preferred.get(clubId)!;
+    const atHomeClub = brief.membership === "member" && brief.homeClubIds.includes(clubId);
+    const name = clubById.get(clubId)!.name;
+    return [{ trainer, clubId,
+      location: { anchor: label, source: useHomeClub ? "home-club" as const : "training-preference" as const,
+        distanceKm: Math.round(distance * 100) / 100, atHomeClub },
+      locationReason: useHomeClub && atHomeClub ? `${name} is your home club.`
+        : `${name} is about ${distance.toFixed(1)} km from ${useHomeClub ? `your ${label} home club` : label}.`,
+    }];
+  }).sort((a, b) => a.location.distanceKm - b.location.distanceKm || a.trainer.id.localeCompare(b.trainer.id));
   const specialists = candidates.filter(candidate => brief.specialistNeeds.every(need => supportsSpecialistNeed(candidate.trainer, need)));
   if (candidates.length && !specialists.length && brief.specialistNeeds.length) return {
-    candidates: [], unconfirmed: [...unconfirmed, `Requested expertise is not evidenced in this nearby demo sample: ${brief.specialistNeeds.join(", ")}.`],
-    emptyReason: `No trainers in this nearby demo sample have published evidence for ${brief.specialistNeeds.join(", ")}. Try another area or refine that preference.`,
+    candidates: [], unconfirmed: [...unconfirmed, `Requested expertise is not evidenced in this eligible demo sample: ${brief.specialistNeeds.join(", ")}.`],
+    emptyReason: `No eligible trainers in this demo sample have published evidence for ${brief.specialistNeeds.join(", ")}. Refine that preference or your club limits.`,
   };
   return {
     candidates: specialists, unconfirmed,
-    ...(!candidates.length ? { emptyReason: "This demo sample has no trainers at the nearby clubs your membership includes. Try another area or refine your access." } : {}),
+    ...(!candidates.length ? { emptyReason: "This demo sample has no trainers at the clubs meeting your access and location limits. Refine your preferences or access." } : {}),
   };
 }

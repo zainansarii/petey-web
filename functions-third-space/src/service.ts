@@ -34,7 +34,9 @@ export function validateTranscript(input: unknown, requireUserEnding = false): D
 const coverageSchema = z.object({
   goal: z.boolean().describe("False while asking what a broad goal means OR asking the first practical follow-up about a clarified goal. True after the practical follow-up is answered, an explicit skip, or uncertainty accepted after one goal clarification. Accepted uncertainty does not cover experience."),
   experience: z.boolean().describe("True only when training background or starting point was volunteered, answered or explicitly skipped. Uncertainty about the goal does not cover experience."),
-  membership: z.boolean(), access: z.boolean(), location: z.boolean(),
+  membership: z.boolean(),
+  access: z.boolean().describe("For members, false until BOTH membership type and home club have been answered, or the missing detail was explicitly skipped/uncertain after clarification. Group alone does not identify a home club. Non-members need no access question."),
+  location: z.boolean().describe("True for a member with a known home club, without a separate area question. Otherwise requires a stated training area or an accepted skip/uncertainty. Membership type alone never identifies location."),
   coaching: z.boolean().describe("False while asking the personalised relationship follow-up. True only after it has been answered, or the user explicitly has no preference or skips coaching."),
   budget: z.boolean(),
 }).strict();
@@ -53,8 +55,8 @@ export const briefSchema = z.object({
   membership: z.enum(["member", "non-member", "unsure"]),
   membershipType: z.enum(["club", "wharf", "group", "group-plus", "unknown"]),
   homeClubIds: z.array(z.string().min(1).max(80)).max(16),
-  accessibleClubIds: z.array(z.string().min(1).max(80)).max(16),
-  excludedClubIds: z.array(z.string().min(1).max(80)).max(16),
+  accessibleClubIds: z.array(z.string().min(1).max(80)).max(16).describe("Empty for ordinary package access. When the user says they can ONLY access a named list, retain that entire restricted list even for Group/Group Plus. Put waitlisted clubs in excludedClubIds, which takes precedence. Never discard the list and revert to package access."),
+  excludedClubIds: z.array(z.string().min(1).max(80)).max(16).describe("Explicit exclusions including clubs the member is waitlisted for or cannot use yet."),
   locationAnchors: z.array(z.string().trim().min(1).max(160)).max(4),
   trainingClubIds: z.array(z.string().min(1).max(80)).max(16).optional(),
   maxDistanceKm: z.number().finite().nonnegative().max(200).nullable().optional(),
@@ -120,8 +122,9 @@ Do not behave like a form or automatically jump to a new topic merely because th
 The opening question is already visible. There is no target number of answers or prescribed topic order.
 Use the coverage topics as a loose guide. Spend turns on useful matching context and finish as soon as it is understood.
 Remember volunteered information and corrections, using the latest answer. Never ask someone to repeat an answered question.
-Membership home clubs and desired training areas are different facts. If someone belongs to Moorgate but wants to train near Liverpool Street,
-their training anchor is Liverpool Street, not Moorgate. Do not turn an access answer into a training-location preference.
+For members, use their home club as the default training anchor. Do not ask a separate training-location question
+once their home club is known. If they volunteer a different training area, that preference overrides the home-club default:
+someone who belongs to Moorgate but wants to train near Liverpool Street should be matched around Liverpool Street.
 On refinement, "only X", "instead X" or "focus on X" replaces earlier training areas; "also X" adds an area.
 
 User-facing reply rules:
@@ -194,15 +197,21 @@ Coverage must reflect what is already in the transcript, never the number of tur
   uncertainty after one goal clarification has been accepted. Merely receiving an initial vague goal is not enough.
 - experience: relevant training background or starting point; this can be volunteered within the goal answer.
 - membership: whether already a Third Space member, not a member, or unsure.
-- access: for members learn membership type and home club(s), and any current restrictions, phased or waitlisted access.
+- access: for members learn membership type and home club(s). Honour any volunteered restrictions, phased or waitlisted access.
   Club membership includes confirmed home club(s). Wharf includes Canary Wharf and Wood Wharf.
   Group includes current clubs except Mayfair and Chelsea. Group Plus includes all current clubs.
   A Group or Group Plus home club does NOT restrict access to that home club. Do not equate multiple home clubs with a package.
-  If the membership answer does not clarify useful access, ask the missing detail in one natural follow-up.
+  If type is known but home club is missing, ask "Which is your home club?" with topic "access".
+  If home club is known but type is missing, ask which membership they have. Never guess Group Plus from a home club.
+  Once type and home club are known, access is covered; do not add a routine restrictions or training-location question.
+  Public rules are based on membership tier; individual access dates can vary. Do not invent home-club-specific entitlements.
   For a non-member, access is covered without a club-selection question. For uncertainty, clarify once then accept unknown.
-- location: the rough London area(s), neighbourhood or station where training would fit the person's life, including work/home anchors.
-  Ask where they want to train geographically, NEVER which Third Space club they would prefer.
-  Infer nearby clubs later. A member's home club does not itself say where they now want to train unless they say they want to train there.
+- location: a member's known home club covers location automatically, without asking where they want to train or asking them to confirm that default.
+  Single Club means that club only. Group/Group Plus considers every eligible club, prioritising at or near home.
+  Learn membership status before asking location, so members are not asked an unnecessary geographical question.
+  For non-members, ask the rough London area, neighbourhood or station where training fits their life, NEVER a preferred Third Space club.
+  If a member cannot name a home club after one clarification, accept uncertainty and offer a rough training area instead.
+  A volunteered training area overrides the home-club default. Infer nearby clubs later.
   Accept more than one training area. Never ask for an exact address or postcode. Use the provided knownLocations for gentle clarification;
   do not silently substitute a guessed area for an ambiguous/unknown location. After one clarification accept uncertainty for an honest empty state.
 - coaching: the approach or personality that would suit them, plus the answered personalised relationship follow-up,
@@ -248,13 +257,19 @@ Membership is member, non-member or unsure. membershipType is club, wharf, group
 Use ONLY club IDs in the supplied clubs list. homeClubIds records confirmed home clubs, including multiple clubs.
 accessibleClubIds is EMPTY by default. Populate it ONLY when the user explicitly describes a restricted list of clubs they currently can access.
 Do not copy homeClubIds into accessibleClubIds for Group/Group Plus, and do not expand package entitlements yourself.
+An explicit restricted list overrides a package, including when only one club is currently available. For example:
+"Group membership, home City; I can only access City and Moorgate, but Moorgate is still waitlisted" means
+accessibleClubIds ["city", "moorgate"] and excludedClubIds ["moorgate"]. Code applies exclusions first, leaving only City.
+Keep the restricted list even if every listed club is excluded; otherwise an empty list would restore standard package access.
 excludedClubIds records explicit club exclusions, restrictions or clubs awaiting access. Waitlisted access is not current access.
 Do not list an upcoming club as currently accessible. If a member states an unknown club, leave it unconfirmed rather than inventing an ID.
 locationAnchors contains only the London area(s) where the user said they WANT TO TRAIN, not a home or work address they never linked to training.
 Preserve the actual named place/known alias the user requested; do not replace it with a nearby club or broader canonical area.
 For example "my home club is Moorgate; I want to train near Liverpool Street" yields homeClubIds ["moorgate"] and locationAnchors ["Liverpool Street"].
 Preserve an unknown or ambiguous area in its own words so code can request clarification.
-Do not invent a location from the membership home club unless the user explicitly said they want to train at that club.
+For members who have only given a home club, leave locationAnchors empty: code uses homeClubIds as the default training anchor.
+If they explicitly say "I want to train in Soho", retain locationAnchors ["Soho"] even when Soho is also their home club.
+Do not turn that default into trainingClubIds or accessibleClubIds, which would wrongly restrict Group access.
 On refinement, exclusive corrections such as "only Liverpool Street", "instead of Soho" or "focus only on X" REPLACE earlier training anchors.
 An additive correction such as "also near X" retains previous anchors. Apply this same latest-answer rule to specialistNeeds and explicit training club/distance limits.
 trainingClubIds is empty unless the user explicitly restricts training to particular clubs. This is separate from their membership home clubs.
@@ -266,6 +281,12 @@ export const RANKING_SYSTEM_PROMPT = `Rank the supplied real Third Space trainer
 ${TRUST}
 Membership and geography have ALREADY been filtered deterministically. Choose up to THREE distinct trainer IDs from supplied candidates,
 best fit first, based on real expertise, qualifications, coaching philosophy and experience relevant to the client's goal and preferences.
+For members the pool includes EVERY eligible club, not just the nearest few. Each candidate has location metadata:
+distanceKm is straight-line distance to the training anchor; source says whether it is the home-club default or an explicit preference.
+Prioritise meaningful matches at the home club, then nearby clubs, when source is home-club. For a training-preference source,
+prioritise that anchor instead, even if another candidate is at the home club. Among comparably suitable trainers, nearer wins.
+Consider farther clubs when they offer a clearly stronger evidenced fit or a required specialism absent nearby; do not choose a
+distant generalist over a suitable local trainer. Never invent travel times. Location explanations are added by code, not your reasons.
 Do not fill a quota: fewer matches or an empty array is appropriate when no trainer has a meaningful evidenced fit.
 For each trainer give one to three concise personalised reasons. Each reason MUST include an evidenceQuote copied EXACTLY from that
 trainer's supplied expertise, qualifications, summary or biography, sufficient to support the factual assertion in the reason.
@@ -330,6 +351,9 @@ Prompt-led sequencing, with explicit skips respected:
   about their starting point instead, keeping coverage.experience false until it is answered.
 - If a coaching preference has been given but its distinct relationship follow-up is unanswered, ask that next
   and keep coverage.coaching false. Do not count the initial preference answer twice.
+- For a member, check separately for membership type AND a named home club. "Group membership" by itself
+  cannot cover access or location. Ask for their home club with topic "access" if missing and not already skipped.
+  With a named home club, location IS covered automatically: never ask a separate training-area question.
 - Inspect the full transcript and do not repeat exchanges already answered. Uncertainty about one topic
   cannot mark another topic as covered.
 
@@ -368,9 +392,9 @@ These examples do not override information or answered follow-ups already presen
       };
       const ranking = await generate({
         kind: "ranking", systemInstruction: RANKING_SYSTEM_PROMPT,
-        contents: JSON.stringify({ brief: rankingBrief, candidates: selected.candidates.map(({ trainer }) => ({
+        contents: JSON.stringify({ brief: rankingBrief, candidates: selected.candidates.map(({ trainer, clubId, location }) => ({
           trainerId: trainer.id, expertise: trainer.expertise, qualifications: trainer.qualifications,
-          summary: trainer.summary, bio: trainer.bio,
+          summary: trainer.summary, bio: trainer.bio, clubId, location,
         })) }), responseJsonSchema: responseSchema(rankedSchema),
       });
       const matches = parseRankedMatches(ranking, selected.candidates);

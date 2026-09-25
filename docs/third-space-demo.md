@@ -36,7 +36,7 @@ git diff --check
 
 The verification command runs lint/type checks, demo component tests, the production build, backend compilation/tests and catalogue/build validation. Validation checks 40 unique trainers, all 16 current clubs with at least two trainers each, provenance fields, local source images, isolated build paths and `noindex`. Backend tests cover transcript validation, membership/location constraints and invalid model output. Browser acceptance must additionally cover a real App Check-protected conversation, recommendation evidence, refinement, errors/retry, keyboard dialogs and 320–430px/mobile plus tablet/desktop layouts.
 
-The conversation preserves Petey's goal clarification, practical goal follow-up and personalised coaching follow-up. Third Space membership, access, training area and hourly budget remain required coverage; uncertain answers and explicit skips are accepted. There is no target turn count. To check prompt behaviour using synthetic transcripts against the actual chat model, after building the backend and authenticating with Google Cloud, run:
+The conversation preserves Petey's goal clarification, practical goal follow-up and personalised coaching follow-up. Third Space membership, access, training location and hourly budget remain required coverage. A member’s home club automatically covers training location, unless they volunteer another preference; only non-members or members without a known home club need an area question; uncertain answers and explicit skips are accepted. There is no target turn count. To check prompt behaviour using synthetic transcripts against the actual chat model, after building the backend and authenticating with Google Cloud, run:
 
 ```sh
 node scripts/eval-third-space-onboarding.mjs --gcloud-auth
@@ -46,7 +46,7 @@ Omit `--gcloud-auth` to use Application Default Credentials. This opt-in check m
 
 Use `npm run preview:third-space` after building to inspect the production bundle locally. The backend's more detailed contract and deployment notes are in [its README](../functions-third-space/README.md).
 
-To exercise real brief extraction and evidence-checked ranking with synthetic profiles, run `node scripts/eval-third-space-matching.mjs --gcloud-auth`. Add `--force-fallback` to simulate a temporary preferred-model outage in each stage and verify real output from the alternate model. Both modes check extracted location/membership and actual catalogue matches, including a single-club access restriction. They do not replace hosted App Check acceptance.
+To exercise real brief extraction and evidence-checked ranking with synthetic profiles, run `node scripts/eval-third-space-matching.mjs --gcloud-auth`. Add `--force-fallback` to simulate a temporary preferred-model outage in each stage and verify real output from the alternate model. Both modes check extracted location/membership and actual catalogue matches, including City home-club defaults, all eligible Group/Group Plus clubs reaching ranking, nearby prioritisation, Single Club limits and phased access. They do not replace hosted App Check acceptance.
 
 ## Deploy the isolated backend
 

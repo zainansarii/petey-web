@@ -49,10 +49,56 @@ describe("Third Space membership and location eligibility", () => {
     expect(accessibleClubs({ ...brief, membershipType: "group-plus", excludedClubIds: ["mayfair", "chelsea"] }, clubs).map(item => item.id)).toEqual(["soho", "city", "canary-wharf", "wood-wharf"]);
   });
 
-  it("uses the nearest three ELIGIBLE clubs rather than allowing excluded clubs to consume the shortlist", () => {
+  it("considers every eligible member club, ordered by proximity instead of cutting off at three", () => {
     const selected = selectCandidates(brief, trainers, clubs, locations);
-    expect(selected.candidates.map(item => item.clubId)).toEqual(["soho", "city", "canary-wharf"]);
+    expect(selected.candidates.map(item => item.clubId)).toEqual(["soho", "city", "canary-wharf", "wood-wharf"]);
     expect(selected.candidates.every(item => !["mayfair", "chelsea"].includes(item.clubId))).toBe(true);
+  });
+
+  it("uses City home club for Single Club members without needing a training area", () => {
+    const selected = selectCandidates({ ...brief, membershipType: "club", homeClubIds: ["city"], locationAnchors: [] }, TRAINERS, CLUBS, LONDON_LOCATIONS);
+    expect(selected.candidates.length).toBeGreaterThan(0);
+    expect(selected.candidates.every(candidate => candidate.clubId === "city")).toBe(true);
+    expect(selected.candidates[0]?.location).toEqual({ anchor: "City", source: "home-club", atHomeClub: true, distanceKm: 0 });
+    expect(selected.candidates[0]?.locationReason).toBe("City is your home club.");
+  });
+
+  it("considers all 14 Group clubs from City, with home and neighbouring clubs first", () => {
+    const selected = selectCandidates({ ...brief, homeClubIds: ["city"], locationAnchors: [] }, TRAINERS, CLUBS, LONDON_LOCATIONS);
+    const ordered = [...new Set(selected.candidates.map(candidate => candidate.clubId))];
+    expect(ordered).toHaveLength(14);
+    expect(ordered[0]).toBe("city");
+    expect(ordered.slice(1, 5)).toEqual(expect.arrayContaining(["moorgate", "paternoster-square", "tower-bridge"]));
+    expect(ordered).not.toContain("mayfair");
+    expect(ordered).not.toContain("chelsea");
+    expect(ordered).toContain("wimbledon");
+    const distances = selected.candidates.map(candidate => candidate.location.distanceKm);
+    expect(distances).toEqual([...distances].sort((a, b) => a - b));
+  });
+
+  it("honours Group Plus, Wharf, personal access dates and excluded home clubs without an area answer", () => {
+    const member = { ...brief, homeClubIds: ["city"], locationAnchors: [] };
+    const candidates = (changes: Partial<ThirdSpaceBrief>) => selectCandidates({ ...member, ...changes }, TRAINERS, CLUBS, LONDON_LOCATIONS).candidates;
+    expect(new Set(candidates({ membershipType: "group-plus" }).map(candidate => candidate.clubId)).size).toBe(16);
+    expect(new Set(candidates({ membershipType: "wharf", homeClubIds: ["wood-wharf"] }).map(candidate => candidate.clubId))).toEqual(new Set(["wood-wharf", "canary-wharf"]));
+    expect(candidates({ accessibleClubIds: ["city", "moorgate"], excludedClubIds: ["moorgate"] }).every(candidate => candidate.clubId === "city")).toBe(true);
+    expect(candidates({ accessibleClubIds: ["city", "moorgate"], excludedClubIds: ["city", "moorgate"] })).toEqual([]);
+    const excludedHome = candidates({ excludedClubIds: ["city"] });
+    expect(excludedHome.length).toBeGreaterThan(0);
+    expect(excludedHome.every(candidate => candidate.clubId !== "city" && candidate.location.anchor === "City")).toBe(true);
+    expect(candidates({ membershipType: "unknown" }).every(candidate => candidate.clubId === "city")).toBe(true);
+  });
+
+  it("does not invent a home club or infer non-member geography from a club they mentioned", () => {
+    const missing = selectCandidates({ ...brief, homeClubIds: [], locationAnchors: [] }, TRAINERS, CLUBS, LONDON_LOCATIONS);
+    expect(missing.candidates).toEqual([]);
+    expect(missing.emptyReason).toMatch(/home club/);
+    const nonmember = selectCandidates({ ...brief, membership: "non-member", locationAnchors: [] }, TRAINERS, CLUBS, LONDON_LOCATIONS);
+    expect(nonmember.candidates).toEqual([]);
+    expect(nonmember.emptyReason).toMatch(/London area/);
+    const explicitClub = selectCandidates({ ...brief, trainingClubIds: ["city"], locationAnchors: [] }, TRAINERS, CLUBS, LONDON_LOCATIONS);
+    expect(explicitClub.candidates.length).toBeGreaterThan(0);
+    expect(explicitClub.candidates.every(candidate => candidate.clubId === "city" && candidate.location.source === "training-preference")).toBe(true);
   });
 
   it("unions multiple training areas and deduplicates a trainer with several clubs", () => {
@@ -89,7 +135,8 @@ describe("Third Space membership and location eligibility", () => {
     expect(resolveLocation("Moorgate", LONDON_LOCATIONS)?.id).toBe("moorgate");
     const selected = selectCandidates({ ...brief, homeClubIds: ["moorgate"], locationAnchors: ["Liverpool Street"] }, TRAINERS, CLUBS, LONDON_LOCATIONS);
     expect(selected.candidates.length).toBeGreaterThan(0);
-    expect(selected.candidates.every(candidate => candidate.locationReason.endsWith("to Liverpool Street."))).toBe(true);
+    expect(selected.candidates.every(candidate => candidate.locationReason.endsWith("from Liverpool Street."))).toBe(true);
+    expect(selected.candidates.every(candidate => candidate.location.source === "training-preference")).toBe(true);
   });
 
   it("does not substitute generic strength for a requested specialist discipline", () => {
@@ -97,7 +144,11 @@ describe("Third Space membership and location eligibility", () => {
     const olympic = TRAINERS.find(trainer => trainer.expertise.includes("Olympic Weightlifting"))!;
     expect(supportsSpecialistNeed(olympic, "Olympic weightlifting expertise")).toBe(true);
     expect(supportsSpecialistNeed(olympic, "Olympic lifting")).toBe(true);
-    const selected = selectCandidates({ ...brief, homeClubIds: ["moorgate"], locationAnchors: ["Liverpool Street"], specialistNeeds: ["Olympic weightlifting"] }, TRAINERS, CLUBS, LONDON_LOCATIONS);
+    const member = { ...brief, homeClubIds: ["moorgate"], locationAnchors: ["Liverpool Street"], specialistNeeds: ["Olympic weightlifting"] };
+    const wider = selectCandidates(member, TRAINERS, CLUBS, LONDON_LOCATIONS);
+    expect(wider.candidates.length).toBeGreaterThan(0);
+    expect(wider.candidates.every(candidate => supportsSpecialistNeed(candidate.trainer, "Olympic weightlifting"))).toBe(true);
+    const selected = selectCandidates({ ...member, trainingClubIds: ["city"] }, TRAINERS, CLUBS, LONDON_LOCATIONS);
     expect(selected.candidates).toEqual([]);
     expect(selected.emptyReason).toContain("Olympic weightlifting");
     expect(selected.unconfirmed.some(note => note.includes("Olympic weightlifting"))).toBe(true);
@@ -168,6 +219,8 @@ describe("Third Space conversation and model boundaries", () => {
     expect(ranking.brief).toEqual({ goal: brief.goal, experience: brief.experience, coachingStyle: brief.coachingStyle, specialistNeeds: [] });
     expect(JSON.stringify(ranking)).not.toContain("£85");
     expect(JSON.stringify(ranking)).not.toContain("Tuesday");
+    expect(ranking.candidates).toHaveLength(4);
+    expect(ranking.candidates[0].location).toEqual({ anchor: "Soho", source: "training-preference", distanceKm: 0, atHomeClub: true });
     expect(result.matches).toHaveLength(1);
     expect(result.unconfirmed[0]).toMatch(/prices and session availability/);
     expect(result.unconfirmed).toContain("Other preferences still need confirming: Must be available Tuesday; Female trainer.");
@@ -192,7 +245,7 @@ describe("Third Space conversation and model boundaries", () => {
   });
 
   it("passes the entire refinement transcript to extraction and applies the new specialist/location constraints", async () => {
-    const correction = "Please focus only on Liverpool Street as my training area, and I would like someone with Olympic weightlifting expertise.";
+    const correction = "Please focus only on Liverpool Street, at City club only, and I would like someone with Olympic weightlifting expertise.";
     const refined: DemoMessage[] = [
       ...transcript,
       { role: "assistant", content: "Are you already a Third Space member?" },
@@ -203,7 +256,7 @@ describe("Third Space conversation and model boundaries", () => {
     ];
     const generate = vi.fn(async (request: GenerateRequest) => {
       expect(request.kind).toBe("brief");
-      return JSON.stringify({ ...brief, homeClubIds: ["moorgate"], locationAnchors: ["Liverpool Street"], specialistNeeds: ["Olympic weightlifting"] });
+      return JSON.stringify({ ...brief, homeClubIds: ["moorgate"], locationAnchors: ["Liverpool Street"], trainingClubIds: ["city"], specialistNeeds: ["Olympic weightlifting"] });
     });
     const result = await createThirdSpaceService(generate, { trainers: TRAINERS, clubs: CLUBS, locations: LONDON_LOCATIONS }).match(refined);
     expect(JSON.parse(generate.mock.calls[0]![0]!.contents).messages).toEqual(refined);

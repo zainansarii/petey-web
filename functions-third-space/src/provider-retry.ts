@@ -3,7 +3,8 @@ const retryDelaysMs = [2_000, 5_000] as const;
 
 export interface ProviderRetryEvent {
   retry: number;
-  providerStatus: number;
+  providerStatus?: number;
+  timeout?: true;
   delayMs: number;
 }
 
@@ -21,10 +22,14 @@ export async function withTransientProviderRetry<T>(operation: (attempt: number)
       return await operation(attempt);
     } catch (error) {
       const status = typeof error === "object" && error !== null && "status" in error ? error.status : undefined;
-      if (typeof status !== "number" || !transientStatuses.has(status) || attempt >= retryDelaysMs.length) throw error;
+      // The SDK's own request deadline rejects with AbortError, without an HTTP status.
+      // These operations receive no caller abort signal, so this is a retryable request timeout.
+      const timeout = error instanceof Error && ["AbortError", "TimeoutError"].includes(error.name);
+      if ((!timeout && (typeof status !== "number" || !transientStatuses.has(status))) || attempt >= retryDelaysMs.length) throw error;
       const delayMs = retryDelaysMs[attempt]! + Math.floor(Math.max(0, Math.min(1, random())) * 500);
-      // Only fixed numeric metadata is exposed; provider error bodies can contain request text.
-      options.onRetry?.({ retry: attempt + 1, providerStatus: status, delayMs });
+      // Only bounded metadata is exposed; provider error bodies can contain request text.
+      options.onRetry?.({ retry: attempt + 1, ...(typeof status === "number" ? { providerStatus: status } : {}),
+        ...(timeout ? { timeout: true } : {}), delayMs });
       await sleep(delayMs);
     }
   }

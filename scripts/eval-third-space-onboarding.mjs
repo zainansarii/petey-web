@@ -85,7 +85,7 @@ async function main() {
     },
     {
       name: "Membership still needed",
-      messages: messages(...trainee, ...coaching), topics: ["membership", "location", "budget"], incomplete: "membership",
+      messages: messages(...trainee, ...coaching), topics: ["membership", "budget"], incomplete: "membership",
     },
     {
       name: "Member access still needed",
@@ -93,9 +93,29 @@ async function main() {
       topics: ["access"], incomplete: "access",
     },
     {
-      name: "Home club is not training location",
+      name: "Group home club covers location without another question",
       messages: messages(...trainee, ...coaching, ...practical.slice(0, 2), ...practical.slice(4)),
+      complete: true,
+    },
+    ...["Single Club", "Group", "Group Plus"].map(tier => ({
+      name: `${tier} at City completes without a training-area question`,
+      messages: messages(...trainee, ...coaching, practical[0], `Yes, ${tier} membership. My home club is City.`, ...practical.slice(4)),
+      complete: true,
+    })),
+    {
+      name: "Membership type known but home club still needed",
+      messages: messages(...trainee, ...coaching, practical[0], "Yes, Group membership.", ...practical.slice(4)),
+      topics: ["access"], incomplete: "access", replyPattern: /home club/i,
+    },
+    {
+      name: "Non-member still needs a training area",
+      messages: messages(...trainee, ...coaching, practical[0], "Not a member yet.", ...practical.slice(4)),
       topics: ["location"], incomplete: "location",
+    },
+    {
+      name: "Group member with phased access does not need another location question",
+      messages: messages(...trainee, ...coaching, practical[0], "Yes, Group membership, home club City. I am still waitlisted for Moorgate.", ...practical.slice(4)),
+      complete: true,
     },
     {
       name: "Hourly budget still needed",
@@ -131,6 +151,7 @@ async function main() {
       if (scenario.covered) assert.equal(turn.coverage[scenario.covered], true, "Skip/no preference not respected");
       if (turn.topic === "budget") assert.deepEqual(turn.quickReplies, BUDGET_QUICK_REPLIES);
       if (scenario.complete) assert.equal(turn.topic, "complete");
+      if (scenario.replyPattern) assert.match(turn.reply, scenario.replyPattern);
     } catch (error) {
       failures += 1;
       console.error(`${scenario.name}: ${error.message}`);

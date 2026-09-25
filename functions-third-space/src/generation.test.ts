@@ -60,6 +60,16 @@ describe("matching model recovery", () => {
     expect(sleep).toHaveBeenCalledTimes(2);
   });
 
+  it.each(["AbortError", "TimeoutError"])("recovers an SDK %s on the alternate model within the existing retry budget", async name => {
+    const error = Object.assign(new Error("private timed-out request"), { name });
+    const generateContent = vi.fn().mockRejectedValueOnce(error).mockResolvedValue({ text: "real ranking" });
+    const onRetry = vi.fn();
+    await expect(generateModelResponse(request("ranking"), { ...defaults, generateContent, sleep: vi.fn(), onRetry })).resolves.toBe("real ranking");
+    expect(generateContent.mock.calls.map(([call]) => call.model)).toEqual([defaults.matchingModel, defaults.chatModel]);
+    expect(onRetry).toHaveBeenCalledWith({ retry: 1, timeout: true, delayMs: 2_000, kind: "ranking", model: defaults.matchingModel, nextModel: defaults.chatModel });
+    expect(JSON.stringify(onRetry.mock.calls)).not.toContain("private");
+  });
+
   it.each([400, 401, 403, 404])("does not switch models for HTTP %s", async status => {
     const error = failure(status);
     const generateContent = vi.fn().mockRejectedValue(error);
