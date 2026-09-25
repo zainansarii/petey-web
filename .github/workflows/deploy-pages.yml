@@ -96,7 +96,7 @@ jobs:
           path: .third-space-source
           persist-credentials: false
 
-      - name: Verify and build Third Space demo
+      - name: Verify and build Third Space demos
         working-directory: .third-space-source
         env:
           VITE_FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}
@@ -110,14 +110,19 @@ jobs:
           npm ci
           npm ci --prefix functions-third-space
           npm run verify:third-space
+          npm run build:third-space-admin
 
-      - name: Include demo alongside Petey
+      - name: Include demos alongside Petey
         run: |
           test -f dist/index.html
           test -f .third-space-source/dist-third-space/index.html
           mkdir -p dist/third-space-demo
           cp -R .third-space-source/dist-third-space/. dist/third-space-demo/
           test -f dist/third-space-demo/index.html
+          test -f .third-space-source/dist-third-space-admin/index.html
+          mkdir -p dist/third-space-demo-admin
+          cp -R .third-space-source/dist-third-space-admin/. dist/third-space-demo-admin/
+          test -f dist/third-space-demo-admin/index.html
 
       - name: Upload site artifact
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5
