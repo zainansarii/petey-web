@@ -105,7 +105,7 @@ it("retries matching independently and never shows fabricated results on failure
   api.findThirdSpaceMatches.mockRejectedValueOnce(new Error("timeout"));
   render(<ThirdSpaceDemo />);
   await start();
-  fireEvent.click(screen.getByRole("button", { name: "Build strength" }));
+  fireEvent.click(screen.getByRole("button", { name: "Build muscle" }));
   expect(await screen.findByRole("alert")).toHaveTextContent("Your conversation is still here");
   expect(screen.queryByRole("button", { name: /View .*profile/ })).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Try again" }));
@@ -118,7 +118,7 @@ it("offers refinement for empty matches without padding the shortlist", async ()
   api.findThirdSpaceMatches.mockResolvedValue({ ...results, matches: [], emptyReason: "No sampled trainer has this specialty within your club access." });
   render(<ThirdSpaceDemo />);
   await start();
-  fireEvent.click(screen.getByRole("button", { name: "Train for an event" }));
+  fireEvent.click(screen.getByRole("button", { name: "Run my first 5K" }));
   await screen.findByText("No sampled trainer has this specialty within your club access.");
   expect(screen.queryByRole("button", { name: /View .*profile/ })).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Talk it through" }));

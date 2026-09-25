@@ -1,9 +1,9 @@
 import {
   AssistantRuntimeProvider, ComposerPrimitive, MessagePrimitive, ThreadPrimitive, useExternalStoreRuntime,
-  useAuiState, type ThreadMessageLike, type TextMessagePartProps,
+  useAui, useAuiState, type ThreadMessageLike, type TextMessagePartProps,
 } from "@assistant-ui/react";
 import { ArrowUp, RotateCcw } from "lucide-react";
-import { useEffect, useLayoutEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import type { DemoMessage } from "../../third-space-shared/contract";
 import { createChatScrollController } from "./chatScroll";
@@ -39,6 +39,59 @@ function UserMessage() {
   const isLast = useAuiState((state) => state.message.isLast || (state.thread.isRunning && state.thread.messages.at(-2)?.id === state.message.id));
   const reducedMotion = useReducedMotion();
   return <MessagePrimitive.Root className="ts-message ts-message--user" data-animate={isLast && !reducedMotion}><span className="ts-sr-only">You: </span><MessagePrimitive.Parts /></MessagePrimitive.Root>;
+}
+
+function QuickReplies({ prompts }: { prompts: string[] }) {
+  const aui = useAui();
+  const running = useAuiState((state) => state.thread.isRunning);
+  const composing = useAuiState((state) => state.composer.text.trim().length > 0);
+  const rowRef = useRef<HTMLDivElement>(null);
+  const labels = useMemo(() => prompts.map((prompt) => prompt.trim().replace(/\.+$/, "").trim()).filter(Boolean), [prompts]);
+
+  useLayoutEffect(() => {
+    const row = rowRef.current;
+    if (!row) return;
+    const buttons = Array.from(row.querySelectorAll<HTMLButtonElement>("button"));
+    // Follow Petey's QuickReplies rules: natural widths, complete buttons, original order.
+    const fitReplies = () => {
+      if (!row.clientWidth) return;
+      const style = getComputedStyle(row);
+      const gap = parseFloat(style.columnGap) || 0;
+      let remaining = row.clientWidth - (parseFloat(style.paddingLeft) || 0) - (parseFloat(style.paddingRight) || 0);
+      let visible = 0;
+      const widths = buttons.map((button) => button.getBoundingClientRect().width);
+      buttons.forEach((button, index) => {
+        const required = widths[index] + (visible ? gap : 0);
+        const fits = required <= remaining;
+        button.toggleAttribute("data-overflow", !fits);
+        button.toggleAttribute("inert", !fits);
+        if (fits) {
+          button.removeAttribute("aria-hidden");
+          remaining -= required;
+          visible += 1;
+        } else {
+          button.setAttribute("aria-hidden", "true");
+        }
+      });
+      row.toggleAttribute("data-empty", visible === 0);
+    };
+    fitReplies();
+    const observer = new ResizeObserver(fitReplies);
+    observer.observe(row);
+    buttons.forEach((button) => observer.observe(button));
+    return () => observer.disconnect();
+  }, [labels]);
+
+  if (!labels.length) return null;
+  return <div className="ts-quick-replies" aria-label="Suggested answers" data-composing={composing} ref={rowRef}>
+    {labels.map((reply, index) => <button key={`${index}-${reply}`} type="button" disabled={running} onMouseDown={(event) => {
+      if (event.button === 0 && document.activeElement?.matches(".ts-composer textarea")) event.preventDefault();
+    }} onClick={() => {
+      if (aui.thread.getState().isRunning) return;
+      aui.thread.composer().setText(reply);
+      aui.thread.composer().send();
+    }}>{reply}</button>)}
+  </div>;
 }
 
 export function Conversation({ messages, quickReplies, pending, error, onSend, onRetry }: {
@@ -92,9 +145,7 @@ export function Conversation({ messages, quickReplies, pending, error, onSend, o
         </div>
       </ThreadPrimitive.Viewport>
       <div className="ts-conversation__footer">
-        {!pending && !error && quickReplies.length > 0 ? <div className="ts-quick-replies" aria-label="Suggested answers">
-          {quickReplies.map((reply) => <button key={reply} onClick={() => void send(reply)}>{reply}</button>)}
-        </div> : null}
+        {!pending && !error ? <QuickReplies prompts={quickReplies} /> : null}
         <ComposerPrimitive.Root className="ts-composer">
           <ComposerPrimitive.Input ref={input} aria-label="Your message" placeholder="Tell us in your own words…" rows={1} maxRows={4} maxLength={2000} autoComplete="off" addAttachmentOnPaste={false} disabled={Boolean(error)} unstable_focusOnRunStart={false} unstable_focusOnScrollToBottom={false} unstable_focusOnThreadSwitched={false} />
           <ComposerPrimitive.Send className="ts-send" aria-label="Send message" disabled={pending || Boolean(error)} onMouseDown={(event) => { if (document.activeElement === input.current) event.preventDefault(); }}><ArrowUp size={21} strokeWidth={1.7} /></ComposerPrimitive.Send>

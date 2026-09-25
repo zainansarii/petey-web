@@ -11,7 +11,7 @@ import { ProfilePanel } from "./ProfilePanel";
 type Screen = "landing" | "chat" | "matching" | "matches";
 type FailedRequest = { stage: "turn" | "matching"; messages: DemoMessage[] };
 const initialMessages = (): DemoMessage[] => [{ role: "assistant", content: OPENING_MESSAGE }];
-const startingReplies = ["Build strength", "Improve my fitness", "Feel confident in the gym", "Train for an event"];
+const startingReplies = ["Build muscle", "Run my first 5K", "Learn to lift weights"];
 
 function Brand() {
   return <img className="ts-brand__logo" src="/third-space-demo/third-space-logo.svg" alt="Third Space" width="175" height="18" />;

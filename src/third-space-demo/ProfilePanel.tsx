@@ -23,8 +23,8 @@ export function ProfilePanel({ trainer, club, match, onClose }: {
     };
   }, []);
   return <dialog className="ts-profile-dialog" ref={dialog} aria-labelledby="ts-profile-title" onCancel={(event) => { event.preventDefault(); onClose(); }} onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-    <motion.article className="ts-profile" initial={{ x: reducedMotion ? 0 : 48, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ duration: reducedMotion ? 0 : 0.3 }}>
-      <button ref={close} className="ts-icon-button ts-profile__close" aria-label="Close trainer profile" onClick={onClose}><X size={22} /></button>
+    <button ref={close} className="ts-icon-button ts-profile__close" aria-label="Close trainer profile" onClick={onClose}><X size={22} /></button>
+    <motion.article className="ts-profile" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: reducedMotion ? 0 : 0.3 }}>
       <div className="ts-profile__portrait"><img src={trainer.photoUrl} alt={trainer.name} /><div className="ts-profile__identity"><span>{club?.name}</span><h2 id="ts-profile-title">{trainer.name}</h2></div></div>
       <div className="ts-profile__body">
         <section><h3>Why you could work well together</h3><ul className="ts-reasons">{match.reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul></section>
