@@ -11,6 +11,7 @@ export interface ThirdSpaceClub {
 }
 
 export interface ThirdSpaceTrainer {
+  kind: "synthetic" | "sourced";
   id: string;
   name: string;
   clubIds: string[];
@@ -20,8 +21,8 @@ export interface ThirdSpaceTrainer {
   summary: string;
   bio: string;
   tier: "personal" | "elite" | null;
-  sourceUrl: string;
-  verifiedAt: string;
+  sourceUrl?: string;
+  verifiedAt?: string;
 }
 
 export interface LondonLocation {

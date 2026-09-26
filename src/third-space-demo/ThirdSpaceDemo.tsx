@@ -27,7 +27,7 @@ function Landing({ onStart }: { onStart: () => void }) {
       <p>Your goals. Your routine. Your way of training.<br className="ts-desktop-break" /> Let’s find the person to bring it all together.</p>
       <button className="ts-button ts-button--light" onClick={onStart}>Find my trainer <ArrowRight size={19} strokeWidth={1.6} /></button>
     </motion.div>
-    <div className="ts-landing__foot"><span>AI matchmaking demo <span aria-hidden="true">·</span> Powered by <a href="https://joinpetey.com" target="_blank" rel="noopener noreferrer">Petey<span className="ts-sr-only"> (opens in a new tab)</span></a></span></div>
+    <div className="ts-landing__foot"><span>AI matchmaking demo with fictional trainers <span aria-hidden="true">·</span> Powered by <a href="https://joinpetey.com" target="_blank" rel="noopener noreferrer">Petey<span className="ts-sr-only"> (opens in a new tab)</span></a></span></div>
   </main>;
 }
 
@@ -48,10 +48,9 @@ function MatchCard({ match, index, onOpen }: { match: ThirdSpaceMatch; index: nu
 
 function Matches({ result, onRefine, onOpen }: { result: ThirdSpaceMatches; onRefine: () => void; onOpen: (match: ThirdSpaceMatch) => void }) {
   return <main className="ts-results">
-    <div className="ts-results__heading"><div><h1>{result.matches.length > 0 ? "Your people. Your potential." : "Let’s open up the possibilities."}</h1><p>{result.matches.length > 0 ? "Selected around you, with a reason for every match." : (result.emptyReason || "We couldn’t find a strong match within your current preferences.")}</p></div><button className="ts-button ts-button--outline" onClick={onRefine}><SlidersHorizontal size={17} />Refine my matches</button></div>
-    {result.brief.goal ? <p className="ts-results__brief">{result.brief.goal}</p> : null}
+    <div className="ts-results__heading"><div><h1>{result.matches.length > 0 ? "Meet your matches" : "Let’s open up the possibilities."}</h1><p>{result.matches.length > 0 ? "Selected around you, with a reason for every match." : (result.emptyReason || "We couldn’t find a strong match within your current preferences.")}</p></div><button className="ts-button ts-button--outline" onClick={onRefine}><SlidersHorizontal size={17} />Refine my matches</button></div>
     {result.matches.length > 0 ? <div className="ts-match-grid">{result.matches.map((match, index) => <MatchCard key={match.trainerId} match={match} index={index} onOpen={onOpen} />)}</div> : <div className="ts-empty"><p>Tell us what you’d be happy to adjust — such as your training area or coaching preferences.</p><button className="ts-button ts-button--light" onClick={onRefine}>Talk it through <ArrowRight size={18} /></button></div>}
-    <footer className="ts-results__footer"><span>AI matchmaking demo <span aria-hidden="true">·</span> 40 trainers from the Third Space directory</span><span>Powered by <a href="https://joinpetey.com" target="_blank" rel="noopener noreferrer">Petey<span className="ts-sr-only"> (opens in a new tab)</span></a></span></footer>
+    <footer className="ts-results__footer"><span>AI matchmaking demo <span aria-hidden="true">·</span> {TRAINERS.length} fictional trainer profiles</span><span>Powered by <a href="https://joinpetey.com" target="_blank" rel="noopener noreferrer">Petey<span className="ts-sr-only"> (opens in a new tab)</span></a></span></footer>
   </main>;
 }
 

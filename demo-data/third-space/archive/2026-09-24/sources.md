@@ -1,30 +1,11 @@
 # Third Space demo: sources and matching boundaries
 
-The active catalogue contains **10 fictional profiles** created on 26 September 2026 for the standalone demonstration: four at Wimbledon, three at Richmond and three at Clapham Junction. Names, coaching histories and qualification lists are illustrative, not verified claims about real people. The old catalogue supplied its structure, level of detail and broad coaching themes; the synthetic entries are not aliases or relocations of individual Third Space trainers.
+Verified on **24 September 2026** against Third Space's public website. The catalogue is a deliberately small snapshot: **40 real trainers across all 16 current directory locations**, with at least two trainers per club. It is not the complete live trainer inventory.
 
-The former **40 real profiles across 16 clubs**, checked against the public directory on **24 September 2026**, are preserved byte-for-byte with their portraits and provenance in `demo-data/third-space/archive/2026-09-24/`. Its manifest checksums protect the snapshot. It is excluded from browser assets and backend compilation and can be restored deliberately using the adapter in [demo operations](third-space-demo.md#preserved-originals-and-deliberate-restoration).
-
-## Active synthetic roster
-
-| Profile | Demo club | Coaching emphasis |
-|---|---|---|
-| Emma Carter | Wimbledon | Patient beginner strength and gym confidence |
-| Daniel Reed | Wimbledon | Hypertrophy, body composition and Olympic weightlifting |
-| Amira Hassan | Wimbledon | Strength, mobility and pre- or postnatal exercise |
-| Lucas Bennett | Wimbledon | Running, conditioning and event preparation |
-| Sophie Morgan | Richmond | Beginner strength, mobility and confidence |
-| Nathan Cole | Richmond | Strength, body composition and consistent habits |
-| Isabel Ross | Richmond | Running, strength and mobility |
-| Adam Khan | Clapham Junction | Beginner boxing, strength and confidence |
-| Grace Ellis | Clapham Junction | Beginner strength and pre- or postnatal exercise |
-| Theo Parker | Clapham Junction | Olympic weightlifting, strength and hybrid training |
-
-The profiles and their portraits are demonstration content. Images are stored beneath `third-space-demo/public/trainers/` and presented in black and white. Reused Petey assets are copied for the demo; their core originals remain unchanged. Image-specific provenance is recorded alongside the demo assets during preparation. Synthetic records have `kind: "synthetic"` and intentionally omit `sourceUrl` and `verifiedAt`. All real source references below document the archived catalogue and retained geographic/membership research, not synthetic staff credentials.
-
-## What the archived source provides
+## What the source provides
 
 - [Find a trainer](https://www.thirdspace.london/find-a-trainer/): real names, portraits, club assignments, short introductions and filters for location, expertise and training tier.
-- Individual profile pages: expertise, qualifications, coaching biographies and occasional testimonials. The demo uses concise editorial paraphrases for summaries and biographies; expertise and qualification labels retain their source meaning. Every archived record links to its official profile and carries its original verification date.
+- Individual profile pages: expertise, qualifications, coaching biographies and occasional testimonials. The demo uses concise editorial paraphrases for summaries and biographies; expertise and qualification labels retain their source meaning. Every record links to its official profile and carries a verification date.
 - [Club directory](https://www.thirdspace.london/clubs/): exact published map-pin coordinates. Addresses come from each club's `FIND US` section. `LONDON_LOCATIONS` contains 73 geographic anchors: 16 club points and 57 additional neighbourhood/station points. Neighbourhoods and postcode districts remain curated approximations, not official Third Space locations or a live geocoder. Distances must not be presented as journey times.
 - Distinct named stations use their own coordinates rather than aliases of nearby places. On 24 September 2026, 23 station points were checked against TfL's public [Tube StopPoint API](https://api.tfl.gov.uk/StopPoint/Mode/tube) and [Overground StopPoint API](https://api.tfl.gov.uk/StopPoint/Mode/overground). The station IDs below identify the exact records used; TfL coordinates represent stations, not a home, workplace or entire postcode district.
 - Chelsea and Paternoster Square currently omit trainer cards from their individual club pages. Their assignments were verified with the directory's [Chelsea filter](https://www.thirdspace.london/find-a-trainer/?filter-t-location=chelsea) and [Paternoster Square filter](https://www.thirdspace.london/find-a-trainer/?filter-t-location=paternoster-square).
@@ -94,7 +75,7 @@ Run from the web repository:
 node scripts/import-third-space.mjs --profiles --write
 ```
 
-The script caches public HTML in `/tmp/petey-third-space-sources`, extracts the fixed reviewed sample and writes records, source references, portraits and checksums into a new `demo-data/third-space/archive/import-<timestamp>/` directory. It never overwrites the active synthetic catalogue, public assets, retained original archive or club/location data. The snapshot date and editorial paraphrases are intentionally reviewed values; importing fresh HTML does not re-verify those paraphrases. No contact forms are submitted.
+The script caches public HTML in `/tmp/petey-third-space-sources`, extracts the fixed reviewed sample, generates the two shared data modules, and downloads the original official imagery into `public/third-space-demo/`. The snapshot date and editorial paraphrases are intentionally reviewed values; updating the sample requires reviewing them as well. No contact forms are submitted.
 
 Validation performed: 40 unique trainer IDs; at least two per current club; nonempty expertise and qualifications; successful HTTP downloads for every portrait, hero and logo; genuine WebP signatures for all 41 raster assets. All media is local at runtime. The supplied white wordmark is the official site's SVG, and the hero is its personal-training photograph.
 

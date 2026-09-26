@@ -1,6 +1,7 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import { JSDOM } from 'jsdom';
 
 const run = promisify(execFile);
@@ -45,14 +46,7 @@ for (const club of clubs) {
 }
 await writeFile(`${cache}/clubs.json`, JSON.stringify(clubs, null, 2));
 await writeFile(`${cache}/cards.json`, JSON.stringify(cards, null, 2));
-// Preserve the separately reviewed London anchors when refreshing official club data.
-// Station aliases and coordinates have their own sources in docs/third-space-sources.md.
-if (process.argv.includes('--write')) {
-  const existing = await readFile('third-space-shared/locations.ts', 'utf8');
-  const anchors = existing.match(/export const LONDON_LOCATIONS:[\s\S]*/)?.[0];
-  if (!anchors) throw new Error('The curated location catalogue is missing; restore it before importing.');
-  await writeFile('third-space-shared/locations.ts', `import type { ThirdSpaceClub, LondonLocation } from './contract.js';\n\n// Club coordinates are official directory map pins, checked 2026-09-24.\nexport const CLUBS: ThirdSpaceClub[] = ${JSON.stringify(clubs, null, 2)};\n\n// Curated approximate area/station anchors; see source notes. These do not represent journey times.\n${anchors}`);
-}
+// Imports are review archives only: never overwrite active demo data or assets.
 if (process.argv.includes('--inspect')) {
   for (const club of clubs) console.log(`${club.name}: ${cards.filter(card => card.clubId === club.id).map(card => card.id).join(', ')}`);
 }
@@ -156,19 +150,26 @@ if (process.argv.includes('--write')) {
   if (trainers.length !== 40 || new Set(trainers.map(trainer => trainer.id)).size !== 40) throw new Error('Expected exactly 40 unique trainers.');
   for (const club of clubs) if (trainers.filter(trainer => trainer.clubIds.includes(club.id)).length < 2) throw new Error(`Insufficient coverage: ${club.id}`);
   for (const trainer of trainers) if (!trainer.expertise.length || !trainer.qualifications.length) throw new Error(`Missing profile fields: ${trainer.id}`);
-  await writeFile('third-space-shared/catalogue.ts', `import type { ThirdSpaceTrainer } from './contract.js';\n\n// Real Third Space profiles, checked 2026-09-24. Editorial bios are sourced paraphrases.\n// Prices, availability and unverified personal characteristics are deliberately absent.\nexport const TRAINERS: ThirdSpaceTrainer[] = ${JSON.stringify(trainers, null, 2)};\n`);
-  await mkdir('public/third-space-demo/trainers', { recursive: true });
-  const assets = [
-    ...profiles.map(profile => ({ path: `public/third-space-demo/trainers/${profile.id}.webp`, url: profile.photoUrl })),
-    { path: 'public/third-space-demo/hero.webp', url: 'https://www.thirdspace.london/wp-content/uploads/2024/10/ThirdSpace_PTImagery_JonPaynePhoto_LOCATION_3_539-1619x1080.webp' },
-    { path: 'public/third-space-demo/third-space-logo.svg', url: 'https://www.thirdspace.london/wp-content/uploads/2024/07/art_1.svg' },
-  ];
+  const importedAt = new Date().toISOString();
+  const archive = `demo-data/third-space/archive/import-${importedAt.replace(/[:.]/g, '-')}`;
+  await mkdir(archive, { recursive: false });
+  await mkdir(`${archive}/trainers`);
+  await writeFile(`${archive}/catalogue.json`, `${JSON.stringify(trainers, null, 2)}\n`);
+  await writeFile(`${archive}/clubs.json`, `${JSON.stringify(clubs, null, 2)}\n`);
+  await writeFile(`${archive}/sources.md`, await readFile('docs/third-space-sources.md'));
+  const assets = profiles.map(profile => ({ path: `trainers/${profile.id}.webp`, url: profile.photoUrl }));
   for (const asset of assets) {
-    await run('curl', ['--http1.1', '--fail', '--location', '--silent', '--show-error', '--max-time', '45', asset.url, '-o', asset.path]);
-    const data = await readFile(asset.path);
-    if (data.length < 200) throw new Error(`Empty or invalid asset: ${asset.path}`);
-    if (asset.path.endsWith('.webp') && data.toString('ascii', 8, 12) !== 'WEBP') throw new Error(`Expected genuine WebP: ${asset.path}`);
+    const path = `${archive}/${asset.path}`;
+    await run('curl', ['--http1.1', '--fail', '--location', '--silent', '--show-error', '--max-time', '45', asset.url, '-o', path]);
+    const data = await readFile(path);
+    if (data.length < 200 || data.toString('ascii', 8, 12) !== 'WEBP') throw new Error(`Expected genuine WebP: ${path}`);
   }
-  await writeFile(`${cache}/assets.json`, JSON.stringify(assets, null, 2));
-  console.log('Wrote 40 verified trainers and downloaded 42 source assets. The curated club/location catalogue is maintained separately.');
+  await writeFile(`${archive}/assets.json`, `${JSON.stringify(assets, null, 2)}\n`);
+  const files = {};
+  for (const path of ['catalogue.json', 'clubs.json', 'sources.md', 'assets.json', ...assets.map(asset => asset.path)].sort()) {
+    const data = await readFile(`${archive}/${path}`);
+    files[path] = { bytes: data.length, sha256: createHash('sha256').update(data).digest('hex') };
+  }
+  await writeFile(`${archive}/manifest.json`, `${JSON.stringify({ importedAt, editorialReviewDate: '2026-09-24', trainerCount: trainers.length, files }, null, 2)}\n`);
+  console.log(`Archived 40 sourced trainers and portraits in ${archive}. Review before use; active demo and club data are unchanged.`);
 }

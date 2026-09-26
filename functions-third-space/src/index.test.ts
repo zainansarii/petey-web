@@ -20,7 +20,7 @@ vi.mock("firebase-admin/firestore", async importOriginal => {
   }) };
 });
 vi.mock("firebase-functions", () => ({ logger: { info: state.log, warn: state.log } }));
-vi.mock("firebase-functions/params", () => ({ defineString: () => ({ value: () => "unused-test-model" }) }));
+vi.mock("firebase-functions/params", () => ({ defineString: () => ({ value: () => "unused-test-model" }), defineSecret: () => ({ name: "OPENAI_API_KEY", value: () => "unused-test-key" }) }));
 vi.mock("firebase-functions/v2/https", async importOriginal => {
   const actual = await importOriginal<typeof import("firebase-functions/v2/https")>();
   return { ...actual, onCall: (options: Record<string, unknown>, handler: unknown) => {
@@ -58,6 +58,7 @@ describe("Third Space callable security and failure handling", () => {
     expect(state.turn).not.toHaveBeenCalled();
     expect(state.write).not.toHaveBeenCalled();
     await expect(callTurn(request())).resolves.toEqual({ reply: "Next question?" });
+    expect(state.options.every(options => Array.isArray(options.secrets) && options.secrets.some(secret => secret.name === "OPENAI_API_KEY"))).toBe(true);
     expect(state.options.every(options => options.enforceAppCheck === true && options.invoker === "private")).toBe(true);
   });
 

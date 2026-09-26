@@ -93,7 +93,7 @@ export function supportsSpecialistNeed(trainer: ThirdSpaceTrainer, need: string)
     ...trainer.expertise, ...trainer.qualifications, trainer.summary, trainer.bio,
   ].join(" ")));
   // This conservative check prevents a named discipline from being substituted with generic fitness.
-  // The AI still ranks candidates and explains fit; absent published specialist evidence is not invented.
+  // The AI still ranks candidates and explains fit; absent catalogue specialist evidence is not invented.
   return required.every(word => evidence.has(word) || evidence.has(`${word}s`));
 }
 
@@ -189,7 +189,7 @@ export function selectCandidates(
   const specialists = candidates.filter(candidate => brief.specialistNeeds.every(need => supportsSpecialistNeed(candidate.trainer, need)));
   if (candidates.length && !specialists.length && brief.specialistNeeds.length) return {
     candidates: [], unconfirmed: [...unconfirmed, `Requested expertise is not evidenced in this eligible demo sample: ${brief.specialistNeeds.join(", ")}.`],
-    emptyReason: `No eligible trainers in this demo sample have published evidence for ${brief.specialistNeeds.join(", ")}. Refine that preference or your club limits.`,
+    emptyReason: `No eligible trainers in this demo sample have profile evidence for ${brief.specialistNeeds.join(", ")}. Refine that preference or your club limits.`,
   };
   return {
     candidates: specialists, unconfirmed,

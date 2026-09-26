@@ -6,14 +6,34 @@ The public entrypoint is `https://joinpetey.com/third-space-demo/`. The exact pu
 
 ## Architecture and data handling
 
-- `vite.third-space.config.ts` builds the dedicated entrypoint with base `/third-space-demo/` into `dist-third-space/`. Its local portraits, hero and wordmark come from `public/third-space-demo/`. The demo HTML includes `noindex`.
+- `vite.third-space.config.ts` builds the dedicated entrypoint with base `/third-space-demo/` into `dist-third-space/`. Its local portraits, hero and wordmark come from `third-space-demo/public/`, outside the core app's public directory. The demo HTML includes `noindex`.
 - `src/third-space-demo/api.ts` calls `runThirdSpaceOnboardingTurnV1` and `matchThirdSpaceTrainersV1` in Firebase project `petey-dev-getcass`, region `europe-west2`. Firebase Auth is not used. App Check with reCAPTCHA Enterprise is required.
-- The isolated `third-space-demo` Firebase codebase lives in `functions-third-space/`. Vertex AI calls use the server-side service account; model credentials never enter the browser bundle. Runtime parameters select the service account, chat model and matching model.
-- Shared contracts, the 40-trainer catalogue, club/location data and deterministic candidate selection live in `third-space-shared/`. Membership eligibility, explicit exclusions and geographic constraints narrow candidates before the AI ranks them. Returned IDs and explanation evidence are validated. Missing information or a provider failure yields refinement/retry rather than fabricated matches.
+- The isolated `third-space-demo` Firebase codebase lives in `functions-third-space/`. OpenAI Responses calls use the server-only `OPENAI_API_KEY` Firebase secret. Shared routing selects Luna/low for chat and Sol/medium for brief extraction and ranking. The service account remains configured by a runtime parameter. See [OpenAI setup](openai-backend-setup.md).
+- Shared contracts, the active 10-profile synthetic catalogue, club/location data and deterministic candidate selection live in `third-space-shared/`. `catalogue.ts` is the single active export consumed by both the UI and backend. The fictional sample has four Wimbledon trainers, three Richmond trainers and three Clapham Junction trainers; all 16 real club records remain available for truthful membership and geographic handling. Membership eligibility, explicit exclusions and geographic constraints narrow candidates before the AI ranks them. Returned IDs and explanation evidence are validated. Missing information or a provider failure yields refinement/retry rather than fabricated matches.
 - The conversation and results stay in React memory; there is no local/session-storage profile. Refreshing or starting again clears them. Requests transmit the conversation to the backend and AI provider. Application code does not write conversations, briefs or matching results to Firestore, and application logs omit their contents.
 - Rate limiting writes hashed-IP counters under a `third-space-demo` namespace in the existing server-only `_webOnboardingRateLimitsV3` collection: 120 turns or 24 match requests per hour, with an `expiresAt` field. This is operational metadata, so do not describe the service as retaining no data at all. Expiry-field presence alone is not proof of physical deletion.
 
-See [catalogue provenance and research](./third-space-sources.md) for every profile/photo source, membership rules and the 24 September snapshot. The published £85/hour starting point informs the budget question; **individual trainer prices and diary availability remain unverified**. Budget bands are user preferences, not a tariff or guaranteed compatibility. Nearby-club calculations use approximate straight-line geography, not journey times.
+See [catalogue provenance and research](./third-space-sources.md) for the synthetic roster, image provenance, membership rules and the preserved 24 September directory snapshot. Synthetic identities, biographies and qualifications are demonstration content; they do not describe real Third Space staff. The UI labels this sample and omits official-profile links for synthetic records. The published £85/hour starting point informs the budget question; **individual trainer prices and diary availability remain unverified**. Budget bands are user preferences, not a tariff or guaranteed compatibility. Nearby-club calculations use approximate straight-line geography, not journey times.
+
+## Preserved originals and deliberate restoration
+
+The original 40 records, exact TypeScript source, location snapshot, original provenance notes and 40 unmodified portraits are retained in `demo-data/third-space/archive/2026-09-24/`. `manifest.json` records SHA-256 checksums and byte sizes. The archive sits outside Vite public directories and TypeScript compilation inputs; nothing imports it at runtime. The core Petey catalogue and original Petey portrait files are independent of this sample.
+
+For a deliberate switch back, first verify the archive with the validation command. Materialise `catalogue.json` into a new `third-space-shared/sourced-catalogue.ts` module using this adapter, rather than importing the archive into the app:
+
+```ts
+import type { ThirdSpaceTrainer } from "./contract.js";
+
+// Paste the archived catalogue.json array without altering its original fields.
+const originalRecords = [/* preserved records */] as Omit<ThirdSpaceTrainer, "kind">[];
+export const SOURCED_TRAINERS: ThirdSpaceTrainer[] = originalRecords.map(trainer => ({
+  ...trainer, kind: "sourced",
+}));
+```
+
+Change the single `catalogue.ts` export from `SYNTHETIC_TRAINERS` to `SOURCED_TRAINERS`, derive its club IDs from that catalogue, and copy the archived portrait files into `third-space-demo/public/trainers/` in place of the synthetic portrait set. Keep both the immutable archive and synthetic catalogue/portraits available for reversal. Update the deliberately strict 10-profile validation and synthetic fixture expectations for the chosen release. The `kind` discriminator retains official source links only for sourced records. Verify and publish the frontend and backend from the same selected catalogue revision; mismatched trainer IDs between releases cannot be rendered safely.
+
+`node scripts/import-third-space.mjs --profiles --write` creates a fresh `demo-data/third-space/archive/import-<timestamp>/` review snapshot. It does not activate records, overwrite the immutable original archive, modify club/location data or write public assets. Imported editorial text retains its original review date until separately reviewed.
 
 ## Run and validate
 
@@ -21,6 +41,7 @@ Use the repository root on `third-space-demo`, with a supported current Node ver
 
 ```sh
 npm ci
+npm ci --prefix functions
 npm ci --prefix functions-third-space
 npm run dev:third-space
 ```
@@ -34,19 +55,19 @@ npm run verify:third-space
 git diff --check
 ```
 
-The verification command runs lint/type checks, demo component tests, the production build, backend compilation/tests and catalogue/build validation. Validation checks 40 unique trainers, all 16 current clubs with at least two trainers each, provenance fields, local source images, isolated build paths and `noindex`. Backend tests cover transcript validation, membership/location constraints and invalid model output. Browser acceptance must additionally cover a real App Check-protected conversation, recommendation evidence, refinement, errors/retry, keyboard dialogs and 320–430px/mobile plus tablet/desktop layouts.
+The verification command runs lint/type checks, demo component tests, the production build, backend compilation/tests and catalogue/build validation. Validation checks 10 unique synthetic trainers, the 4/3/3 club split, all 16 unchanged club records, local portraits with decoded black-and-white pixel checks, all 40 archived originals and their SHA-256 checksums, absence of archived profiles/portraits in the demo and backend builds, isolated build paths and `noindex`. After a fresh `npm run build`, run `node scripts/validate-third-space.mjs --core` to additionally confirm the normal Petey build contains neither the demo assets nor archived records. Backend tests cover transcript validation, membership/location constraints and invalid model output. Browser acceptance must additionally cover a real App Check-protected conversation, recommendation evidence, refinement, errors/retry, keyboard dialogs and 320–430px/mobile plus tablet/desktop layouts.
 
-The conversation preserves Petey's goal clarification, practical goal follow-up and personalised coaching follow-up. Third Space membership, access, training location and hourly budget remain required coverage. A member’s home club automatically covers training location, unless they volunteer another preference; only non-members or members without a known home club need an area question; uncertain answers and explicit skips are accepted. There is no target turn count. To check prompt behaviour using synthetic transcripts against the actual chat model, after building the backend and authenticating with Google Cloud, run:
+The conversation preserves Petey's goal clarification, practical goal follow-up and personalised coaching follow-up. Third Space membership, access, training location and hourly budget remain required coverage. A member’s home club automatically covers training location, unless they volunteer another preference; only non-members or members without a known home club need an area question; uncertain answers and explicit skips are accepted. There is no target turn count. To check prompt behaviour using synthetic transcripts against the actual chat model, after building the backend and setting `OPENAI_API_KEY` in the shell, run:
 
 ```sh
-node scripts/eval-third-space-onboarding.mjs --gcloud-auth
+node scripts/eval-third-space-onboarding.mjs
 ```
 
-Omit `--gcloud-auth` to use Application Default Credentials. This opt-in check makes model requests and prints their replies for human review. It checks vague goals, practical and coaching follow-ups, skips, missing Third Space details, completion and refinement. It does not deploy changes or test the hosted callable. Review the wording as well as the topic/coverage assertions; a passing topic label alone does not establish a good follow-up.
+This opt-in check makes model requests and prints their replies for human review. It checks vague goals, practical and coaching follow-ups, skips, missing Third Space details, completion and refinement. It does not deploy changes or test the hosted callable. Review the wording as well as the topic/coverage assertions; a passing topic label alone does not establish a good follow-up.
 
 Use `npm run preview:third-space` after building to inspect the production bundle locally. The backend's more detailed contract and deployment notes are in [its README](../functions-third-space/README.md).
 
-To exercise real brief extraction and evidence-checked ranking with synthetic profiles, run `node scripts/eval-third-space-matching.mjs --gcloud-auth`. Add `--force-fallback` to simulate a temporary preferred-model outage in each stage and verify real output from the alternate model. Both modes check extracted location/membership and actual catalogue matches, including City home-club defaults, all eligible Group/Group Plus clubs reaching ranking, nearby prioritisation, Single Club limits and phased access. They do not replace hosted App Check acceptance.
+To exercise real brief extraction and evidence-checked ranking with synthetic profiles, run `node scripts/eval-third-space-matching.mjs`. Add `--force-retry` to simulate a temporary provider outage in each stage and verify real output from the same Sol model. Both modes check extracted location/membership and actual catalogue matches, including home-club defaults, Group/Group Plus eligibility, nearby prioritisation, Single Club limits and phased access. Positive active-catalogue scenarios use Wimbledon, Richmond or Clapham Junction; an unsupported Single Club or Wharf membership must remain an honest empty result. They do not replace hosted App Check acceptance.
 
 ## Deploy the isolated backend
 

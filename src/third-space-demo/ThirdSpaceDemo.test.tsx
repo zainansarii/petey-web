@@ -3,6 +3,8 @@ import { validateTranscript } from "../../functions-third-space/src/service";
 import { TRAINERS } from "../../third-space-shared/catalogue";
 import { BUDGET_QUICK_REPLIES, OPENING_MESSAGE, type DemoMessage, type ThirdSpaceMatches, type ThirdSpaceTurn } from "../../third-space-shared/contract";
 import { ThirdSpaceDemo } from "./ThirdSpaceDemo";
+import { ProfilePanel } from "./ProfilePanel";
+import { CLUBS } from "../../third-space-shared/locations";
 
 const api = vi.hoisted(() => ({ runThirdSpaceTurn: vi.fn(), findThirdSpaceMatches: vi.fn() }));
 const motionPreference = vi.hoisted(() => ({ reduced: true }));
@@ -15,8 +17,8 @@ const readyTurn: ThirdSpaceTurn = {
 };
 const trainer = TRAINERS[0];
 const results: ThirdSpaceMatches = {
-  brief: { goal: "Build strength and feel confident", experience: "Beginner", coachingStyle: "Patient", specialistNeeds: [], membership: "non-member", membershipType: "unknown", homeClubIds: [], accessibleClubIds: [], excludedClubIds: [], locationAnchors: ["Battersea"], budget: "£90", additionalPreferences: [] },
-  matches: [{ trainerId: trainer.id, clubId: trainer.clubIds[0], reasons: [trainer.summary], locationReason: "Battersea fits your training area." }],
+  brief: { goal: "Build strength and feel confident", experience: "Beginner", coachingStyle: "Patient", specialistNeeds: [], membership: "non-member", membershipType: "unknown", homeClubIds: [], accessibleClubIds: [], excludedClubIds: [], locationAnchors: ["Wimbledon"], budget: "£90", additionalPreferences: [] },
+  matches: [{ trainerId: trainer.id, clubId: trainer.clubIds[0], reasons: [trainer.summary], locationReason: "Wimbledon fits your training area." }],
   unconfirmed: ["Individual trainer prices and session availability need confirming.", "A Third Space membership is required."],
 };
 
@@ -41,24 +43,27 @@ beforeEach(() => {
   api.findThirdSpaceMatches.mockResolvedValue(results);
 });
 
-it("completes an anonymous journey, opens the real profile and preserves valid history for refinement", async () => {
+it("completes an anonymous journey, identifies fictional profiles and preserves valid history for refinement", async () => {
   const storage = vi.spyOn(Storage.prototype, "setItem");
   render(<ThirdSpaceDemo />);
+  expect(screen.getByText(/AI matchmaking demo with fictional trainers/)).toBeInTheDocument();
   expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
   await start();
   expect(screen.getByText(OPENING_MESSAGE)).toBeInTheDocument();
-  typeAndSend("I want to build strength. I’m a beginner near Battersea, not a member yet, and I can spend £90 an hour.");
-  await screen.findByRole("heading", { name: "Your people. Your potential." });
+  typeAndSend("I want to build strength. I’m a beginner near Wimbledon, not a member yet, and I can spend £90 an hour.");
+  await screen.findByRole("heading", { name: "Meet your matches" });
   expect(api.runThirdSpaceTurn).toHaveBeenCalledTimes(1);
   expect(api.findThirdSpaceMatches).toHaveBeenCalledTimes(1);
   expect(screen.queryByText(/sign in|create an account|email address/i)).not.toBeInTheDocument();
   expect(storage).not.toHaveBeenCalled();
+  expect(screen.getByText(/10 fictional trainer profiles/)).toBeInTheDocument();
   const card = screen.getByRole("button", { name: `View ${trainer.name.split(" ")[0]}’s profile` });
   card.focus();
   fireEvent.click(card);
   const panel = screen.getByRole("dialog", { name: trainer.name });
   expect(within(panel).getByText(trainer.bio)).toBeInTheDocument();
-  expect(within(panel).getByRole("link", { name: /View original Third Space profile/ })).toHaveAttribute("href", trainer.sourceUrl);
+  expect(within(panel).queryByRole("link", { name: /View original Third Space profile/ })).not.toBeInTheDocument();
+  expect(within(panel).getByText("Fictional profile for this demo. Sessions are not available to book.")).toBeInTheDocument();
   expect(within(panel).getByRole("button", { name: "Close trainer profile" })).toHaveFocus();
   fireEvent(panel, new Event("cancel", { bubbles: true, cancelable: true }));
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
@@ -70,7 +75,23 @@ it("completes an anonymous journey, opens the real profile and preserves valid h
   expect(transcript.filter((message) => message.role === "user")).toHaveLength(2);
   expect(transcript[1].content).toContain("£90");
   expect(() => validateTranscript({ messages: transcript }, true)).not.toThrow();
-  await screen.findByRole("heading", { name: "Your people. Your potential." });
+  await screen.findByRole("heading", { name: "Meet your matches" });
+});
+
+it("retains original-profile links for explicitly sourced profiles", () => {
+  const sourced = { ...trainer, kind: "sourced" as const, sourceUrl: "https://www.thirdspace.london/trainer/test-profile/", verifiedAt: "2026-09-24" };
+  render(<ProfilePanel trainer={sourced} club={CLUBS.find(club => club.id === trainer.clubIds[0])} match={results.matches[0]} onClose={vi.fn()} />);
+  expect(screen.getByRole("link", { name: /View original Third Space profile/ })).toHaveAttribute("href", sourced.sourceUrl);
+  expect(screen.queryByText(/Fictional profile/)).not.toBeInTheDocument();
+});
+
+it("rejects a stale sourced trainer returned by an older backend", async () => {
+  api.findThirdSpaceMatches.mockResolvedValueOnce({ ...results, matches: [{ ...results.matches[0], trainerId: "amy-leese" }] });
+  render(<ThirdSpaceDemo />);
+  await start();
+  typeAndSend("Build strength at Wimbledon");
+  expect(await screen.findByRole("alert")).toHaveTextContent("Your conversation is still here");
+  expect(screen.queryByRole("button", { name: /View .*profile/ })).not.toBeInTheDocument();
 });
 
 it("uses the exact hourly budget suggestions while accepting a different typed amount", async () => {
@@ -82,7 +103,7 @@ it("uses the exact hourly budget suggestions while accepting a different typed a
   const suggestions = screen.getByLabelText("Suggested answers");
   expect(within(suggestions).getAllByRole("button").map((button) => button.textContent)).toEqual(BUDGET_QUICK_REPLIES);
   typeAndSend("£110 per hour");
-  await screen.findByRole("heading", { name: "Your people. Your potential." });
+  await screen.findByRole("heading", { name: "Meet your matches" });
   expect(api.runThirdSpaceTurn.mock.calls[1][0].at(-1).content).toBe("£110 per hour");
 });
 
@@ -95,7 +116,7 @@ it("retries a failed AI turn without duplicating or losing the answer", async ()
   expect(await screen.findByText("Train for my first marathon")).toBeInTheDocument();
   expect(screen.getByRole("textbox", { name: "Your message" })).toBeDisabled();
   fireEvent.click(screen.getByRole("button", { name: "Try again" }));
-  await screen.findByRole("heading", { name: "Your people. Your potential." });
+  await screen.findByRole("heading", { name: "Meet your matches" });
   expect(api.runThirdSpaceTurn.mock.calls[0][0]).toEqual(api.runThirdSpaceTurn.mock.calls[1][0]);
 });
 
@@ -107,7 +128,7 @@ it("retries matching independently and never shows fabricated results on failure
   expect(await screen.findByRole("alert")).toHaveTextContent("Your conversation is still here");
   expect(screen.queryByRole("button", { name: /View .*profile/ })).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Try again" }));
-  await screen.findByRole("heading", { name: "Your people. Your potential." });
+  await screen.findByRole("heading", { name: "Meet your matches" });
   expect(api.runThirdSpaceTurn).toHaveBeenCalledTimes(1);
   expect(api.findThirdSpaceMatches.mock.calls[0][0]).toEqual(api.findThirdSpaceMatches.mock.calls[1][0]);
 });
