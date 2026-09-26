@@ -112,13 +112,23 @@ jobs:
           npm ci --prefix functions-third-space
           npm run verify:third-space
 
-      - name: Include matching demo alongside Petey
+      - name: Verify and build Third Space admin demo
+        working-directory: .third-space-source
+        run: |
+          npx vitest run src/third-space-demo-admin
+          npm run build:third-space-admin
+
+      - name: Include Third Space demos alongside Petey
         run: |
           test -f dist/index.html
           test -f .third-space-source/dist-third-space/index.html
+          test -f .third-space-source/dist-third-space-admin/index.html
           mkdir -p dist/third-space-demo
+          mkdir -p dist/third-space-demo-admin
           cp -R .third-space-source/dist-third-space/. dist/third-space-demo/
+          cp -R .third-space-source/dist-third-space-admin/. dist/third-space-demo-admin/
           test -f dist/third-space-demo/index.html
+          test -f dist/third-space-demo-admin/index.html
 
       - name: Upload site artifact
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5
