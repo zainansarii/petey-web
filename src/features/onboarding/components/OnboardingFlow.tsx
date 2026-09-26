@@ -105,7 +105,7 @@ const createHandoffPreviewSessionV4 = (): OnboardingConversationSessionV4 => {
 };
 
 const readableError = (error: unknown, fallback: string) => {
-  const message = error instanceof Error ? error.message.trim() : "";
+  const message = typeof error === "string" ? error.trim() : error instanceof Error ? error.message.trim() : "";
   return !message || /^(?:internal|unknown|not found)$/i.test(message) ? fallback : message;
 };
 
@@ -959,6 +959,8 @@ function ChatHeader({
 
 function AssistantMessage() {
   const messageIndex = useAuiState((state) => state.message.index);
+  const error = useAuiState(({ message }) => message.status?.type === "incomplete" && message.status.reason === "error"
+    ? message.status.error : undefined);
   const reducedMotion = useReducedMotion();
   const openingDelay = messageIndex === 0 ? 80 : messageIndex === 1 ? 680 : 0;
   return (
@@ -968,7 +970,7 @@ function AssistantMessage() {
         <MessagePrimitive.Parts components={{ Empty: AssistantPending, Text: GenerativeText }} />
         <MessagePrimitive.Error>
           <div className="chat-message__failure" role="alert">
-            <ErrorPrimitive.Root className="chat-message__error"><ErrorPrimitive.Message /></ErrorPrimitive.Root>
+            <ErrorPrimitive.Root className="chat-message__error"><ErrorPrimitive.Message>{readableError(error, "I couldn’t reply just now. Your answer is still here; please try again.")}</ErrorPrimitive.Message></ErrorPrimitive.Root>
             <ActionBarPrimitive.Root>
               <ActionBarPrimitive.Reload className="chat-message__retry" type="button"><RotateCcw size={15} /> Try again</ActionBarPrimitive.Reload>
             </ActionBarPrimitive.Root>

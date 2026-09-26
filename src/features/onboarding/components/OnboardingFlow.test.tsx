@@ -235,6 +235,27 @@ describe("web onboarding V4 local conversation and secure handoff", () => {
     expect(screen.getByRole("progressbar", { name: /conversation progress/i })).toHaveAttribute("aria-valuenow", "27");
   });
 
+  it("explains an internal chat failure and retries the same answer without duplicating it", async () => {
+    api.runWebOnboardingTurnV4.mockRejectedValueOnce(new Error("internal"));
+    api.runWebOnboardingTurnV4.mockImplementation(() => streamedTurn({
+      reply: "What would getting stronger help you do?",
+      readyForReview: false,
+      quickReplies: [],
+    }));
+    render(<Harness />);
+
+    await sendAnswer("I want to build strength");
+
+    expect(await screen.findByText("I couldn’t reply just now. Your answer is still here; please try again.")).toBeInTheDocument();
+    expect(screen.queryByText("internal", { exact: true })).not.toBeInTheDocument();
+    expect(screen.getByText("I want to build strength", { selector: ".chat-message--user *" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+
+    expect(await screen.findByText("What would getting stronger help you do?")).toBeInTheDocument();
+    expect(api.runWebOnboardingTurnV4).toHaveBeenCalledTimes(2);
+    expect(api.runWebOnboardingTurnV4.mock.calls[1][0].messages).toEqual(api.runWebOnboardingTurnV4.mock.calls[0][0].messages);
+  });
+
   it("moves the chat viewport to the latest message when a new turn starts", async () => {
     api.runWebOnboardingTurnV4.mockImplementation(() => streamedTurn({
       reply: "What would you like to focus on next?",
