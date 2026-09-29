@@ -1,13 +1,8 @@
 import { providerErrorDetails } from "./providerErrorDetails.js";
 import { createHash, randomUUID } from "node:crypto";
 export { webMarketplaceV1, deliverWebMarketplaceNotificationsV1, deleteWebMarketplaceAccountV1 } from "./webMarketplace.js";
-import {
-  type Content,
-  GoogleGenAI,
-  HarmBlockThreshold,
-  HarmCategory,
-  ThinkingLevel,
-} from "@google/genai";
+import { generateOpenAIText, streamOpenAIText, MODEL_ROUTES, type ModelMessage } from "./openai.js";
+import { openaiApiKey, openaiClient } from "./modelRuntime.js";
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore, Timestamp, type DocumentReference } from "firebase-admin/firestore";
 import { logger } from "firebase-functions";
@@ -81,18 +76,14 @@ const consumptions = db.collection("_webOnboardingConsumptionsV3");
 const profiles = db.collection("webClientProfiles");
 const health = db.collection("webClientHealth");
 
-const geminiModel = defineString("WEB_ONBOARDING_GEMINI_MODEL_V3", { default: "gemini-3.7-flash" });
-const chatGeminiModelV4 = defineString("WEB_ONBOARDING_CHAT_MODEL_V4", { default: "gemini-3.5-flash-lite" });
-const summaryGeminiModelV4 = defineString("WEB_ONBOARDING_SUMMARY_MODEL_V4", { default: "gemini-3.7-flash" });
-const matchingGeminiModel = defineString("WEB_MATCHING_GEMINI_MODEL_V1", { default: "gemini-3.7-flash" });
 const runtimeServiceAccount = defineString("WEB_ONBOARDING_SERVICE_ACCOUNT_V3");
 const REGION = "europe-west2";
-const GEMINI_LOCATION = "global";
 const callableOptions = {
   region: REGION,
   enforceAppCheck: true,
   serviceAccount: runtimeServiceAccount,
 } as const;
+const modelCallableOptions = { ...callableOptions, secrets: [openaiApiKey] };
 const DRAFT_TTL_MS = 24 * 60 * 60 * 1_000;
 const CONSUMPTION_TTL_MS = 7 * 24 * 60 * 60 * 1_000;
 const MAX_MESSAGE_LENGTH = 2_000;
@@ -642,13 +633,6 @@ export const reconcileConversationTurnV4 = ({
   };
 };
 
-const providerSafetySettings = [
-  HarmCategory.HARM_CATEGORY_HARASSMENT,
-  HarmCategory.HARM_CATEGORY_HATE_SPEECH,
-  HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
-  HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-].map((category) => ({ category, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH }));
-
 const conversationalResponseJsonSchema = {
   type: "object",
   additionalProperties: false,
@@ -690,32 +674,10 @@ const conversationalResponseJsonSchema = {
   },
 } as const;
 
-const conversationThinkingConfigV4 = (model: string) => {
-  if (model.startsWith("gemini-2.")) return { thinkingBudget: 0 };
-  if (model.startsWith("gemini-3.7")) return { thinkingLevel: ThinkingLevel.LOW };
-  return { thinkingLevel: ThinkingLevel.MINIMAL };
-};
-
-export const conversationHistoryForGeminiV3 = (messages: OnboardingChatMessage[]): Content[] => {
+export const conversationHistoryForOpenAI = (messages: OnboardingChatMessage[]): ModelMessage[] => {
   const firstUserMessage = messages.findIndex(({ role }) => role === "user");
   if (firstUserMessage < 0) return [];
-  return messages.slice(firstUserMessage).map(({ role, text }) => ({
-    role: role === "assistant" ? "model" : "user",
-    parts: [{ text }],
-  }));
-};
-
-let cachedGeminiClient: GoogleGenAI | null = null;
-let cachedGeminiProject: string | null = null;
-
-const geminiClient = () => {
-  const project = process.env.GCLOUD_PROJECT ?? process.env.GOOGLE_CLOUD_PROJECT;
-  if (!project) throw new Error("The Gemini project is not configured.");
-  if (!cachedGeminiClient || cachedGeminiProject !== project) {
-    cachedGeminiClient = new GoogleGenAI({ vertexai: true, project, location: GEMINI_LOCATION });
-    cachedGeminiProject = project;
-  }
-  return cachedGeminiClient;
+  return messages.slice(firstUserMessage).map(({ role, text }) => ({ role, content: text }));
 };
 
 export const extractReplyPrefixFromStructuredStreamV4 = (raw: string) => {
@@ -755,121 +717,75 @@ export const extractReplyPrefixFromStructuredStreamV4 = (raw: string) => {
   return result;
 };
 
+const conversationSystemInstruction = (userTurns: number, requiredPracticalTopics: RequiredPracticalTopicsV3) => `${ONBOARDING_CONVERSATION_SYSTEM_PROMPT}
+
+Private turn state supplied by the application:
+- This is the first answer to the opening goal question: ${userTurns === 1 ? "yes" : "no"}
+- General trainer fit has been explicitly asked and answered: ${requiredPracticalTopics.coachingStyleAnswered ? "yes" : "no"}
+- Trainer gender preference has been explicitly asked and answered: ${requiredPracticalTopics.trainerGenderPreferenceAnswered ? "yes" : "no"}
+- Training setting has been explicitly asked and answered: ${requiredPracticalTopics.trainingSettingAnswered ? "yes" : "no"}
+- Location (rough area or confirmed online-only) has been explicitly asked and answered: ${requiredPracticalTopics.locationAnswered ? "yes" : "no"}
+- Training frequency with the trainer has been explicitly asked and answered: ${requiredPracticalTopics.trainingFrequencyAnswered ? "yes" : "no"}
+- Availability has been explicitly asked and answered: ${requiredPracticalTopics.availabilityAnswered ? "yes" : "no"}
+- Budget has been explicitly asked and answered: ${requiredPracticalTopics.budgetAnswered ? "yes" : "no"}
+Treat the seven explicit topic flags as authoritative. Assess trainee and trainer depth yourself from the full
+conversation according to the system prompt. Keep trainer coverage false while general trainer fit or trainer gender says "no".
+Keep sessions coverage false while a required sessions topic says "no". Ask for missing coverage naturally,
+and never use the number of messages to decide coverage or completion.
+Prompt-led sequencing, with no semantic backend gate:
+- If the transcript lacks a distinct answered practical goal follow-up after the opening answer, ask it now.
+- If general trainer fit is "yes" but the transcript lacks a distinct answered relationship follow-up after that
+  answer, ask it now before trainer gender or any sessions topic. Do not count the trainer-fit answer twice.
+- Inspect the transcript yourself and do not repeat either follow-up once it has been answered.`;
+
 const runConversationModelV4 = async (
   messages: OnboardingChatMessage[],
   onReplyDelta?: (delta: string) => Promise<void>,
   abortSignal?: AbortSignal,
 ) => {
-  const latestUserMessage = messages.at(-1);
-  if (latestUserMessage?.role !== "user") throw new Error("The conversation is missing the latest answer.");
-  const history = messages.slice(0, -1);
+  if (messages.at(-1)?.role !== "user") throw new Error("The conversation is missing the latest answer.");
   const userTurns = messages.filter(({ role }) => role === "user").length;
   const requiredPracticalTopics = requiredPracticalTopicsForTranscriptV3(messages);
-  const model = chatGeminiModelV4.value();
-  const chat = geminiClient().chats.create({
-    model,
-    history: conversationHistoryForGeminiV3(history),
-    config: {
-      systemInstruction: `${ONBOARDING_CONVERSATION_SYSTEM_PROMPT}
-
-Private turn state supplied by the application:
-- This is the first answer to the opening goal question: ${userTurns === 1 ? "yes" : "no"}
-- General trainer fit has been explicitly asked and answered: ${requiredPracticalTopics.coachingStyleAnswered ? "yes" : "no"}
-- Trainer gender preference has been explicitly asked and answered: ${requiredPracticalTopics.trainerGenderPreferenceAnswered ? "yes" : "no"}
-- Training setting has been explicitly asked and answered: ${requiredPracticalTopics.trainingSettingAnswered ? "yes" : "no"}
-- Location (rough area or confirmed online-only) has been explicitly asked and answered: ${requiredPracticalTopics.locationAnswered ? "yes" : "no"}
-- Training frequency with the trainer has been explicitly asked and answered: ${requiredPracticalTopics.trainingFrequencyAnswered ? "yes" : "no"}
-- Availability has been explicitly asked and answered: ${requiredPracticalTopics.availabilityAnswered ? "yes" : "no"}
-- Budget has been explicitly asked and answered: ${requiredPracticalTopics.budgetAnswered ? "yes" : "no"}
-Treat the seven explicit topic flags as authoritative. Assess trainee and trainer depth yourself from the full
-conversation according to the system prompt. Keep trainer coverage false while general trainer fit or trainer gender says "no".
-Keep sessions coverage false while a required sessions topic says "no". Ask for missing coverage naturally,
-and never use the number of messages to decide coverage or completion.
-Prompt-led sequencing, with no semantic backend gate:
-- If the transcript lacks a distinct answered practical goal follow-up after the opening answer, ask it now.
-- If general trainer fit is "yes" but the transcript lacks a distinct answered relationship follow-up after that
-  answer, ask it now before trainer gender or any sessions topic. Do not count the trainer-fit answer twice.
-- Inspect the transcript yourself and do not repeat either follow-up once it has been answered.`,
-      responseMimeType: "application/json",
-      responseJsonSchema: conversationalResponseJsonSchema,
-      maxOutputTokens: 256,
-      thinkingConfig: conversationThinkingConfigV4(model),
-      safetySettings: providerSafetySettings,
-    },
-  });
   const modelStartedAt = Date.now();
-  const stream = await chat.sendMessageStream({ message: latestUserMessage.text });
-  let raw = "";
+  let streamedRaw = "";
   let streamedReply = "";
   let modelFirstChunkMs: number | null = null;
   let firstReplyChunkMs: number | null = null;
-
-  for await (const chunk of stream) {
+  const raw = await streamOpenAIText(openaiClient(), {
+    task: "chat",
+    systemInstruction: conversationSystemInstruction(userTurns, requiredPracticalTopics),
+    input: conversationHistoryForOpenAI(messages),
+    schema: { name: "onboarding_turn", json: conversationalResponseJsonSchema },
+    maxOutputTokens: 8_192, timeoutMs: 45_000, signal: abortSignal,
+  }, async delta => {
     if (abortSignal?.aborted) throw new HttpsError("cancelled", "The request was cancelled.");
     if (modelFirstChunkMs === null) modelFirstChunkMs = Date.now() - modelStartedAt;
-    raw += chunk.text ?? "";
-    const replyPrefix = extractReplyPrefixFromStructuredStreamV4(raw);
-    if (replyPrefix.length <= streamedReply.length) continue;
-    const delta = replyPrefix.slice(streamedReply.length);
+    streamedRaw += delta;
+    const replyPrefix = extractReplyPrefixFromStructuredStreamV4(streamedRaw);
+    if (replyPrefix.length <= streamedReply.length) return;
+    const replyDelta = replyPrefix.slice(streamedReply.length);
     streamedReply = replyPrefix;
     if (onReplyDelta) {
-      await onReplyDelta(delta);
+      await onReplyDelta(replyDelta);
       if (firstReplyChunkMs === null) firstReplyChunkMs = Date.now() - modelStartedAt;
     }
-  }
-
-  if (!raw) throw new Error("The model returned no content.");
+  });
   return {
-    turn: parseConversationalModelOutputV3(raw),
-    modelFirstChunkMs,
-    firstReplyChunkMs,
-    modelTotalMs: Date.now() - modelStartedAt,
-    userTurns,
-    requiredPracticalTopics,
+    turn: parseConversationalModelOutputV3(raw), modelFirstChunkMs, firstReplyChunkMs,
+    modelTotalMs: Date.now() - modelStartedAt, userTurns, requiredPracticalTopics,
   };
 };
 
 const runConversationModel = async (
-  messages: OnboardingChatMessage[],
-  userMessage: string,
-  userTurns: number,
+  messages: OnboardingChatMessage[], userMessage: string, userTurns: number,
   requiredPracticalTopics: RequiredPracticalTopicsV3,
-) => {
-  const chat = geminiClient().chats.create({
-    model: geminiModel.value(),
-    history: conversationHistoryForGeminiV3(messages),
-    config: {
-      systemInstruction: `${ONBOARDING_CONVERSATION_SYSTEM_PROMPT}
-
-Private turn state supplied by the application:
-- This is the first answer to the opening goal question: ${userTurns === 1 ? "yes" : "no"}
-- General trainer fit has been explicitly asked and answered: ${requiredPracticalTopics.coachingStyleAnswered ? "yes" : "no"}
-- Trainer gender preference has been explicitly asked and answered: ${requiredPracticalTopics.trainerGenderPreferenceAnswered ? "yes" : "no"}
-- Training setting has been explicitly asked and answered: ${requiredPracticalTopics.trainingSettingAnswered ? "yes" : "no"}
-- Location (rough area or confirmed online-only) has been explicitly asked and answered: ${requiredPracticalTopics.locationAnswered ? "yes" : "no"}
-- Training frequency with the trainer has been explicitly asked and answered: ${requiredPracticalTopics.trainingFrequencyAnswered ? "yes" : "no"}
-- Availability has been explicitly asked and answered: ${requiredPracticalTopics.availabilityAnswered ? "yes" : "no"}
-- Budget has been explicitly asked and answered: ${requiredPracticalTopics.budgetAnswered ? "yes" : "no"}
-Treat the seven explicit topic flags as authoritative. Assess trainee and trainer depth yourself from the full
-conversation according to the system prompt. Keep trainer coverage false while general trainer fit or trainer gender says "no".
-Keep sessions coverage false while a required sessions topic says "no". Ask for missing coverage naturally,
-and never use the number of messages to decide coverage or completion.
-Prompt-led sequencing, with no semantic backend gate:
-- If the transcript lacks a distinct answered practical goal follow-up after the opening answer, ask it now.
-- If general trainer fit is "yes" but the transcript lacks a distinct answered relationship follow-up after that
-  answer, ask it now before trainer gender or any sessions topic. Do not count the trainer-fit answer twice.
-- Inspect the transcript yourself and do not repeat either follow-up once it has been answered.`,
-      responseMimeType: "application/json",
-      responseJsonSchema: conversationalResponseJsonSchema,
-      maxOutputTokens: 512,
-      thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
-      safetySettings: providerSafetySettings,
-    },
-  });
-  const response = await chat.sendMessage({ message: userMessage });
-  if (!response.text) throw new Error("The model returned no content.");
-  return parseConversationalModelOutputV3(response.text);
-};
+) => parseConversationalModelOutputV3(await generateOpenAIText(openaiClient(), {
+  task: "chat",
+  systemInstruction: conversationSystemInstruction(userTurns, requiredPracticalTopics),
+  input: [...conversationHistoryForOpenAI(messages), { role: "user", content: userMessage }],
+  schema: { name: "onboarding_turn", json: conversationalResponseJsonSchema },
+  maxOutputTokens: 8_192, timeoutMs: 45_000,
+}));
 
 export const normalizeProfileMarkdownV3 = (raw: string) => {
   const markdown = cleanModelText(raw);
@@ -879,19 +795,12 @@ export const normalizeProfileMarkdownV3 = (raw: string) => {
 
 const runMarkdownProfileGeneration = async (messages: OnboardingChatMessage[]) => {
   const transcript = messages.map(({ role, text }) => ({ role, text }));
-  const response = await geminiClient().models.generateContent({
-    model: summaryGeminiModelV4.value(),
-    contents: `Create the Markdown training brief from this conversation:\n${JSON.stringify(transcript)}`,
-    config: {
-      systemInstruction: ONBOARDING_MARKDOWN_PROFILE_SYSTEM_PROMPT,
-      responseMimeType: "text/plain",
-      maxOutputTokens: 2_000,
-      thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
-      safetySettings: providerSafetySettings,
-    },
+  const text = await generateOpenAIText(openaiClient(), {
+    task: "matching", systemInstruction: ONBOARDING_MARKDOWN_PROFILE_SYSTEM_PROMPT,
+    input: `Create the Markdown training brief from this conversation:\n${JSON.stringify(transcript)}`,
+    maxOutputTokens: 16_384, timeoutMs: 45_000,
   });
-  if (!response.text) throw new Error("The model returned no profile document.");
-  return normalizeProfileMarkdownV3(response.text);
+  return normalizeProfileMarkdownV3(text);
 };
 
 const storeMessage = (
@@ -1079,7 +988,7 @@ export const runWebOnboardingTurnV3 = onCall<
   Promise<RunWebOnboardingTurnV3Response | RunWebOnboardingTurnV4Response>,
   RunWebOnboardingTurnV4StreamChunk
 >(
-  { ...callableOptions, timeoutSeconds: 60, minInstances: 1 },
+  { ...modelCallableOptions, timeoutSeconds: 60, minInstances: 0 },
   async (request, response) => {
     if (Array.isArray((request.data as Partial<RunWebOnboardingTurnV4Request>)?.messages)) {
       return handleWebOnboardingTurnV4(
@@ -1204,7 +1113,7 @@ export const runWebOnboardingTurnV4 = onCall<
   Promise<RunWebOnboardingTurnV4Response>,
   RunWebOnboardingTurnV4StreamChunk
 >(
-  { ...callableOptions, timeoutSeconds: 60, minInstances: 1 },
+  { ...modelCallableOptions, timeoutSeconds: 60, minInstances: 0 },
   handleWebOnboardingTurnV4,
 );
 
@@ -1233,6 +1142,7 @@ async function handleWebOnboardingTurnV4(
         response?.signal,
       );
     } catch (error) {
+      if (response?.signal.aborted) throw new HttpsError("cancelled", "The request was cancelled.");
       const details = providerErrorDetails(error);
       logger.error("web_onboarding_conversation_failed_v4", {
         rateLimitMs,
@@ -1244,7 +1154,7 @@ async function handleWebOnboardingTurnV4(
       if (project === DEVELOPMENT_PROJECT_ID) {
         throw new HttpsError(
           "unavailable",
-          `Gemini dev error: ${details.errorStatus ?? details.errorCode ?? "unknown"}`,
+          `OpenAI dev error: ${details.errorStatus ?? details.errorCode ?? "unknown"}`,
         );
       }
       throw new HttpsError("unavailable", "I couldn’t reply just now. Your answer is still here — please try again.");
@@ -1262,7 +1172,7 @@ async function handleWebOnboardingTurnV4(
       totalMs: Date.now() - handlerStartedAt,
     };
     logger.info("web_onboarding_conversation_turn_v4", {
-      model: chatGeminiModelV4.value(),
+      model: MODEL_ROUTES.chat.model,
       turnCount: modelResult.userTurns,
       readyForReview: result.readyForReview,
       ...timings,
@@ -1274,7 +1184,7 @@ export const finalizeWebOnboardingDraftV3 = onCall<
   FinalizeWebOnboardingDraftV3Request | FinalizeWebOnboardingV4Request,
   Promise<FinalizeWebOnboardingDraftV3Response | FinalizeWebOnboardingV4Response>
 >(
-  { ...callableOptions, timeoutSeconds: 60 },
+  { ...modelCallableOptions, timeoutSeconds: 60 },
   async (request) => {
     if (Array.isArray((request.data as Partial<FinalizeWebOnboardingV4Request>)?.messages)) {
       return handleFinalizeWebOnboardingV4(request as CallableRequest<FinalizeWebOnboardingV4Request>);
@@ -1348,7 +1258,7 @@ export const finalizeWebOnboardingDraftV3 = onCall<
 );
 
 export const finalizeWebOnboardingV4 = onCall<FinalizeWebOnboardingV4Request, Promise<FinalizeWebOnboardingV4Response>>(
-  { ...callableOptions, timeoutSeconds: 60 },
+  { ...modelCallableOptions, timeoutSeconds: 60 },
   handleFinalizeWebOnboardingV4,
 );
 
@@ -1451,7 +1361,7 @@ async function handleFinalizeWebOnboardingV4(
       totalMs: Date.now() - handlerStartedAt,
     };
     logger.info("web_onboarding_finalized_v4", {
-      model: summaryGeminiModelV4.value(),
+      model: MODEL_ROUTES.matching.model,
       turnCount: userTurns,
       profileLength: profileMarkdown.length,
       ...timings,
@@ -1464,30 +1374,18 @@ async function handleFinalizeWebOnboardingV4(
   };
 }
 
-const runMatchingModel = async (input: TrainerMatchingRequest) => {
-  const response = await geminiClient().models.generateContent({
-    model: matchingGeminiModel.value(),
-    contents: input.contents,
-    config: {
-      systemInstruction: input.systemInstruction,
-      responseMimeType: "application/json",
-      responseJsonSchema: input.responseJsonSchema,
-      maxOutputTokens: 4_096,
-      thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
-      safetySettings: providerSafetySettings,
-      httpOptions: { timeout: 60_000 },
-    },
-  });
-  if (!response.text) throw new Error("The model returned no matching decisions.");
-  return response.text;
-};
+const runMatchingModel = (input: TrainerMatchingRequest) => generateOpenAIText(openaiClient(), {
+  task: "matching", systemInstruction: input.systemInstruction, input: input.contents,
+  schema: { name: "trainer_matches", json: input.responseJsonSchema },
+  maxOutputTokens: 16_384, timeoutMs: 60_000,
+});
 
 const matchingForProfile = (ref: DocumentReference, profileMarkdown: string) => ensureWebMatching({
-  db, ref, profileMarkdown, model: matchingGeminiModel.value(), generateContent: runMatchingModel,
+  db, ref, profileMarkdown, model: MODEL_ROUTES.matching.model, generateContent: runMatchingModel,
 });
 
 export const matchWebOnboardingDraftV1 = onCall<DraftCapability, Promise<{ matching: MatchPreviewResult }>>(
-  { ...callableOptions, timeoutSeconds: 300, memory: "512MiB" },
+  { ...modelCallableOptions, timeoutSeconds: 300, memory: "512MiB" },
   async (request) => {
     ensureAppCheck(request);
     const input = parseData(capabilityRequestSchema, request.data);
@@ -1495,7 +1393,7 @@ export const matchWebOnboardingDraftV1 = onCall<DraftCapability, Promise<{ match
     if (!["review", "confirmed"].includes(doc.status) || !doc.profileMarkdown) {
       throw new HttpsError("failed-precondition", "Prepare your matching details first.");
     }
-    if (!readSavedMatching(doc.matching, doc.profileMarkdown)) {
+    if (!readSavedMatching(doc.matching, doc.profileMarkdown, MODEL_ROUTES.matching.model)) {
       await enforceRateLimit(`matching:${input.draftId}`, 8, 60 * 60 * 1_000);
       await enforceRateLimit(`matching-ip:${requestIpKey(request)}`, 30, 60 * 60 * 1_000);
     }
@@ -1507,7 +1405,7 @@ export const matchWebOnboardingDraftV1 = onCall<DraftCapability, Promise<{ match
 );
 
 export const confirmWebOnboardingDraftV3 = onCall<ConfirmWebOnboardingDraftV3Request, Promise<ConfirmWebOnboardingDraftV3Response>>(
-  { ...callableOptions, timeoutSeconds: 300, memory: "512MiB" },
+  { ...modelCallableOptions, timeoutSeconds: 300, memory: "512MiB" },
   async (request) => {
     ensureAppCheck(request);
     const input = parseData(confirmRequestSchema, request.data);
@@ -1528,7 +1426,7 @@ export const confirmWebOnboardingDraftV3 = onCall<ConfirmWebOnboardingDraftV3Req
     // Previously opened clients may still confirm without calling the new
     // preview endpoint. Complete their matching server-side before accepting
     // signup, while keeping the normal new-client path a cached read.
-    if (!readSavedMatching(initialDoc.matching, profileMarkdown.data)) {
+    if (!readSavedMatching(initialDoc.matching, profileMarkdown.data, MODEL_ROUTES.matching.model)) {
       await enforceRateLimit(`matching:${input.draftId}`, 8, 60 * 60 * 1_000);
       await enforceRateLimit(`matching-ip:${requestIpKey(request)}`, 30, 60 * 60 * 1_000);
       await matchingForProfile(ref, profileMarkdown.data);
@@ -1542,7 +1440,7 @@ export const confirmWebOnboardingDraftV3 = onCall<ConfirmWebOnboardingDraftV3Req
         throw new HttpsError("failed-precondition", "Prepare the matching details before confirming them.");
       }
       assertLiveDraft(doc);
-      if (profileMarkdown.data !== doc.profileMarkdown || !readSavedMatching(doc.matching, doc.profileMarkdown)) {
+      if (profileMarkdown.data !== doc.profileMarkdown || !readSavedMatching(doc.matching, doc.profileMarkdown, MODEL_ROUTES.matching.model)) {
         throw new HttpsError("failed-precondition", "Finish matching the current training brief before signing up.");
       }
       const version = doc.version + 1;
@@ -1567,7 +1465,7 @@ export const confirmWebOnboardingDraftV3 = onCall<ConfirmWebOnboardingDraftV3Req
 );
 
 export const consumeWebOnboardingDraftV3 = onCall<ConsumeWebOnboardingDraftV3Request, Promise<ConsumeWebOnboardingDraftV3Response>>(
-  { ...callableOptions, timeoutSeconds: 300, memory: "512MiB" },
+  { ...modelCallableOptions, timeoutSeconds: 300, memory: "512MiB" },
   async (request) => {
     ensureAppCheck(request);
     const input = parseData(capabilityRequestSchema, request.data);
@@ -1596,7 +1494,7 @@ export const consumeWebOnboardingDraftV3 = onCall<ConsumeWebOnboardingDraftV3Req
         throw new HttpsError("permission-denied", "This consumption capability is invalid.");
       }
       await db.recursiveDelete(drafts.doc(input.draftId));
-      const matching = readSavedMatching(data.matching, profileMarkdown.data)
+      const matching = readSavedMatching(data.matching, profileMarkdown.data, MODEL_ROUTES.matching.model)
         ?? await matchingForProfile(profiles.doc(uid), profileMarkdown.data);
       return { profileMarkdown: profileMarkdown.data, matches: await webMatchedProfiles(db, matching, uid) };
     }
@@ -1635,7 +1533,7 @@ export const consumeWebOnboardingDraftV3 = onCall<ConsumeWebOnboardingDraftV3Req
       }
       const isRetune = assertProfileConsumption(freshDoc, existingProfile.data(), authenticatedEmail);
       assertLiveDraft(freshDoc);
-      if (!readSavedMatching(freshDoc.matching, freshDoc.profileMarkdown)) {
+      if (!readSavedMatching(freshDoc.matching, freshDoc.profileMarkdown, MODEL_ROUTES.matching.model)) {
         throw new HttpsError("failed-precondition", "Finish finding your trainers before completing signup.");
       }
 
@@ -1675,7 +1573,7 @@ export const consumeWebOnboardingDraftV3 = onCall<ConsumeWebOnboardingDraftV3Req
 );
 
 export const getWebClientProfileV3 = onCall<Record<string, never>, Promise<GetWebClientProfileV3Response>>(
-  { ...callableOptions, timeoutSeconds: 300, memory: "512MiB" },
+  { ...modelCallableOptions, timeoutSeconds: 300, memory: "512MiB" },
   async (request) => {
     ensureAppCheck(request);
     if (!request.auth) throw new HttpsError("unauthenticated", "Sign in to load your matching profile.");
@@ -1687,7 +1585,7 @@ export const getWebClientProfileV3 = onCall<Record<string, never>, Promise<GetWe
     if (data.profileFormat !== "markdown-v1" || !profileMarkdown.success) {
       return { profileMarkdown: null, matches: [] };
     }
-    if (!readSavedMatching(data.matching, profileMarkdown.data)) {
+    if (!readSavedMatching(data.matching, profileMarkdown.data, MODEL_ROUTES.matching.model)) {
       await enforceRateLimit(`matching-user:${request.auth.uid}`, 8, 60 * 60 * 1_000);
     }
     const matching = await matchingForProfile(snapshot.ref, profileMarkdown.data);

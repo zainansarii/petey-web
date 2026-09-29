@@ -1,42 +1,18 @@
 // Opt-in checks against the real chat model, using synthetic conversations only.
-// Build functions-third-space first. Use ADC, or --gcloud-auth for an existing CLI login.
+// Build functions-third-space first and set OPENAI_API_KEY in the shell.
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
-import { GoogleGenAI, ThinkingLevel } from "../functions-third-space/node_modules/@google/genai/dist/node/index.mjs";
-import { OAuth2Client } from "../functions-third-space/node_modules/google-auth-library/build/src/index.js";
+import { createOpenAIClient, generateOpenAIText } from "../functions-third-space/lib/functions/src/openai.js";
 import { createThirdSpaceService } from "../functions-third-space/lib/functions-third-space/src/service.js";
-import { withTransientProviderRetry } from "../functions-third-space/lib/functions-third-space/src/provider-retry.js";
-import { BUDGET_QUICK_REPLIES, OPENING_MESSAGE } from "../functions-third-space/lib/third-space-shared/contract.js";
+import { generateModelResponse } from "../functions-third-space/lib/functions-third-space/src/generation.js";
+import { BUDGET_QUICK_REPLIES, LOCATION_QUICK_REPLIES, OPENING_MESSAGE } from "../functions-third-space/lib/third-space-shared/contract.js";
 import { CLUBS, LONDON_LOCATIONS } from "../functions-third-space/lib/third-space-shared/locations.js";
 
 async function main() {
-  let authClient;
-  if (process.argv.includes("--gcloud-auth")) {
-    authClient = new OAuth2Client();
-    const token = execFileSync("gcloud", ["auth", "print-access-token"], {
-      encoding: "utf8", stdio: ["ignore", "pipe", "pipe"],
-    }).trim();
-    authClient.setCredentials({ access_token: token });
-  }
-  const model = process.env.THIRD_SPACE_CHAT_MODEL || "gemini-3.5-flash-lite";
-  const ai = new GoogleGenAI({
-    vertexai: true, project: process.env.GOOGLE_CLOUD_PROJECT || "petey-dev-getcass", location: "global",
-    ...(authClient ? { googleAuthOptions: { authClient } } : {}),
-  });
-  const service = createThirdSpaceService(async request => {
-    const result = await withTransientProviderRetry(() => ai.models.generateContent({
-      model, contents: request.contents,
-      config: {
-        systemInstruction: request.systemInstruction,
-        responseMimeType: "application/json", responseJsonSchema: request.responseJsonSchema,
-        temperature: 0.35, maxOutputTokens: 3000,
-        thinkingConfig: model.startsWith("gemini-2.") ? { thinkingBudget: 0 }
-          : { thinkingLevel: model.startsWith("gemini-3.7") ? ThinkingLevel.LOW : ThinkingLevel.MINIMAL },
-        httpOptions: { timeout: 20000, retryOptions: { attempts: 1 } },
-      },
-    }));
-    return result.text;
-  }, { trainers: [], clubs: CLUBS, locations: LONDON_LOCATIONS });
+  if (!process.env.OPENAI_API_KEY) throw new Error("Set OPENAI_API_KEY before running this opt-in evaluation.");
+  const client = createOpenAIClient(process.env.OPENAI_API_KEY);
+  const service = createThirdSpaceService(request => generateModelResponse(request, {
+    generateText: parameters => generateOpenAIText(client, parameters),
+  }), { trainers: [], clubs: CLUBS, locations: LONDON_LOCATIONS });
 
   const messages = (...replies) => [OPENING_MESSAGE, ...replies].map((content, index) => ({
     role: index % 2 === 0 ? "assistant" : "user", content,
@@ -112,6 +88,25 @@ async function main() {
       messages: messages(...trainee, ...coaching, practical[0], "Not a member yet.", ...practical.slice(4)),
       topics: ["location"], incomplete: "location",
     },
+    ...LOCATION_QUICK_REPLIES.map(area => ({
+      name: `Non-member moves on after choosing ${area}`,
+      messages: messages(...trainee, ...coaching, practical[0], "Not a member yet.",
+        "Where in London would be easiest for you to train?", area),
+      topics: ["budget"], covered: "location", incomplete: "budget",
+      forbiddenReplyPattern: /\b(home|office|commut\w*|based)\b/i,
+    })),
+    ...[...LOCATION_QUICK_REPLIES, "Near Liverpool Street", "Canary Wharf or Wimbledon"].map(area => ({
+      name: `Non-member completes after naming ${area}`,
+      messages: messages(...trainee, ...coaching, practical[0], "Not a member yet.", ...practical.slice(4),
+        "Where in London would be easiest for you to train?", area),
+      complete: true, covered: "location",
+    })),
+    {
+      name: "Non-member volunteered training area is not asked again",
+      messages: messages(...trainee, ...coaching, practical[0], "Not a member yet. I want to train in Wimbledon."),
+      topics: ["budget"], covered: "location", incomplete: "budget",
+      forbiddenReplyPattern: /\b(home|office|commut\w*|based)\b/i,
+    },
     {
       name: "Group member with phased access does not need another location question",
       messages: messages(...trainee, ...coaching, practical[0], "Yes, Group membership, home club City. I am still waitlisted for Moorgate.", ...practical.slice(4)),
@@ -150,8 +145,10 @@ async function main() {
       if (scenario.incomplete) assert.equal(turn.coverage[scenario.incomplete], false, "Premature topic coverage");
       if (scenario.covered) assert.equal(turn.coverage[scenario.covered], true, "Skip/no preference not respected");
       if (turn.topic === "budget") assert.deepEqual(turn.quickReplies, BUDGET_QUICK_REPLIES);
+      if (turn.topic === "location") assert.deepEqual(turn.quickReplies, LOCATION_QUICK_REPLIES);
       if (scenario.complete) assert.equal(turn.topic, "complete");
       if (scenario.replyPattern) assert.match(turn.reply, scenario.replyPattern);
+      if (scenario.forbiddenReplyPattern) assert.doesNotMatch(turn.reply, scenario.forbiddenReplyPattern);
     } catch (error) {
       failures += 1;
       console.error(`${scenario.name}: ${error.message}`);
@@ -162,6 +159,7 @@ async function main() {
 }
 
 main().catch(error => {
-  console.error(error.message);
+  console.error(JSON.stringify({ error: error.name, status: typeof error.status === "number" ? error.status : undefined,
+    ...(!process.env.OPENAI_API_KEY ? { message: "Set OPENAI_API_KEY before running this opt-in evaluation." } : {}) }));
   process.exitCode = 1;
 });

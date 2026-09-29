@@ -60,10 +60,10 @@ to read or write V3 drafts, web profiles, or web health records directly.
 
 ## Development rollout
 
-1. Provision the dedicated V3 Functions runtime identity with only
-   `roles/datastore.user` and `roles/aiplatform.user`. Configure
-   `WEB_ONBOARDING_SERVICE_ACCOUNT_V3`; optionally configure
-   `WEB_ONBOARDING_GEMINI_MODEL_V3` (default `gemini-3.7-flash`).
+1. Retain the dedicated V3 runtime identity and Firestore access configured by
+   `WEB_ONBOARDING_SERVICE_ACCOUNT_V3`. Model access now uses the server-only
+   `OPENAI_API_KEY` secret; see [OpenAI backend setup](openai-backend-setup.md).
+   The provider-only migration does not require the original data reset below.
 2. Run `npm run verify` and deploy the V3 backend:
 
    ```bash
@@ -77,7 +77,7 @@ to read or write V3 drafts, web profiles, or web health records directly.
    budget answers, and continuation beyond seven answers when needed.
 4. Enter development maintenance, run the web-only dry run, review exact counts,
    obtain privacy approval, and execute the web-only reset.
-5. Deploy the V3 frontend. Verify one native Gemini conversation, one call per
+5. Deploy the V3 frontend. Verify one OpenAI Responses conversation, one call per
    ordinary turn, contextual quick replies from that same call, no private
    response metadata exposed in chat, no secondary judge, automatic internal
    profile preparation only after availability and budget, no Markdown profile

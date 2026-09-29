@@ -1,0 +1,183 @@
+{
+  "snapshotDate": "2026-09-24",
+  "archivedAt": "2026-09-26",
+  "trainerCount": 40,
+  "files": {
+    "catalogue.json": {
+      "bytes": 38892,
+      "sha256": "55d4f60d257c879e414fdfbb0fc2ae5d30d5f49672b19a952ae141966c432fe8"
+    },
+    "catalogue.ts.txt": {
+      "bytes": 39174,
+      "sha256": "e37e6d74b6f089b040d6cd6cc91d465b5550d5bc54907aae39851f419fd098fa"
+    },
+    "locations.ts.txt": {
+      "bytes": 17564,
+      "sha256": "fcbcaba1a2b8ac6770fc987fff6be1982ec69ef630010efe7ed867e79f8b27bc"
+    },
+    "sources.md": {
+      "bytes": 20682,
+      "sha256": "1bee4bc2155a30dd11c4b2dfa99e2053695de3b6cea4774e16a7912ccf1d7513"
+    },
+    "trainers/alessandra-lumina.webp": {
+      "bytes": 26552,
+      "sha256": "352cb1053fb9e679b653bfe98053655849ca5f72b670b0c971025cf6243eca65"
+    },
+    "trainers/alish-hamdi.webp": {
+      "bytes": 13684,
+      "sha256": "2e3aa74e6fe70ccfb49b3bf12deb8e25a1a5f0505d2a6937fe019875c25282a1"
+    },
+    "trainers/alison-walsh.webp": {
+      "bytes": 20752,
+      "sha256": "dbbc1b005aa56299ff1132d92f238859cb9a4471a518af0d8c2966953549e3a7"
+    },
+    "trainers/aliyah-spacey-smith.webp": {
+      "bytes": 19306,
+      "sha256": "0408ed2dcf0091afae67d48bfaa930f3f8d74df0c7ce09fdf90d7ed9977f47cb"
+    },
+    "trainers/amy-kerr.webp": {
+      "bytes": 22764,
+      "sha256": "7deadd4ead7c4079059d9383eb0d18af3aa52f76c552abd8704dd174dc3a53d7"
+    },
+    "trainers/amy-leese.webp": {
+      "bytes": 29498,
+      "sha256": "15c161ce878e3261d8bbe5e1913f55283dcdc1bbcde12d7c09a55af12fc3ca02"
+    },
+    "trainers/andrea-mora.webp": {
+      "bytes": 21734,
+      "sha256": "a8b81eb388d406eaaefd005ea7311b12f1a8c8ed7fadae89084a77aef41a02e5"
+    },
+    "trainers/antonia-garton-sprenger.webp": {
+      "bytes": 16214,
+      "sha256": "554f37a730bdae6605f93809a41cf5a577557364474b3f6b9d5ca4297e50efbf"
+    },
+    "trainers/ayden-isaac-george.webp": {
+      "bytes": 46242,
+      "sha256": "6a9139cd747b1f9ae0ed878b26fbb303e37d33279eb5ab102479a0dd77cbd3ae"
+    },
+    "trainers/candi-bryant.webp": {
+      "bytes": 23070,
+      "sha256": "9e6dfb3629be5bd9f99bd3d41837e2615974d0ee0d985d55501dfa7f3ed29c51"
+    },
+    "trainers/cathy-brown.webp": {
+      "bytes": 16842,
+      "sha256": "7cb8c05908eea9578571c2273392df0cf88b269890520c60521bc6cc697b0642"
+    },
+    "trainers/chloe-hubbard.webp": {
+      "bytes": 27786,
+      "sha256": "5ede8eb896637e2dea4e5e551392c4389f1c1f56b950720c65a17f52e950b33a"
+    },
+    "trainers/claire-burton.webp": {
+      "bytes": 12908,
+      "sha256": "8824fe559175165cc2cf8a42a4ef1ab2dfc1b386c9c178c6fa6e464b43be462b"
+    },
+    "trainers/danny-webster.webp": {
+      "bytes": 12684,
+      "sha256": "d6648dc0a3eb07868fe865ff6956012353986d1f277d7d1df6ea10196aec18d0"
+    },
+    "trainers/darren-bruce.webp": {
+      "bytes": 17362,
+      "sha256": "a20e45f8ecc1c8b9efa5b5511e1bf69ea959f39f9692d43e711c9324ac1fcbcd"
+    },
+    "trainers/doug-anderson.webp": {
+      "bytes": 24194,
+      "sha256": "644c81a9fa783e6c0e87da774bb6094aedbf891f0358910e9501a2426dc270ef"
+    },
+    "trainers/dylan-mcmahon.webp": {
+      "bytes": 23246,
+      "sha256": "0903ff897cac891a3c2c241a01ada089f1a123833f4fd906dff7962676d6c06f"
+    },
+    "trainers/ella-bear.webp": {
+      "bytes": 17134,
+      "sha256": "a736efbd118fa2a63dbffd2e806bc93834c8518c560f076ab3f25ae26c82bb93"
+    },
+    "trainers/ethan-chen.webp": {
+      "bytes": 43226,
+      "sha256": "92354f9941ecca2f6843b481ea7d31dadd4802b1c2ec42250ef782bf7b499bcd"
+    },
+    "trainers/hannah-ross-2.webp": {
+      "bytes": 27926,
+      "sha256": "90fdde2d960926b63bb02b9c4abfe034eda8c380c85628f47e3bd751d38dd1a6"
+    },
+    "trainers/juliette-barron.webp": {
+      "bytes": 23680,
+      "sha256": "0407bff6878d13805e67f460f93f60c240120134a906b28556dc1294991dc75a"
+    },
+    "trainers/katie-morris.webp": {
+      "bytes": 19412,
+      "sha256": "993df234da9678596d56e94f91fc51aa622bf6194bf08ac8178850867ba139f2"
+    },
+    "trainers/kirsty-farquharson.webp": {
+      "bytes": 33998,
+      "sha256": "c97dc37cae224dac80dfa4eb3196dc1b9bd655431e704e3c6b84cde0296d90a2"
+    },
+    "trainers/kirsty-mclean.webp": {
+      "bytes": 26984,
+      "sha256": "9cf9c7513dd2a33f24604119d4a126f7c4fcef899547f8eff9ef2c04b3297f1a"
+    },
+    "trainers/liam-santos.webp": {
+      "bytes": 23672,
+      "sha256": "2494cf102f8ffcd156e158212bb7407097c1d4223588fc4ab20da9166785cbd8"
+    },
+    "trainers/maddie-pearce.webp": {
+      "bytes": 23664,
+      "sha256": "98ffbdc2cfc13da6b55ce5741f90695e820c2d3e32dd310a726ed6193e8a9519"
+    },
+    "trainers/marek-polnik.webp": {
+      "bytes": 28654,
+      "sha256": "6b2b4a5908e7903c2644dc8e52d72fb31bb2b6ad8d2b230de358ae881c9198ac"
+    },
+    "trainers/matthew-dwornik-2.webp": {
+      "bytes": 19396,
+      "sha256": "b92a09592d83ca09a85265ff740948c22f268d86329069a3e9714cc2bc63e219"
+    },
+    "trainers/michael-gilburt.webp": {
+      "bytes": 17832,
+      "sha256": "9c1d1568c0f0f1b480b32a6c412279f4e6cbbaae21e2894637f45c5b98dc0c68"
+    },
+    "trainers/michael-searless.webp": {
+      "bytes": 12854,
+      "sha256": "8e11ec79d25f61a5e90e4cd7c585ff29dbbcacdd63c2226e55e2f153edad38a3"
+    },
+    "trainers/mike-davis.webp": {
+      "bytes": 16564,
+      "sha256": "99231f4a28c0ccaac37059c1dde112040138d5368613932afce7b901e8a5fc72"
+    },
+    "trainers/moe-metwally.webp": {
+      "bytes": 10594,
+      "sha256": "0100f05fa9a84de65499062d818f439f16976ced19a606648dbcab44ff613f53"
+    },
+    "trainers/noor-yasser.webp": {
+      "bytes": 29404,
+      "sha256": "18078f1cf01bb6c8095bd7f265f8cc6dccc4c5add72cc77e9a52bb48c292a479"
+    },
+    "trainers/ola-sogbanmu.webp": {
+      "bytes": 15266,
+      "sha256": "2b3df485087c3726d5c26ae7d00ac5e050c677db669385e865d658a125c00d2f"
+    },
+    "trainers/olivia-galvin.webp": {
+      "bytes": 29294,
+      "sha256": "b957cc3dbdb303adeee39e8f9eab0d19e5fa20201df0b5262f86d8de0f6c9ec3"
+    },
+    "trainers/pandora-porter.webp": {
+      "bytes": 14966,
+      "sha256": "83ef7b2d7e38a874f2ad289fb41226da4f242ee4efe542121f6dffe40df458a9"
+    },
+    "trainers/ross-sutton.webp": {
+      "bytes": 14242,
+      "sha256": "183643395d5e08c3e0dadcae409b2c66dbe1548c69edc019a1a94d6284ab4b29"
+    },
+    "trainers/sam-egerton.webp": {
+      "bytes": 61616,
+      "sha256": "c209ce913ef457115379dbb3859e80e64bc30efb593c500b071d0ad72aab76c6"
+    },
+    "trainers/sam-lynch.webp": {
+      "bytes": 21622,
+      "sha256": "e0c1035b4cfd1bb4157726397f78f1cd14e22ffca51256353337aa549c52e198"
+    },
+    "trainers/tom-mans.webp": {
+      "bytes": 23906,
+      "sha256": "7b00b8b64dd3d5dc945ae7e7c0e7c78dcd9114096fd2d9d07e4b18e4fcac2c5a"
+    }
+  }
+}

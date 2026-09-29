@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  conversationHistoryForGeminiV3,
+  conversationHistoryForOpenAI,
   createRateLimitForProjectV3,
   draftIdentityForIdempotencyKeyV3,
   extractReplyPrefixFromStructuredStreamV4,
@@ -179,15 +179,15 @@ describe("AI onboarding V3 conversational output", () => {
     );
   });
 
-  it("uses one native Gemini chat history instead of serializing the transcript into every turn", () => {
-    expect(conversationHistoryForGeminiV3([
+  it("preserves user and assistant roles when replaying the onboarding conversation", () => {
+    expect(conversationHistoryForOpenAI([
       { id: "opening-1", role: "assistant", text: "Hi, welcome to Petey!", createdAt: "2026-09-01T00:00:00.000Z", sequence: 1 },
       { id: "opening-2", role: "assistant", text: "What are you hoping to achieve?", createdAt: "2026-09-01T00:00:00.000Z", sequence: 2 },
       { id: "user-1", role: "user", text: "I want to build strength.", createdAt: "2026-09-01T00:00:01.000Z", sequence: 3 },
       { id: "model-1", role: "assistant", text: "Great goal. What would feeling stronger make easier?", createdAt: "2026-09-01T00:00:02.000Z", sequence: 4 },
     ])).toEqual([
-      { role: "user", parts: [{ text: "I want to build strength." }] },
-      { role: "model", parts: [{ text: "Great goal. What would feeling stronger make easier?" }] },
+      { role: "user", content: "I want to build strength." },
+      { role: "assistant", content: "Great goal. What would feeling stronger make easier?" },
     ]);
   });
 

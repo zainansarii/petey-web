@@ -37,7 +37,7 @@ only by development fixtures and tests. No demo fallback supplies real results.
    flexible preferences separately.
 2. During “Finding your personal trainer”, `matchWebOnboardingDraftV1` verifies
    App Check and the draft capability, then reads all eligible published trainers.
-3. Gemini evaluates the brief against every candidate in batches of eight, with
+3. GPT-6 Sol evaluates the brief against every candidate in batches of eight, with
    at most three calls in flight. The model returns one validated decision per
    candidate. Missing, duplicate or invented trainer IDs fail the entire run.
 4. Compatibility requires a score of at least 70/100 and no unmet or unconfirmed
@@ -93,10 +93,12 @@ See [trainer application operations](trainer-application-operations.md).
 
 ## Runtime and rollout
 
-- `WEB_MATCHING_GEMINI_MODEL_V1` defaults to `gemini-3.7-flash`. The four matching,
+- Matching uses `gpt-6-sol` at medium reasoning through OpenAI Responses. The four matching,
   confirmation, consumption and profile callables use the existing web runtime
   service account; matching and profile operations allow 300 seconds.
-- Existing `roles/datastore.user` and `roles/aiplatform.user` are required.
+- Existing `roles/datastore.user` and access to the `OPENAI_API_KEY` secret are required.
+  See [OpenAI backend setup](openai-backend-setup.md). Cached results from a different
+  model are recomputed on the next matching/profile request.
   Signed images additionally need `roles/storage.objectViewer` on the trainer
   bucket and `roles/iam.serviceAccountTokenCreator` on the runtime identity itself.
   Mobile-backed photos must be under the approved trainer's `onboarding/{uid}/profile/` path;
@@ -140,4 +142,4 @@ Synthetic Auth users and documents were removed after the check. UI fixtures
 covered zero, one and eight matches at desktop and mobile sizes.
 
 Implementation follows [Firestore's server access model](https://firebase.google.com/docs/firestore/security/overview)
-and [Gemini structured output](https://ai.google.dev/gemini-api/docs/structured-output).
+and [OpenAI structured output](https://developers.openai.com/api/docs/guides/structured-outputs).

@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
-import { GoogleGenAI } from "@google/genai";
+import { generateOpenAIText } from "../../functions/src/openai.js";
+import { openaiApiKey, openaiClient } from "../../functions/src/modelRuntime.js";
 import { getApps, initializeApp } from "firebase-admin/app";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { defineString } from "firebase-functions/params";
@@ -14,24 +15,15 @@ import { generateModelResponse } from "./generation.js";
 const app = getApps()[0] ?? initializeApp();
 const db = getFirestore(app);
 const serviceAccount = defineString("THIRD_SPACE_SERVICE_ACCOUNT");
-const chatModel = defineString("THIRD_SPACE_CHAT_MODEL", { default: "gemini-3.5-flash-lite" });
-const matchingModel = defineString("THIRD_SPACE_MATCHING_MODEL", { default: "gemini-3.7-flash" });
 const options = {
   region: "europe-west2", enforceAppCheck: true, invoker: "private" as const,
-  serviceAccount, memory: "512MiB" as const, maxInstances: 4,
+  serviceAccount, secrets: [openaiApiKey], memory: "512MiB" as const, maxInstances: 4,
 };
 
-let ai: GoogleGenAI | undefined;
-const generate = async (request: GenerateRequest) => {
-  const project = process.env.GCLOUD_PROJECT ?? process.env.GOOGLE_CLOUD_PROJECT;
-  if (!project) throw new Error("The model project is not configured.");
-  const client = ai ??= new GoogleGenAI({ vertexai: true, project, location: "global" });
-  return generateModelResponse(request, {
-    chatModel: chatModel.value(), matchingModel: matchingModel.value(),
-    generateContent: parameters => client.models.generateContent(parameters),
-    onRetry: event => logger.info("third_space_demo_model_retry", event),
-  });
-};
+const generate = (request: GenerateRequest) => generateModelResponse(request, {
+  generateText: parameters => generateOpenAIText(openaiClient(), parameters),
+  onRetry: event => logger.info("third_space_demo_model_retry", event),
+});
 
 const service = createThirdSpaceService(generate, { trainers: TRAINERS, clubs: CLUBS, locations: LONDON_LOCATIONS });
 
@@ -50,7 +42,9 @@ const modelValidationReasons = new Set([
 ]);
 const safeErrorNames = new Set([
   "Error", "TypeError", "SyntaxError", "AbortError", "TimeoutError", "ApiError",
-  "ClientError", "ServerError", "GoogleGenAIError", "GoogleGenerativeAIError",
+  "APIError", "APIConnectionError", "APIConnectionTimeoutError", "APIUserAbortError",
+  "BadRequestError", "AuthenticationError", "PermissionDeniedError", "NotFoundError",
+  "RateLimitError", "InternalServerError", "UnprocessableEntityError",
 ]);
 
 function failureTelemetry(error: unknown) {

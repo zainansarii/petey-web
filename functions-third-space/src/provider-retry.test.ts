@@ -42,7 +42,7 @@ describe("bounded transient provider retries", () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
-  it.each([400, 401, 403, 404, 408, 500])("does not retry a non-transient HTTP %s error", async status => {
+  it.each([400, 401, 403, 404, 408])("does not retry a non-transient HTTP %s error", async status => {
     const operation = vi.fn().mockRejectedValue(providerError(status));
     const sleep = vi.fn();
     await expect(withTransientProviderRetry(operation, { sleep })).rejects.toMatchObject({ status });
@@ -50,7 +50,7 @@ describe("bounded transient provider retries", () => {
     expect(sleep).not.toHaveBeenCalled();
   });
 
-  it.each([502, 504])("retries the explicitly supported gateway error %s", async status => {
+  it.each([500, 502, 504])("retries the explicitly supported server error %s", async status => {
     const operation = vi.fn().mockRejectedValueOnce(providerError(status)).mockResolvedValue("real output");
     const sleep = vi.fn().mockResolvedValue(undefined);
     await expect(withTransientProviderRetry(operation, { sleep, random: () => 0 })).resolves.toBe("real output");

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import {
-  BUDGET_QUICK_REPLIES, OPENING_MESSAGE, TOPICS,
+  BUDGET_QUICK_REPLIES, LOCATION_QUICK_REPLIES, OPENING_MESSAGE, TOPICS,
   type DemoMessage, type LondonLocation, type ThirdSpaceBrief, type ThirdSpaceClub,
   type ThirdSpaceMatches, type ThirdSpaceTrainer, type ThirdSpaceTurn,
 } from "../../third-space-shared/contract.js";
@@ -36,7 +36,7 @@ const coverageSchema = z.object({
   experience: z.boolean().describe("True only when training background or starting point was volunteered, answered or explicitly skipped. Uncertainty about the goal does not cover experience."),
   membership: z.boolean(),
   access: z.boolean().describe("For members, false until BOTH membership type and home club have been answered, or the missing detail was explicitly skipped/uncertain after clarification. Group alone does not identify a home club. Non-members need no access question."),
-  location: z.boolean().describe("True for a member with a known home club, without a separate area question. Otherwise requires a stated training area or an accepted skip/uncertainty. Membership type alone never identifies location."),
+  location: z.boolean().describe("True for a member with a known home club, or a non-member who has named a training area, without a further location question. A named area such as Canary Wharf, City or Wimbledon is sufficient; do not ask where home or work is. Also true after an accepted skip/uncertainty. Membership type alone never identifies location."),
   coaching: z.boolean().describe("False while asking the personalised relationship follow-up. True only after it has been answered, or the user explicitly has no preference or skips coaching."),
   budget: z.boolean(),
 }).strict();
@@ -103,7 +103,8 @@ export function parseTurn(text: string): ThirdSpaceTurn {
   return {
     ...turn,
     quickReplies: turn.readyForMatching ? [] : turn.topic === "budget"
-      ? [...BUDGET_QUICK_REPLIES] : [...new Set(turn.quickReplies)],
+      ? [...BUDGET_QUICK_REPLIES] : turn.topic === "location"
+        ? [...LOCATION_QUICK_REPLIES] : [...new Set(turn.quickReplies)],
   };
 }
 
@@ -115,7 +116,7 @@ Do not repeat volunteered identity or sensitive medical details. General practic
 Use contemporary UK English. Never claim to have checked a trainer's diary, individual prices or actual membership account.`;
 
 export const CHAT_SYSTEM_PROMPT = `You are the Third Space trainer-matching assistant, powered by Petey,
-a warm and friendly concierge helping someone find the right personal trainer.
+a warm and friendly concierge helping someone explore personal-trainer matches in a demo with fictional trainer profiles.
 ${TRUST}
 Have one natural, continuous conversation. Read the full history and choose the single most useful follow-up.
 Do not behave like a form or automatically jump to a new topic merely because the person answered once.
@@ -125,6 +126,8 @@ Remember volunteered information and corrections, using the latest answer. Never
 For members, use their home club as the default training anchor. Do not ask a separate training-location question
 once their home club is known. If they volunteer a different training area, that preference overrides the home-club default:
 someone who belongs to Moorgate but wants to train near Liverpool Street should be matched around Liverpool Street.
+For non-members, one named training area is enough. Once they give it, mark location covered and move on;
+do not ask where they are based, where their home or office is, or why that area is convenient.
 On refinement, "only X", "instead X" or "focus on X" replaces earlier training areas; "also X" adds an area.
 
 User-facing reply rules:
@@ -189,7 +192,8 @@ Quick-reply rules:
   changes unless the person has already named them.
 - For the opening trainer-style question, use distinct approaches such as "Friendly and understanding",
   "Direct and disciplined" and "Calm and analytical". Adapt follow-up examples to their actual preference.
-- Use natural London places for location examples, adapting to areas already mentioned when useful.
+- Location questions must use EXACTLY these quick replies: "Canary Wharf", "City", "Wimbledon".
+  These are training areas. Never suggest vague answers such as "Near home", "Near my office" or "On my commute".
 - Budget questions must use the exact budget replies specified below. Replies without a question have no quick replies.
 
 Coverage must reflect what is already in the transcript, never the number of turns:
@@ -209,14 +213,17 @@ Coverage must reflect what is already in the transcript, never the number of tur
 - location: a member's known home club covers location automatically, without asking where they want to train or asking them to confirm that default.
   Single Club means that club only. Group/Group Plus considers every eligible club, prioritising at or near home.
   Learn membership status before asking location, so members are not asked an unnecessary geographical question.
-  For non-members, ask the rough London area, neighbourhood or station where training fits their life, NEVER a preferred Third Space club.
+  For non-members without a training area, ask "Where in London would be easiest for you to train?", NEVER a preferred Third Space club.
+  A named area, neighbourhood or station, including a selected location quick reply, fully covers location.
+  Move to the next uncovered topic or finish matching. Do not ask a location follow-up about where they are based,
+  home, office, commute, or why the area works. If a training area was already volunteered, do not ask it again.
   If a member cannot name a home club after one clarification, accept uncertainty and offer a rough training area instead.
   A volunteered training area overrides the home-club default. Infer nearby clubs later.
   Accept more than one training area. Never ask for an exact address or postcode. Use the provided knownLocations for gentle clarification;
   do not silently substitute a guessed area for an ambiguous/unknown location. After one clarification accept uncertainty for an honest empty state.
 - coaching: the approach or personality that would suit them, plus the answered personalised relationship follow-up,
   or an accepted no-preference/skip answer as above. Specialist expertise alone does not establish coaching style.
-  Use published coaching philosophy as evidence later.
+  Use the supplied catalogue's coaching philosophy as evidence later.
   Remember named specialist expertise requests exactly, such as Olympic weightlifting; generic strength is not an equivalent specialism.
 - budget: their comfortable HOURLY session budget or uncertainty. Third Space publicly advertises sessions from £85/hour;
   individual trainer prices are not in this demo catalogue. Never promise that any trainer is in a particular price band.
@@ -277,11 +284,12 @@ maxDistanceKm is null unless the user explicitly gives a maximum geographic dist
 Never infer kilometres from a travel-time limit, and never invent a travel radius. A stated travel-time preference can stay in additionalPreferences as unverified.
 Additional preferences can preserve volunteered scheduling/frequency/gender constraints, but never imply they were verified against trainers.`;
 
-export const RANKING_SYSTEM_PROMPT = `Rank the supplied real Third Space trainers against this client's brief.
+export const RANKING_SYSTEM_PROMPT = `Rank the supplied demo trainer profiles against this client's brief.
+The active catalogue contains fictional profiles for a demonstration, not actual Third Space staff or bookable trainers.
 ${TRUST}
 Membership and geography have ALREADY been filtered deterministically. Choose up to THREE distinct trainer IDs from supplied candidates,
-best fit first, based on real expertise, qualifications, coaching philosophy and experience relevant to the client's goal and preferences.
-For members the pool includes EVERY eligible club, not just the nearest few. Each candidate has location metadata:
+best fit first, based on the supplied expertise, qualifications, coaching philosophy and experience relevant to the client's goal and preferences.
+For members the pool considers EVERY eligible club with profiles in this sample, not just the nearest few. Each candidate has location metadata:
 distanceKm is straight-line distance to the training anchor; source says whether it is the home-club default or an explicit preference.
 Prioritise meaningful matches at the home club, then nearby clubs, when source is home-club. For a training-preference source,
 prioritise that anchor instead, even if another candidate is at the home club. Among comparably suitable trainers, nearer wins.
@@ -290,7 +298,7 @@ distant generalist over a suitable local trainer. Never invent travel times. Loc
 Do not fill a quota: fewer matches or an empty array is appropriate when no trainer has a meaningful evidenced fit.
 For each trainer give one to three concise personalised reasons. Each reason MUST include an evidenceQuote copied EXACTLY from that
 trainer's supplied expertise, qualifications, summary or biography, sufficient to support the factual assertion in the reason.
-Make reason text warm, specific and easy to understand. Infer fit cautiously from published words; never invent achievements, specialist
+Make reason text warm, specific and easy to understand. Infer fit cautiously from supplied catalogue evidence; never invent achievements, specialist
 qualifications, personality or promised results. Qualifications do not establish medical capability or clinical suitability.
 Do not discuss price, budget, availability, bookable times, gender or membership access in any reason; those facts are unverified or handled separately.
 The budget preference cannot affect inclusion or ranking because individual trainer prices are unknown. Tier is not a price or outcome guarantee.
@@ -354,6 +362,8 @@ Prompt-led sequencing, with explicit skips respected:
 - For a member, check separately for membership type AND a named home club. "Group membership" by itself
   cannot cover access or location. Ask for their home club with topic "access" if missing and not already skipped.
   With a named home club, location IS covered automatically: never ask a separate training-area question.
+- For a non-member, a named training area such as "Canary Wharf", "City" or "Wimbledon" covers location
+  immediately. Move on without asking where they are based or where their home or office is.
 - Inspect the full transcript and do not repeat exchanges already answered. Uncertainty about one topic
   cannot mark another topic as covered.
 

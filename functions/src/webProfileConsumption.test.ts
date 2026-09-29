@@ -37,6 +37,7 @@ vi.mock("./webMatching.js", async (original) => ({
   webMatchedProfiles: async (_db: unknown, matching: { matches: unknown[] }) => matching.matches,
 }));
 import { consumeWebOnboardingDraftV3 } from "./index.js";
+import { MODEL_ROUTES } from "./openai.js";
 
 const markdown = "# Training brief\n\nUpdated running preferences and weekend sessions.";
 const digest = (s: string) => createHash("sha256").update(s).digest("hex");
@@ -45,7 +46,7 @@ const draftPath = `webOnboardingDraftsV3/${capability.draftId}`;
 const profilePath = "webClientProfiles/client-one";
 const markerPath = `_webOnboardingConsumptionsV3/${capability.draftId}`;
 const matching = {
-  version: 2, matchKind: "compatible", profileHash: digest(markdown), catalogHash: digest("catalog"), evaluatedCount: 2, model: "test-model",
+  version: 2, matchKind: "compatible", profileHash: digest(markdown), catalogHash: digest("catalog"), evaluatedCount: 2, model: MODEL_ROUTES.matching.model,
   matches: [{ trainerId: "trainer-one", score: 90, reason: "Running and schedule fit.", profileVersion: 1, dealbreakers: { budget: "not_required", venue: "not_required", location: "not_required", availability: "met", trainerGender: "not_required", otherRequirements: "not_required" }, tradeoffs: [] }],
 };
 const identity = { fullName: "Existing Client", dateOfBirth: "1990-01-01", email: "client@example.test" };

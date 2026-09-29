@@ -22,7 +22,7 @@ available while old web health records are being retired.
 | --- | --- | --- | --- |
 | `webOnboardingDraftsV3/{draftId}` plus message and idempotency subcollections | Continue the chat, prepare the internal Markdown profile once, and validate the magic-link handoff | Petey and its model processor only | Capability access expires after 24 hours; authenticated consumption recursively deletes the draft and transcript; TTL handles abandoned drafts and child records |
 | `_webOnboardingConsumptionsV3/{draftId}` | Make authenticated consumption safely retryable without restoring the transcript | Petey server processing only | 7 days plus asynchronous TTL deletion |
-| `webClientProfiles/{uid}` | Keep the user-confirmed internal matching profile for trainer recommendations | Petey and Vertex AI; only the approved enquiry summary is shared with a selected trainer | Until account deletion or an earlier verified deletion request |
+| `webClientProfiles/{uid}` | Keep the user-confirmed internal matching profile for trainer recommendations | Petey and OpenAI; only the approved enquiry summary is shared with a selected trainer | Until account deletion or an earlier verified deletion request |
 | Legacy `webClientHealth/{uid}` and consent records | Support withdrawal and deletion of pre-cutover web health data | Restricted privacy and server processing only | Removed during the approved web-only reset, withdrawal, or account deletion |
 | Identity handoff fields in the confirmed short-lived draft | Bind the confirmed matching profile to the correct authenticated account | Petey authentication services only | Only until authenticated consumption or draft expiry |
 
@@ -68,7 +68,7 @@ contain transcript text, health data, Markdown profile text, or identity.
 
 - Public pages: `/privacy/`, `/terms/`, `/support/`; links appear on the landing page, login/account form, matching feed and marketplace workspace. The chat has a short AI/privacy notice before personal input.
 - Controller: Cass Technologies LTD, 17095002, registered office verified against Companies House. Product support and rights requests: `hello@joinpetey.com`.
-- The current V4 chat sends the browser transcript to Vertex AI per turn but does not save that transcript in the V3 draft collection. Finalisation saves the generated Markdown. Identity comes from a separate form. Legacy V3 drafts can still have message children, so cleanup must cover both.
+- The current V4 chat sends the browser transcript to OpenAI per turn but does not save that transcript in the V3 draft collection. Finalisation saves the generated Markdown. Identity comes from a separate form. Legacy V3 drafts can still have message children, so cleanup must cover both.
 - Current matching uses the internal profile and trainer catalogue; the old demo-feed behaviour is no longer the public data-use statement.
 - Live `expiresAt` TTL was confirmed ACTIVE for `webOnboardingDraftsV3`, `messages`, `idempotentTurnsV3`, `idempotentFinalizationsV3`, `_webOnboardingRateLimitsV3`, and `_webOnboardingConsumptionsV3` on 2026-09-23. Draft access expires after 24 hours; consumption receipts after seven days; physical TTL deletion is asynchronous.
 - Provider exception text is excluded from V4 turn/finalisation logs and client errors. Only recognised status/code classifications are retained. Regression tests cover an exception echoing private input in every free-form field.

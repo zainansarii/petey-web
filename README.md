@@ -31,7 +31,7 @@ deferred Resend setup. New invitations/enquiries and email delivery default to o
 
 `npm run verify` runs linting, type-checking, unit tests, and production builds for both the web app and the `web-onboarding-v3` Firebase Functions codebase. The Functions runtime targets Node 22; the web app supports Node 20.19 or newer.
 
-There is deliberately no browser-side extraction parser or simulated concierge. A usable onboarding conversation requires the configured V3 Functions backend and Gemini; unit tests inject bounded response fixtures at the protocol boundary.
+There is deliberately no browser-side extraction parser or simulated concierge. A usable onboarding conversation requires the configured V3 Functions backend and OpenAI; unit tests inject bounded response fixtures at the protocol boundary.
 
 For responsive manual QA only, a Vite development build accepts `?onboardingFixture=1`. This lazy-loads fixed protocol snapshots (it does not interpret text), and the branch is removed from production builds.
 
@@ -49,11 +49,9 @@ The `functions/` package is a separate Firebase Functions codebase named `web-on
 - `deleteWebOnboardingDraftV3`
 - `withdrawWebHealthConsentV3`
 
-The browser keeps only a V3 opaque draft capability in session storage. Each ordinary turn continues one native Gemini chat and stores messages only. In that same call, Gemini returns a small private application envelope containing the user-facing reply, a readiness signal, and up to three contextual example answers. Only the reply and examples can reach the interface; the envelope itself is never shown or stored as a chat message. There is no coverage engine, profile patch, concierge-note store, or secondary model judge. Gemini may finish from the fifth answer when it has a good-enough picture, but availability and budget must each have been asked and answered first. Seven answers is a target rather than a limit, with twelve as the fallback finish point after those required topics are complete. A separate finalization call turns the complete transcript into an internal Markdown matching profile. The profile is never rendered in onboarding; the secure final-details modal opens over the completed chat instead. Identity stays outside prompts and transcript messages.
+The current browser keeps the conversation in tab session storage and sends it to the V4 handler, also served through the V3 compatibility callable. Each turn uses `gpt-6-luna` with low reasoning through OpenAI Responses. The model returns a private structured envelope with the reply, topic coverage and contextual example answers. Only the validated reply and examples reach the chat UI. Completion follows topic coverage rather than a fixed turn count. A separate finalization call uses `gpt-6-sol` with medium reasoning to prepare the internal Markdown matching profile. Account identity stays outside these prompts.
 
-The conversation is one native Gemini chat: every turn restores the stored
-`user`/`model` history and sends only the new user message. To change Petey's
-tone, questioning style, or conversational behaviour, edit
+Requests replay the `user`/`assistant` history and use `store: false`. To change Petey's tone, questioning style, or conversational behaviour, edit
 `ONBOARDING_CONVERSATION_SYSTEM_PROMPT` in
 [`functions/src/onboardingConversationPrompt.ts`](./functions/src/onboardingConversationPrompt.ts).
 The prompt guides the conversation through trainee, trainer, and sessions phases,
@@ -62,15 +60,15 @@ clarifications inside each phase, and context-specific example answers.
 The end-only `ONBOARDING_MARKDOWN_PROFILE_SYSTEM_PROMPT` is in the same file and is intentionally separate
 from the live chat. It controls the internal matching profile, which is not rendered to the user.
 
-Draft messages and idempotency records are subcollections rather than one growing array. Authenticated consumption atomically writes the user-confirmed internal `profileMarkdown` document, then recursively removes the capability-protected draft and raw transcript. The Markdown-aware matcher reads eligible catalogue entries and persists versioned matches. The marketplace creates a separate trainee-confirmed practical summary when the trainee sends an enquiry.
+In the legacy V3 path, draft messages and idempotency records are subcollections rather than one growing array. Authenticated consumption atomically writes the user-confirmed internal `profileMarkdown` document, then recursively removes the capability-protected draft and raw transcript. The Markdown-aware matcher reads eligible catalogue entries and persists versioned matches. The marketplace creates a separate trainee-confirmed practical summary when the trainee sends an enquiry.
 
 For a production environment:
 
 1. Enable Firestore and configure the six TTL policies in the [rollout runbook](./docs/web-onboarding-v3-rollout.md).
 2. Enable App Check for the Web app with reCAPTCHA Enterprise and set `VITE_FIREBASE_APPCHECK_SITE_KEY`.
-3. Enable the Vertex AI API and deploy the V3 Functions with a dedicated runtime service account carrying only the Firestore and Vertex AI roles documented in the rollout runbook. No Gemini API key is stored in the browser or repository.
-4. Optionally set `WEB_ONBOARDING_GEMINI_MODEL_V3`; it defaults to `gemini-3.7-flash`.
-5. Build and test with `npm run verify`, then deploy with `firebase deploy --only functions:web-onboarding-v3`.
+3. Configure the `OPENAI_API_KEY` Firebase secret and bind the runtime identities as described in [OpenAI backend setup](./docs/openai-backend-setup.md). Credentials stay on the server.
+4. Model routing is shared in `functions/src/openai.ts`: chat uses Luna/low; matching, brief generation and enquiry summaries use Sol/medium. Legacy Gemini model environment variables are no longer read.
+5. Use Node 22, run `npm run verify` and `npm run verify:third-space`, then deploy both Functions codebases using the commands in the setup guide.
 6. If organization policy rejects an `allUsers` invoker binding, apply the
    documented Cloud Run `--no-invoker-iam-check` post-deploy step to the nine
    V3 services. App Check and the callable's capability checks still run on
@@ -84,7 +82,7 @@ the [guarded reset and rollout runbook](./docs/web-onboarding-v3-rollout.md).
 
 ## Firebase email-link authentication
 
-The configured app reads approved catalogue profiles and supports real introductions to accepted, enabled pilot trainers. The separate onboarding and trainer-preview fixtures remain demo-only. Onboarding and enquiry summary generation require Firebase configuration and the protected Gemini backend.
+The configured app reads approved catalogue profiles and supports real introductions to accepted, enabled pilot trainers. The separate onboarding and trainer-preview fixtures remain demo-only. Onboarding and enquiry summary generation require Firebase configuration and the protected OpenAI backend.
 
 For real web magic links and secure onboarding drafts, copy `.env.example` to `.env.local` and provide the Firebase Web app configuration plus the reCAPTCHA Enterprise App Check site key. Local development should additionally use a registered `VITE_FIREBASE_APPCHECK_DEBUG_TOKEN`; that value must stay in ignored local environment files and must never be added to a deployed build. Enable Email/Password > Email link in Firebase Authentication and add both `localhost` and the deployed custom domain to Firebase Authentication's authorised domains.
 
@@ -113,6 +111,6 @@ Use the default project Pages URL only for the Firebase-free prototype. Before e
 
 ## Product integration note
 
-The transcript and sensitive matching details live in the short-lived server draft in configured environments. Name, date of birth, and email are accepted only by the final confirmation callable and never enter the assistant runtime or Gemini request. The email address is also kept locally only as required to complete Firebase email-link sign-in and is removed after successful authentication or a failed send.
+The V4 transcript stays in the browser tab's session storage and is sent to the model per turn; finalization saves the matching brief in the short-lived server draft. Legacy V3 also stores a short-lived draft transcript. Name, date of birth, and email entered in the account form are accepted only by the final confirmation callable and never enter the assistant runtime or OpenAI request. The email address is also kept locally only as required to complete Firebase email-link sign-in and is removed after successful authentication or a failed send.
 
 The confirmed internal Markdown profile drives saved web matches after sign-in. Pilot enquiries share only the trainee-confirmed practical summary and introduction. Web membership and conversations remain separate from production mobile profiles and chat contracts.

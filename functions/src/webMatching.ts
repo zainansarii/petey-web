@@ -31,9 +31,10 @@ const savedMatchingSchema = z.object({
     && Object.values(match.dealbreakers).every((status) => status === "met" || status === "not_required")));
 export type SavedMatching = z.infer<typeof savedMatchingSchema>;
 
-export function readSavedMatching(value: unknown, profileMarkdown: string): SavedMatching | null {
+export function readSavedMatching(value: unknown, profileMarkdown: string, expectedModel?: string): SavedMatching | null {
   const parsed = savedMatchingSchema.safeParse(value);
   if (!parsed.success || parsed.data.profileHash !== matchingProfileHash(profileMarkdown)) return null;
+  if (expectedModel && parsed.data.model !== expectedModel) return null;
   if (parsed.data.matches.length > parsed.data.evaluatedCount) return null;
   if (new Set(parsed.data.matches.map(({ trainerId }) => trainerId)).size !== parsed.data.matches.length) return null;
   return parsed.data;
@@ -63,7 +64,7 @@ export async function ensureWebMatching({
     if (data.expiresAt instanceof Timestamp && data.expiresAt.toMillis() <= Date.now()) {
       throw new HttpsError("not-found", "This chat has expired. Start a new one.");
     }
-    const existing = readSavedMatching(data.matching, profileMarkdown);
+    const existing = readSavedMatching(data.matching, profileMarkdown, model);
     if (existing?.catalogHash === catalogHash) return existing;
     if (data.matchingLease?.expiresAt instanceof Timestamp
       && data.matchingLease.expiresAt.toMillis() > Date.now()) {

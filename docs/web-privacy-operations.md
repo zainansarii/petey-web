@@ -2,12 +2,14 @@
 
 Prepared 2026-09-23 for the free web pilot. Controller: Cass Technologies LTD (17095002). Public notice: https://joinpetey.com/privacy/. Rights and support intake: https://joinpetey.com/support/ and hello@joinpetey.com.
 
+Operational owner: the Petey owner, using `hello@joinpetey.com`, confirmed responsibility on 2026-09-23 for monitoring the support mailbox, handling rights requests, reviewing private marketplace reports and reviewing pending trainer credentials. This assignment does not constitute controller approval of the policy or verification that the operational flows have passed acceptance.
+
 ## Processor and service inventory
 
 | Service | Petey use / information | Location and contract record |
 | --- | --- | --- |
 | Google Cloud / Firebase | Auth identity, Firestore profiles/drafts/messages, Storage trainer photos/evidence, Functions processing, security logs, App Check / reCAPTCHA signals | Web Functions are in europe-west2; do not infer all services or support access are UK-only. Record applicable [Google Cloud DPA](https://cloud.google.com/terms/data-processing-addendum) and UK transfer arrangements. |
-| Google Vertex AI (Gemini) | Onboarding transcript, generated profile, trainer catalogue and matching, enquiry summary | Source uses `location: global`. No claim of UK-only processing or zero provider retention. Confirm the account-specific AI retention / abuse-monitoring settings and applicable Google terms. |
+| OpenAI API | Onboarding transcript, generated profile, trainer catalogue and matching, enquiry summary | Requests use `store: false` through the Responses API. This does not promise zero provider retention: abuse-monitoring and caching policies still apply. Confirm the OpenAI project’s data controls, processing location and contract/transfer terms before deploying this migration. See [setup](openai-backend-setup.md). |
 | Google Workspace / Forms / Drive | Support mailbox, trainer application source responses, photos/evidence | Existing trainer form remains in the company’s Cass Workspace; Petey mailbox is in its separate Workspace. Same controller, distinct product records. Record applicable Workspace DPA and transfer terms. Source records need separate erasure. |
 | Resend | Recipient address, invitation link, generic activity email, delivery status | Domain configured in eu-west-1; TLS enforced; tracking not enabled. Region is not a promise that every processing activity remains in Ireland. [Resend DPA](https://resend.com/legal/dpa). |
 | GitHub Pages | Static public web content; visitor network/request information | [GitHub privacy statement](https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement). Do not place personal records, credentials or private exports in this repository. |
@@ -17,7 +19,7 @@ The links identify current provider documentation, not evidence of account-speci
 
 ## Retention record
 
-- V4 conversation: browser session storage; sent to Functions/Vertex per turn; not written as a server transcript by V4. Browser session restore may preserve it. “Delete chat” deliberately clears it.
+- V4 conversation: browser session storage; sent through Functions to OpenAI per turn; not written as a server transcript by V4. Browser session restore may preserve it. “Delete chat” deliberately clears it.
 - Finalised draft and separately entered identity: 24-hour capability expiry; recursively removed on authenticated consumption or explicit deletion. V3 legacy drafts may also contain message/idempotency children.
 - Consumption receipt: seven-day expiry.
 - Live TTL confirmed ACTIVE on 2026-09-23 for `webOnboardingDraftsV3`, `messages`, `idempotentTurnsV3`, `idempotentFinalizationsV3`, `_webOnboardingRateLimitsV3`, `_webOnboardingConsumptionsV3`. Expiry is not instantaneous physical deletion.
@@ -45,7 +47,9 @@ Verify profile, enquiries/message subcollections, participant inboxes, notificat
 
 For trainers, separately erase the original Google Form response, linked Sheet row, Drive uploads and any export/support copies; deleting the imported Firestore projection is insufficient. Do not run the project-wide `reset-user-data` script for an individual request. Explain external recipient/provider copies and any justified retained records.
 
-The deployed end-to-end deletion acceptance test remains in pilot step 5. This release provides request intake and an operational procedure; it does not claim that test has already passed.
+On 2026-09-24, the deployed deletion jobs completed for both disposable acceptance accounts. Readback confirmed both Auth accounts absent, no remaining scoped profile/marketplace content or Storage evidence, and the trainer reimport tombstone retained. The runbook's separate recursive health-record check and removal of the known consumption receipt also completed. Only minimal inactive user tombstones and deletion metadata were retained; the owner/reviewer and both pre-existing applications were preserved. Seven test email conversations were moved to Gmail Trash, not permanently purged.
+
+This verifies the tested Firebase account/evidence erasure path. It does not verify source Form/Sheet/Drive erasure: the fixture was imported directly with a synthetic source identifier. Correction of the synthetic profile and matching-cache invalidation were written, but fresh matching after that correction remains unverified. Full privacy acceptance and controller approval therefore remain open.
 
 ### Legacy health-consent withdrawal
 
@@ -53,12 +57,12 @@ The authenticated `withdrawWebHealthConsentV3` callable clears active medical fi
 
 ## Health information and launch decision
 
-The public notice and chat ask users not to supply health details. Current prompts do not solicit medical information and instruct the profile generator to omit it. This is minimisation, not proof that no special-category processing occurs: any volunteered health text is sent to Google before profile generation. The controller needs to decide and document an appropriate approach for incidental health information (including any required Article 9 condition), or implement a separate explicit consent path before allowing that use. General terms acceptance is not explicit health consent. A warning or an AI omission instruction does not close this issue by itself.
+The public notice and chat ask users not to supply health details. Current prompts do not solicit medical information and instruct the profile generator to omit it. This is minimisation, not proof that no special-category processing occurs: any volunteered health text is sent to OpenAI before profile generation. The controller needs to decide and document an appropriate approach for incidental health information (including any required Article 9 condition), or implement a separate explicit consent path before allowing that use. General terms acceptance is not explicit health consent. A warning or an AI omission instruction does not close this issue by itself.
 
 ## Approval and operational gate
 
 - Implemented: public privacy/terms/support pages, links at data-entry and signed-in surfaces, correction/deletion/access/legacy withdrawal intake, current retention inventory, live TTL verification, safe provider-error classifications and regression tests.
-- Controller review still required: policy/legal bases, special-category approach above, provider contract/transfer evidence, purpose-based retention decisions and assignment of the monitored support mailbox.
+- Controller review still required: policy/legal bases, special-category approach above, provider contract/transfer evidence and purpose-based retention decisions. The monitored support mailbox is assigned to the operational owner above.
 - Preserve the existing closed marketplace/catalogue flags until the separate pilot acceptance steps are complete. Do not mark this document as controller approval or a legal compliance certification.
 
 Reference: [ICO privacy information requirements](https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/individual-rights/the-right-to-be-informed/what-privacy-information-should-we-provide/); [ICO special-category conditions](https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/lawful-basis/special-category-data/what-are-the-conditions-for-processing/).

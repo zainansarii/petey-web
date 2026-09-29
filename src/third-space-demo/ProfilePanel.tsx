@@ -32,8 +32,8 @@ export function ProfilePanel({ trainer, club, match, onClose }: {
         {trainer.expertise.length > 0 ? <section><h3>Expertise</h3><ul className="ts-profile__list">{trainer.expertise.map((expertise) => <li key={expertise}>{expertise}</li>)}</ul></section> : null}
         {trainer.qualifications.length > 0 ? <section><h3>Qualifications</h3><ul className="ts-profile__list">{trainer.qualifications.map((qualification) => <li key={qualification}>{qualification}</li>)}</ul></section> : null}
         {club ? <section><h3>Your training location</h3><p className="ts-profile__club"><MapPin size={18} />Third Space {club.name}</p><p>{club.address}</p><p className="ts-muted">{match.locationReason}</p></section> : null}
-        <p className="ts-profile__rates">Individual session prices and availability need confirming with the club.</p>
-        <a className="ts-source-link" href={trainer.sourceUrl} target="_blank" rel="noopener noreferrer">View original Third Space profile <ArrowUpRight size={16} /><span className="ts-sr-only"> (opens in a new tab)</span></a>
+        <p className="ts-profile__rates">{trainer.kind === "synthetic" ? "Fictional profile for this demo. Sessions are not available to book." : "Individual session prices and availability need confirming with the club."}</p>
+        {trainer.kind === "sourced" && trainer.sourceUrl ? <a className="ts-source-link" href={trainer.sourceUrl} target="_blank" rel="noopener noreferrer">View original Third Space profile <ArrowUpRight size={16} /><span className="ts-sr-only"> (opens in a new tab)</span></a> : null}
       </div>
     </motion.article>
   </dialog>;

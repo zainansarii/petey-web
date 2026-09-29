@@ -1,40 +1,27 @@
-import { ThinkingLevel, type GenerateContentParameters } from "@google/genai";
+import { MODEL_ROUTES, type ModelRequest } from "../../functions/src/openai.js";
 import type { GenerateRequest } from "./service.js";
 import { withTransientProviderRetry, type ProviderRetryEvent, type ProviderRetryOptions } from "./provider-retry.js";
 
 interface GenerationOptions extends Omit<ProviderRetryOptions, "onRetry"> {
-  chatModel: string;
-  matchingModel: string;
-  generateContent: (request: GenerateContentParameters) => Promise<{ text?: string }>;
+  generateText: (request: ModelRequest) => Promise<string>;
   onRetry?: (event: ProviderRetryEvent & { kind: GenerateRequest["kind"]; model: string; nextModel: string }) => void;
 }
 
 export async function generateModelResponse(request: GenerateRequest, options: GenerationOptions): Promise<string> {
-  // Keep the preferred matching model on the first attempt. If it is temporarily unavailable,
-  // use the configured chat model for the remaining attempts, with the same contract.
-  const modelForAttempt = (attempt: number) => request.kind === "chat" || attempt > 0
-    ? options.chatModel : options.matchingModel;
-  const response = await withTransientProviderRetry(attempt => {
-    const model = modelForAttempt(attempt);
-    return options.generateContent({
-      model, contents: request.contents,
-      config: {
-        // No nested retries or extra fallback budget: two stages take at most
-        // 6 * 25s + 2 * (2.5s + 5.5s) = 166s within the 180s matching callable.
-        httpOptions: { timeout: request.kind === "chat" ? 20_000 : 25_000, retryOptions: { attempts: 1 } },
-        systemInstruction: request.systemInstruction,
-        responseMimeType: "application/json", responseJsonSchema: request.responseJsonSchema,
-        temperature: 0.35, maxOutputTokens: request.kind === "ranking" ? 4_000 : 3_000,
-        thinkingConfig: model.startsWith("gemini-2.") ? { thinkingBudget: 0 }
-          : { thinkingLevel: model.startsWith("gemini-3.7") ? ThinkingLevel.LOW : ThinkingLevel.MINIMAL },
-      },
-    });
-  }, {
+  const task = request.kind === "chat" ? "chat" : "matching";
+  const model = MODEL_ROUTES[task].model;
+  // Matching, including retries, always uses Sol at medium reasoning.
+  const text = await withTransientProviderRetry(() => options.generateText({
+    task, input: request.contents, systemInstruction: request.systemInstruction,
+    schema: { name: `third_space_${request.kind}`, json: request.responseJsonSchema },
+    maxOutputTokens: task === "chat" ? 8_192 : 16_384,
+    // SDK retries are disabled. Two matching stages take at most
+    // 6 * 25s + 2 * (2.5s + 5.5s) = 166s within the 180s callable.
+    timeoutMs: task === "chat" ? 20_000 : 25_000,
+  }), {
     sleep: options.sleep, random: options.random,
-    onRetry: event => options.onRetry?.({
-      ...event, kind: request.kind, model: modelForAttempt(event.retry - 1), nextModel: modelForAttempt(event.retry),
-    }),
+    onRetry: event => options.onRetry?.({ ...event, kind: request.kind, model, nextModel: model }),
   });
-  if (!response.text) throw new Error("The model returned no response.");
-  return response.text;
+  if (!text.trim()) throw new Error("The model returned no response.");
+  return text;
 }

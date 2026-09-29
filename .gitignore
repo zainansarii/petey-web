@@ -10,3 +10,6 @@ dist-third-space
 dist-third-space-admin
 *.log
 .DS_Store
+
+# Firebase emulator overrides for Secret Manager values
+.secret.local

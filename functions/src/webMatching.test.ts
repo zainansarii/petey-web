@@ -157,6 +157,19 @@ describe("matching lease and atomic completion", () => {
     expect(loadWebTrainerCatalog).toHaveBeenCalledTimes(1);
   });
 
+  it("recomputes cached decisions from the previous provider and then reuses the new model's result", async () => {
+    const old = { ...savedMatching(), model: "gemini-3.7-flash" };
+    const harness = transactionDatabase({ ...initialDraft(), matching: old });
+    const generateContent = vi.fn().mockResolvedValue(modelResponse());
+    expect(readSavedMatching(old, markdown, "gpt-6-sol")).toBeNull();
+    const args = { ...harness, profileMarkdown: markdown, model: "gpt-6-sol", generateContent };
+    const saved = await ensureWebMatching(args);
+    expect(saved.model).toBe("gpt-6-sol");
+    expect(readSavedMatching(saved, markdown, "gpt-6-sol")).toEqual(saved);
+    expect(await ensureWebMatching(args)).toEqual(saved);
+    expect(generateContent).toHaveBeenCalledTimes(1);
+  });
+
   it.each(["profile version", "matching facts", "new trainer"])(
     "reevaluates cached decisions when the catalogue changes: %s",
     async (change) => {
