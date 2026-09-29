@@ -4,7 +4,15 @@ Generated 29 September 2026 with the built-in OpenAI image-generation tool. Orig
 
 The generator returned a 1672×941 PNG. The 3840×2160 WebP is a Lanczos-resampled 4K delivery export, not a native 4K generation. The 1600px WebP is the responsive default. Both use the same centre crop; the untouched generated source is retained here.
 
-Public delivery files: `david-lloyd-demo/public/hero-coaching-4k.webp` and `hero-coaching-1600.webp`.
+Current public delivery files: `david-lloyd-demo/public/hero-coaching-wide-4k.webp` and `hero-coaching-wide-1600.webp`. The earlier close framing remains archived in the original files.
+
+## Wider framing revision
+
+At the user's request, the built-in image tool edited the original to pull the camera back and reveal more of the gym. `generated-wide.png` is the untouched 1672×941 edit; its responsive exports use the same resampling and encoding process described above. The page layout is unchanged.
+
+### Edit prompt
+
+Edit the supplied photograph. Change only the camera framing: pull the camera back substantially, about 1.7x wider, to show much more of this same bright premium gym around the two women. Preserve the exact two women's identities, faces, expressions, hair, charcoal and plum outfits, seated conversation poses, original warm daylight and realistic photographic style. They remain centred together on the same bench, but now occupy roughly the middle 40% of image width and 55–60% of image height, with their heads around 35% from the top. Show their full seated bodies and trainers, more of the bench, more foreground gym floor, and the surrounding gym's oak slat wall, large windows, free-weight rack and cable/strength equipment. The gym setting should be clearly readable and spacious, with more environment visible above and around the people. This will be used in a near-square centre crop on a website, so the centre square itself must retain both women plus appreciably more gym around them; do not achieve the wider view only by adding space at the far left/right edges. Keep 16:9 landscape framing and photographic perspective natural. No extra people, no text, no logos, no watermark, no other creative changes. Deliver a high-detail 3840×2160 4K landscape image if supported.
 
 ## Generation prompt
 

@@ -27,7 +27,7 @@ function Landing({ onStart }: { onStart: () => void }) {
       <button className="ts-button ts-button--light" onClick={onStart}>Find my trainer <ArrowRight size={19} strokeWidth={1.6} /></button>
     </motion.div>
     <motion.div className="ts-landing__media" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: reducedMotion ? 0 : 0.8, delay: reducedMotion ? 0 : 0.2 }}>
-      <img src="/david-lloyd-demo/hero-coaching-1600.webp" srcSet="/david-lloyd-demo/hero-coaching-1600.webp 1600w, /david-lloyd-demo/hero-coaching-4k.webp 3840w" sizes="(max-width: 900px) 100vw, 50vw" alt="A trainer and member sitting on a gym bench, smiling in conversation in a bright gym" width="3840" height="2160" fetchPriority="high" />
+      <img src="/david-lloyd-demo/hero-coaching-wide-1600.webp" srcSet="/david-lloyd-demo/hero-coaching-wide-1600.webp 1600w, /david-lloyd-demo/hero-coaching-wide-4k.webp 3840w" sizes="(max-width: 900px) 100vw, 50vw" alt="A trainer and member sitting on a gym bench, smiling in conversation in a bright gym" width="3840" height="2160" fetchPriority="high" />
     </motion.div>
     <div className="ts-landing__foot"><span>AI matchmaking demo with fictional trainers <span aria-hidden="true">·</span> Powered by <a href="https://joinpetey.com" target="_blank" rel="noopener noreferrer">Petey<span className="ts-sr-only"> (opens in a new tab)</span></a></span></div>
   </main>;
