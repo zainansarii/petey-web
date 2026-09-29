@@ -17,11 +17,18 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Install dependencies
         run: npm ci
 
+      - name: Install backend dependencies
+        run: |
+          npm ci --prefix functions
+          npm ci --prefix functions-third-space
+
       - name: Lint, test, and build
-        run: npm run verify
+        run: |
+          npm run verify
+          npm run verify:third-space

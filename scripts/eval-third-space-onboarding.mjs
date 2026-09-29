@@ -1,0 +1,165 @@
+// Opt-in checks against the real chat model, using synthetic conversations only.
+// Build functions-third-space first and set OPENAI_API_KEY in the shell.
+import assert from "node:assert/strict";
+import { createOpenAIClient, generateOpenAIText } from "../functions-third-space/lib/functions/src/openai.js";
+import { createThirdSpaceService } from "../functions-third-space/lib/functions-third-space/src/service.js";
+import { generateModelResponse } from "../functions-third-space/lib/functions-third-space/src/generation.js";
+import { BUDGET_QUICK_REPLIES, LOCATION_QUICK_REPLIES, OPENING_MESSAGE } from "../functions-third-space/lib/third-space-shared/contract.js";
+import { CLUBS, LONDON_LOCATIONS } from "../functions-third-space/lib/third-space-shared/locations.js";
+
+async function main() {
+  if (!process.env.OPENAI_API_KEY) throw new Error("Set OPENAI_API_KEY before running this opt-in evaluation.");
+  const client = createOpenAIClient(process.env.OPENAI_API_KEY);
+  const service = createThirdSpaceService(request => generateModelResponse(request, {
+    generateText: parameters => generateOpenAIText(client, parameters),
+  }), { trainers: [], clubs: CLUBS, locations: LONDON_LOCATIONS });
+
+  const messages = (...replies) => [OPENING_MESSAGE, ...replies].map((content, index) => ({
+    role: index % 2 === 0 ? "assistant" : "user", content,
+  }));
+  const trainee = [
+    "I want to run my first half marathon in March.",
+    "How far are you running comfortably at the moment?",
+    "About 5k; I have been running twice a week for three months.",
+  ];
+  const coaching = [
+    "What sort of personality would you like your trainer to have?", "Military style and direct.",
+    "What does military style look like for you?", "Clear instructions and someone who checks I stick to the plan.",
+  ];
+  const practical = [
+    "Are you already a Third Space member?", "Yes, Group membership. My home club is Moorgate, with no extra restrictions.",
+    "Which area would you like to train in?", "Near Liverpool Street.",
+    "What hourly budget feels comfortable?", "£85–£100 per hour.",
+  ];
+  const healthy = messages("I want to be more healthy");
+  const scenarios = [
+    ...[1, 2, 3].map(index => ({
+      name: `Broad health goal ${index}`, messages: healthy, topics: ["goal"], incomplete: "goal",
+    })),
+    { name: "Body confidence", messages: messages("I want to feel body confident"), topics: ["goal"], incomplete: "goal" },
+    { name: "Concrete running goal", messages: messages(trainee[0]), topics: ["goal", "experience"], incomplete: "goal" },
+    {
+      name: "Clarified goal still needs practical context",
+      messages: messages("I want to be more healthy", "What would being healthier look like for you day to day?", "Being able to climb stairs without getting out of breath."),
+      topics: ["goal", "experience"], incomplete: "goal",
+    },
+    {
+      name: "Still uncertain after clarification",
+      messages: messages("I want to be more healthy", "What would being healthier look like for you day to day?", "I am not sure really."),
+      topics: ["experience"], covered: "goal", incomplete: "experience",
+      review: "Accept uncertainty and explore a practical angle without repeating what healthy means.",
+    },
+    {
+      name: "Explicit goal skip",
+      messages: messages("I want to be more healthy", "What would being healthier look like for you day to day?", "Please skip the goal questions for now."),
+      noTopic: "goal", covered: "goal",
+    },
+    { name: "Personalised coaching follow-up", messages: messages(...trainee, ...coaching.slice(0, 2)), topics: ["coaching"], incomplete: "coaching" },
+    {
+      name: "No coaching preference",
+      messages: messages(...trainee, coaching[0], "No preference, anyone is fine."), noTopic: "coaching", covered: "coaching",
+    },
+    {
+      name: "Membership still needed",
+      messages: messages(...trainee, ...coaching), topics: ["membership", "budget"], incomplete: "membership",
+    },
+    {
+      name: "Member access still needed",
+      messages: messages(...trainee, ...coaching, practical[0], "Yes, I am a member.", ...practical.slice(2)),
+      topics: ["access"], incomplete: "access",
+    },
+    {
+      name: "Group home club covers location without another question",
+      messages: messages(...trainee, ...coaching, ...practical.slice(0, 2), ...practical.slice(4)),
+      complete: true,
+    },
+    ...["Single Club", "Group", "Group Plus"].map(tier => ({
+      name: `${tier} at City completes without a training-area question`,
+      messages: messages(...trainee, ...coaching, practical[0], `Yes, ${tier} membership. My home club is City.`, ...practical.slice(4)),
+      complete: true,
+    })),
+    {
+      name: "Membership type known but home club still needed",
+      messages: messages(...trainee, ...coaching, practical[0], "Yes, Group membership.", ...practical.slice(4)),
+      topics: ["access"], incomplete: "access", replyPattern: /home club/i,
+    },
+    {
+      name: "Non-member still needs a training area",
+      messages: messages(...trainee, ...coaching, practical[0], "Not a member yet.", ...practical.slice(4)),
+      topics: ["location"], incomplete: "location",
+    },
+    ...LOCATION_QUICK_REPLIES.map(area => ({
+      name: `Non-member moves on after choosing ${area}`,
+      messages: messages(...trainee, ...coaching, practical[0], "Not a member yet.",
+        "Where in London would be easiest for you to train?", area),
+      topics: ["budget"], covered: "location", incomplete: "budget",
+      forbiddenReplyPattern: /\b(home|office|commut\w*|based)\b/i,
+    })),
+    ...[...LOCATION_QUICK_REPLIES, "Near Liverpool Street", "Canary Wharf or Wimbledon"].map(area => ({
+      name: `Non-member completes after naming ${area}`,
+      messages: messages(...trainee, ...coaching, practical[0], "Not a member yet.", ...practical.slice(4),
+        "Where in London would be easiest for you to train?", area),
+      complete: true, covered: "location",
+    })),
+    {
+      name: "Non-member volunteered training area is not asked again",
+      messages: messages(...trainee, ...coaching, practical[0], "Not a member yet. I want to train in Wimbledon."),
+      topics: ["budget"], covered: "location", incomplete: "budget",
+      forbiddenReplyPattern: /\b(home|office|commut\w*|based)\b/i,
+    },
+    {
+      name: "Group member with phased access does not need another location question",
+      messages: messages(...trainee, ...coaching, practical[0], "Yes, Group membership, home club City. I am still waitlisted for Moorgate.", ...practical.slice(4)),
+      complete: true,
+    },
+    {
+      name: "Hourly budget still needed",
+      messages: messages(...trainee, ...coaching, ...practical.slice(0, 4)), topics: ["budget"], incomplete: "budget",
+    },
+    {
+      name: "Complete without repeating answered follow-ups",
+      messages: messages(...trainee, ...coaching, ...practical), complete: true,
+    },
+    {
+      name: "Non-member can complete without access questions",
+      messages: messages(...trainee, ...coaching, practical[0], "Not a member yet.", ...practical.slice(2)), complete: true,
+    },
+    {
+      name: "Refinement preserves earlier depth",
+      messages: messages(...trainee, ...coaching, ...practical,
+        "I have enough to find your matches.", "Thanks.",
+        "What would you like to change about your matches?", "Only Soho instead of Liverpool Street please."),
+      complete: true,
+    },
+  ];
+
+  let failures = 0;
+  for (const scenario of scenarios) {
+    const turn = await service.turn(scenario.messages);
+    // Report actual replies for human review as topic labels alone cannot prove conversational quality.
+    console.log(JSON.stringify({ scenario: scenario.name, review: scenario.review, ...turn }));
+    try {
+      assert.equal(turn.readyForMatching, Boolean(scenario.complete), "Unexpected matching readiness");
+      if (scenario.topics) assert.ok(scenario.topics.includes(turn.topic), `Unexpected topic: ${turn.topic}`);
+      if (scenario.noTopic) assert.notEqual(turn.topic, scenario.noTopic, "Repeated a skipped theme");
+      if (scenario.incomplete) assert.equal(turn.coverage[scenario.incomplete], false, "Premature topic coverage");
+      if (scenario.covered) assert.equal(turn.coverage[scenario.covered], true, "Skip/no preference not respected");
+      if (turn.topic === "budget") assert.deepEqual(turn.quickReplies, BUDGET_QUICK_REPLIES);
+      if (turn.topic === "location") assert.deepEqual(turn.quickReplies, LOCATION_QUICK_REPLIES);
+      if (scenario.complete) assert.equal(turn.topic, "complete");
+      if (scenario.replyPattern) assert.match(turn.reply, scenario.replyPattern);
+      if (scenario.forbiddenReplyPattern) assert.doesNotMatch(turn.reply, scenario.forbiddenReplyPattern);
+    } catch (error) {
+      failures += 1;
+      console.error(`${scenario.name}: ${error.message}`);
+    }
+  }
+  console.log(`${scenarios.length - failures}/${scenarios.length} model-response checks passed. Review the actual wording above.`);
+  if (failures) process.exitCode = 1;
+}
+
+main().catch(error => {
+  console.error(JSON.stringify({ error: error.name, status: typeof error.status === "number" ? error.status : undefined,
+    ...(!process.env.OPENAI_API_KEY ? { message: "Set OPENAI_API_KEY before running this opt-in evaluation." } : {}) }));
+  process.exitCode = 1;
+});

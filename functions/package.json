@@ -18,7 +18,8 @@
     "firebase-functions": "7.3.2",
     "google-auth-library": "^10.9.1",
     "sharp": "^0.34.5",
-    "zod": "4.5.4"
+    "zod": "4.5.4",
+    "openai": "7.23.0"
   },
   "devDependencies": {
     "@types/node": "24.7.2",

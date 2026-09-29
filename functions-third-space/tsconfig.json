@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "rootDir": "..",
+    "outDir": "lib",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "types": ["node"],
+    "noUncheckedIndexedAccess": true
+  },
+  "include": ["src/**/*.ts", "../third-space-shared/**/*.ts"],
+  "exclude": ["src/**/*.test.ts", "../third-space-shared/**/*.test.ts"]
+}
