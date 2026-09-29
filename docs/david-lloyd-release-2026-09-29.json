@@ -1,0 +1,64 @@
+{
+  "preserved_existing_paths": [
+    "/",
+    "/third-space-demo/",
+    "/third-space-demo-admin/",
+    "/assets/main-BcuX70Lz.js",
+    "/assets/jsx-runtime-BbgUO-w-.js",
+    "/assets/tokens-DKQtlbZK.js",
+    "/assets/arrow-right--PpwRtEf.js",
+    "/assets/chevron-left-BGY7bIAe.js",
+    "/assets/BrandMark-CmtMwiHM.js",
+    "/assets/model-CKM4MhMT.js",
+    "/assets/x-BPEi4P21.js",
+    "/assets/send-BROMoWNq.js",
+    "/assets/chevron-right-D_m-xc9H.js",
+    "/assets/john-kim-B0VRPFkJ.js",
+    "/assets/marketplace-DYUINtvt.js",
+    "/assets/tokens-eykExOqD.css",
+    "/assets/model-BBiJqFuE.css",
+    "/assets/marketplace-C8FbvlrZ.css",
+    "/assets/main-BDxlh9dz.css",
+    "/third-space-demo/assets/index-Dxzcj-_5.js",
+    "/third-space-demo/assets/index-CDbHJTmg.css",
+    "/third-space-demo-admin/assets/index-DozESF6S.js",
+    "/third-space-demo-admin/assets/index-DO8aj2rF.css"
+  ],
+  "new_routes": {
+    "/david-lloyd-demo/": {
+      "html_sha256": "f30be7408bcdc7e169b05dd92adb0e91b4d8895577430e63501f87dfe963b9bc",
+      "assets": [
+        "/david-lloyd-demo/assets/index-DhVHb9Et.js",
+        "/david-lloyd-demo/assets/index-B9b6cDEx.css"
+      ],
+      "status": 200
+    },
+    "/david-lloyd-demo-admin/": {
+      "html_sha256": "ed41f902ee6540be3ef07538e278d1096ae8949db7027bedc5ab21e4921842bc",
+      "assets": [
+        "/david-lloyd-demo-admin/assets/index-DAixwa1x.js",
+        "/david-lloyd-demo-admin/assets/index-uj65nz3u.css"
+      ],
+      "status": 200
+    }
+  },
+  "portrait_hashes": "10/10 matched",
+  "date": "2026-09-29",
+  "pages_run": 36616205027,
+  "main_release": "a428cbda5980fe16f6d3fac871b575286b575f51",
+  "david_lloyd_source": "95848872d085dd97aa1015a1c91af634ee92a3aa",
+  "third_space_source": "26af043937b05ccd08a433df21cd5ce1662ab278",
+  "backend_ready_revisions": [
+    "rundavidlloydonboardingturnv1-00003-rim",
+    "matchdavidlloydtrainersv1-00003-rud"
+  ],
+  "live_browser_matching": [
+    "Grace Ellis",
+    "Emma Carter",
+    "Adam Khan"
+  ],
+  "budget": "Not sure yet",
+  "browser_retry": "Recovered without losing or duplicating the answer",
+  "admin": "Desktop and 390px phone passed; sample totals and Emma drill-down verified",
+  "reset": "Confirmed: returned to landing; new chat contains only the opening prompt"
+}
