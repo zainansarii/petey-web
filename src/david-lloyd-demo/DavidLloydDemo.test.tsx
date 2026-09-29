@@ -58,10 +58,12 @@ it("completes an anonymous journey, identifies fictional profiles and preserves 
   expect(storage).not.toHaveBeenCalled();
   expect(screen.getByText(/10 fictional trainer profiles/)).toBeInTheDocument();
   const card = screen.getByRole("button", { name: `View ${trainer.name.split(" ")[0]}’s profile` });
+  expect(within(card).getByText("£42.50 / session")).toBeInTheDocument();
   card.focus();
   fireEvent.click(card);
   const panel = screen.getByRole("dialog", { name: trainer.name });
   expect(within(panel).getByText(trainer.bio)).toBeInTheDocument();
+  expect(within(panel).getByText("£42.50 / session")).toBeInTheDocument();
   expect(within(panel).queryByRole("link", { name: /View original David Lloyd profile/ })).not.toBeInTheDocument();
   expect(within(panel).getByText("Fictional profile for this demo. Sessions are not available to book.")).toBeInTheDocument();
   expect(within(panel).getByRole("button", { name: "Close trainer profile" })).toHaveFocus();
@@ -79,26 +81,26 @@ it("completes an anonymous journey, identifies fictional profiles and preserves 
 });
 
 it("retains original-profile links for explicitly sourced profiles", () => {
-  const sourced = { ...trainer, kind: "sourced" as const, sourceUrl: "https://www.davidlloyd.co.uk/personal-training/", verifiedAt: "2026-09-24" };
+  const sourced = { ...trainer, pricePerSessionGbp: 40, kind: "sourced" as const, sourceUrl: "https://www.davidlloyd.co.uk/personal-training/", verifiedAt: "2026-09-24" };
   render(<ProfilePanel trainer={sourced} club={CLUBS.find(club => club.id === trainer.clubIds[0])} match={results.matches[0]} onClose={vi.fn()} />);
   expect(screen.getByRole("link", { name: /View original David Lloyd profile/ })).toHaveAttribute("href", sourced.sourceUrl);
   expect(screen.queryByText(/Fictional profile/)).not.toBeInTheDocument();
+  expect(screen.getByText("£40 / session")).toBeInTheDocument();
 });
 
-it("shows unverified price, schedule and membership details once alongside the matches", async () => {
+it("omits confirmation disclaimers from the matches", async () => {
   const unconfirmed = [
     "Individual trainer prices and session availability need to be confirmed.",
-    "Other preferences still need confirming: Tuesday evenings.",
-    "Your membership access is unconfirmed; these clubs are options to explore.",
+    "Confirm membership and club access before arranging personal training.",
+    "Distances are approximate straight-line distances, not travel times.",
   ];
   api.findDavidLloydMatches.mockResolvedValueOnce({ ...results, unconfirmed });
   render(<DavidLloydDemo />);
   await start();
   typeAndSend("Build strength near Wimbledon, up to £60 per session on Tuesday evenings. I’m unsure about membership.");
   await screen.findByRole("heading", { name: "Meet your matches" });
-  const notes = screen.getByRole("list", { name: "Details to confirm" });
-  expect(within(notes).getAllByRole("listitem").map((item) => item.textContent)).toEqual(unconfirmed);
-  for (const note of unconfirmed) expect(screen.getAllByText(note)).toHaveLength(1);
+  expect(screen.queryByRole("list", { name: "Details to confirm" })).not.toBeInTheDocument();
+  for (const note of unconfirmed) expect(screen.queryByText(note)).not.toBeInTheDocument();
   expect(screen.getByRole("button", { name: `View ${trainer.name.split(" ")[0]}’s profile` })).toBeInTheDocument();
 });
 

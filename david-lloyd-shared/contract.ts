@@ -19,6 +19,7 @@ export interface DavidLloydTrainer {
   summary: string;
   bio: string;
   tier: null;
+  pricePerSessionGbp: number;
   sourceUrl?: string;
   verifiedAt?: string;
 }

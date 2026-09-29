@@ -15,11 +15,11 @@ npm run verify:david-lloyd
 
 `vite.david-lloyd.config.ts` and `vite.david-lloyd-admin.config.ts` build to `dist-david-lloyd/` and `dist-david-lloyd-admin/`. Assets, contracts, data and functions live in their own David Lloyd directories. Neither demo imports the Third Space catalogue. The existing Third Space source pin remains independent.
 
-The visual direction preserves the existing composition, spacing and interactions: cream `#FCFCF6`, plum `#82285F`, charcoal `#474A4A`, DM Sans, the official script logo and monochrome synthetic portraits. The landing page uses a plain cream background with no trainer image. The conversation, matches and profile panel retain their current roles and restrained motion, with reduced-motion support.
+The visual direction preserves the existing composition, spacing and interactions: cream `#FCFCF6`, plum `#82285F`, charcoal `#474A4A`, DM Sans, the official script logo and monochrome synthetic portraits. The landing page pairs the existing copy with an original generated coaching photograph, placed to the right on desktop and after the CTA on mobile. Responsive 1600px and 4K WebP exports keep delivery lightweight. The conversation, matches and profile panel retain their current roles and restrained motion, with reduced-motion support. Per-session prices appear beside club locations on cards and profiles; the three results confirmation notes are no longer displayed.
 
 ## Matching and data handling
 
-Members match at their home club and any additional clubs whose access they explicitly confirm. Package names do not grant access. Exclusions take precedence. Non-members supply one training area. Budgets are free-form per-session preferences; trainer tariffs, session lengths and affordability are unverified. Tennis and swimming lessons are outside this PT catalogue.
+Members match at their home club and any additional clubs whose access they explicitly confirm. Package names do not grant access. Exclusions take precedence. Non-members supply one training area. Budgets remain free-form per-session preferences and do not filter or rank matches. Profiles display assigned £40 or £42.50 per-session demo rates based on the supplied Cheam app examples; actual club tariffs, session lengths and affordability are not inferred. Tennis and swimming lessons are outside this PT catalogue.
 
 The sample contains four Raynes Park trainers, three Kingston trainers and three Colliers Wood trainers. Other verified Greater London clubs remain recognised but have no fictional profiles. See [research and provenance](david-lloyd-sources.md).
 

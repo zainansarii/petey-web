@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { ArrowUpRight, MapPin, X } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import type { DavidLloydClub, DavidLloydMatch, DavidLloydTrainer } from "../../david-lloyd-shared/contract";
+import { sessionPrice } from "./price";
 
 export function ProfilePanel({ trainer, club, match, onClose }: {
   trainer: DavidLloydTrainer; club: DavidLloydClub | undefined; match: DavidLloydMatch; onClose: () => void;
@@ -25,7 +26,7 @@ export function ProfilePanel({ trainer, club, match, onClose }: {
   return <dialog className="ts-profile-dialog" ref={dialog} aria-labelledby="ts-profile-title" onCancel={(event) => { event.preventDefault(); onClose(); }} onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}>
     <button ref={close} className="ts-icon-button ts-profile__close" aria-label="Close trainer profile" onClick={onClose}><X size={22} /></button>
     <motion.article className="ts-profile" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: reducedMotion ? 0 : 0.3 }}>
-      <div className="ts-profile__portrait"><img src={trainer.photoUrl} alt={trainer.name} /><div className="ts-profile__identity"><span>{club?.name}</span><h2 id="ts-profile-title">{trainer.name}</h2></div></div>
+      <div className="ts-profile__portrait"><img src={trainer.photoUrl} alt={trainer.name} /><div className="ts-profile__identity"><div className="ts-profile__meta"><span>{club?.name}</span><span className="ts-profile__price">{sessionPrice(trainer.pricePerSessionGbp)}</span></div><h2 id="ts-profile-title">{trainer.name}</h2></div></div>
       <div className="ts-profile__body">
         <section><h3>Why you could work well together</h3><ul className="ts-reasons">{match.reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul></section>
         <section><h3>About {trainer.name.split(" ")[0]}</h3><p className="ts-profile__bio">{trainer.bio || trainer.summary}</p>{trainer.tier ? <p className="ts-profile__tier">{trainer.tier === "elite" ? "Elite personal trainer" : "Personal trainer"}</p> : null}</section>

@@ -110,7 +110,7 @@ export function selectCandidates(
   clubs: readonly DavidLloydClub[],
   locations: readonly LondonLocation[],
 ): CandidateSelection {
-  const unconfirmed = ["Individual trainer prices and session availability need to be confirmed."];
+  const unconfirmed = ["Session availability needs to be confirmed."];
   // Racquet and swimming lessons are separate services, not evidenced PT specialisms.
   const requested = [brief.goal, ...brief.specialistNeeds].join(" ");
   if (/\b(?:tennis|padel|swim(?:ming)?)\s+(?:lessons?|coaching)\b|\blearn (?:to )?(?:swim|play tennis|play padel)\b/i.test(requested)) {

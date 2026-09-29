@@ -40,13 +40,15 @@ button { -webkit-appearance: none; }
 .ts-button--light:hover { background: #69204D; }
 .ts-button--outline { color: #82285F; background: transparent; border-color: #82285F66; }
 .ts-button--outline:hover { border-color: #82285F; background: #82285F0A; }
-.ts-landing { min-height: 100dvh; position: relative; isolation: isolate; background: #FCFCF6; display: grid; grid-template-rows: 1fr auto; gap: clamp(24px, 4dvh, 48px); padding: calc(var(--ts-header-height) + 24px) clamp(24px, 4.8vw, 80px) max(28px, env(safe-area-inset-bottom)); }
-.ts-landing__content { max-width: 760px; align-self: center; }
+.ts-landing { --ts-landing-gutter: clamp(24px, 4.8vw, 80px); min-height: 100dvh; position: relative; isolation: isolate; background: #FCFCF6; display: grid; grid-template-columns: minmax(0, 1.06fr) minmax(0, 1fr); grid-template-rows: 1fr auto; column-gap: clamp(28px, 3.5vw, 64px); row-gap: clamp(24px, 4dvh, 48px); padding: calc(var(--ts-header-height) + 24px) var(--ts-landing-gutter) max(28px, env(safe-area-inset-bottom)); }
+.ts-landing__content { max-width: 760px; min-width: 0; align-self: center; }
+.ts-landing__media { align-self: center; height: clamp(340px, calc(100dvh - var(--ts-header-height) - 120px), 760px); margin-right: calc(-1 * var(--ts-landing-gutter)); overflow: hidden; }
+.ts-landing__media img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: 50% 50%; }
 .ts-landing h1 { font-family: var(--ts-display); font-size: clamp(52px, min(6.6vw, 13dvh), 96px); font-weight: 400; letter-spacing: -.048em; line-height: 1.02; }
 .ts-landing h1 em { font-weight: 400; font-style: normal; color: #82285F; }
 .ts-landing__content > p { margin-top: 31px; color: #474A4A; font-size: clamp(14px, 1.14vw, 17px); line-height: 1.8; }
 .ts-landing__content > .ts-button { margin-top: 31px; width: 202px; height: 53px; padding: 12px 18px; font-size: 15px; }
-.ts-landing__foot { display: flex; justify-content: flex-end; color: #62635F; font-size: 11px; }
+.ts-landing__foot { grid-column: 1 / -1; display: flex; justify-content: flex-end; color: #62635F; font-size: 11px; }
 .ts-landing__foot a, .ts-results__footer a { text-decoration: none; color: #82285F; }
 .ts-landing__foot a:hover, .ts-results__footer a:hover { text-decoration: underline; }
 .ts-app--chat { height: 100dvh; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
@@ -108,7 +110,9 @@ button { -webkit-appearance: none; }
 .ts-trainer-card__portrait { position: absolute; inset: 0; z-index: 0; border-radius: inherit; overflow: hidden; clip-path: inset(0 round var(--ts-card-radius)); isolation: isolate; pointer-events: none; }
 .ts-trainer-card__portrait > img { position: absolute; inset: -48px; width: calc(100% + 96px); height: calc(100% + 96px); object-fit: cover; filter: grayscale(1); z-index: 0; transition: transform .65s cubic-bezier(.2,.65,.3,1); }
 .ts-trainer-card__portrait::after { content: ""; position: absolute; inset: 0; z-index: 1; border-radius: inherit; background: linear-gradient(180deg, #ffffff1a, #ffffff08 48%, #000b); box-shadow: inset 0 1px 0 #ffffff24, inset 0 0 0 1px #ffffff12; }
-.ts-trainer-card__club { position: absolute; top: 20px; left: 20px; z-index: 1; font-size: 11px; line-height: 1.4; padding: 8px 12px; border-radius: 30px; background: #FCFCF6; color: #474A4A; }
+.ts-trainer-card__meta { position: absolute; top: 20px; left: 20px; right: 20px; z-index: 1; display: flex; align-items: center; flex-wrap: wrap; gap: 7px; }
+.ts-trainer-card__club, .ts-trainer-card__price { font-size: 11px; line-height: 1.4; padding: 8px 12px; border-radius: 30px; background: #FCFCF6; color: #474A4A; }
+.ts-trainer-card__price { background: #82285F; color: #FCFCF6; white-space: nowrap; }
 .ts-trainer-card__bottom { position: absolute; left: 23px; right: 20px; bottom: 24px; z-index: 1; display: flex; align-items: flex-end; gap: 13px; justify-content: space-between; }
 .ts-trainer-card__name { max-width: 80%; font-family: var(--ts-display); font-size: clamp(26px, 2.7vw, 42px); line-height: .99; letter-spacing: -.025em; }
 .ts-trainer-card__arrow { width: 43px; height: 43px; border: 1px solid #ffffffad; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: color .2s, background .2s; }
@@ -122,8 +126,6 @@ button { -webkit-appearance: none; }
 .ts-match__location { display: flex; align-items: flex-start; gap: 7px; font-size: 11px; color: #62635F; line-height: 1.7; margin-top: 17px !important; }
 .ts-match__location svg { margin-top: 2px; }
 .ts-results__footer { margin-top: 49px; border-top: 1px solid #474A4A25; padding: 23px 0 30px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 20px; color: #62635F; font-size: 10px; line-height: 1.6; }
-.ts-results__notes { width: 100%; margin: 0; padding: 0; list-style: none; font-size: 12px; line-height: 1.7; }
-.ts-results__notes li + li { margin-top: 4px; }
 .ts-empty { padding: 75px 0 45px; max-width: 470px; }
 .ts-empty p { font-size: 15px; line-height: 1.8; color: #62635F; }
 .ts-empty .ts-button { margin-top: 27px; }
@@ -136,7 +138,8 @@ button { -webkit-appearance: none; }
 .ts-profile__portrait > img { position: absolute; inset: -48px; width: calc(100% + 96px); height: calc(100% + 96px); object-fit: cover; object-position: 50% 30%; filter: grayscale(1); z-index: -2; }
 .ts-profile__portrait::after { position: absolute; inset: 0; content: ""; background: linear-gradient(180deg, #ffffff00, #FCFCF600 40%, #FCFCF6 92%); z-index: -1; }
 .ts-profile__identity { position: absolute; bottom: 32px; left: 36px; right: 36px; }
-.ts-profile__identity > span { font-size: 12px; }
+.ts-profile__meta { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; font-size: 12px; }
+.ts-profile__price { background: #82285F; color: #FCFCF6; font-size: 11px; line-height: 1.4; padding: 8px 12px; border-radius: 30px; white-space: nowrap; }
 .ts-profile__identity h2 { font: 400 clamp(45px, 5vw, 63px)/1.02 var(--ts-display); letter-spacing: -.03em; margin-top: 14px; }
 .ts-profile__body { padding: 0 36px 43px; }
 .ts-profile__body section { padding: 29px 0; border-bottom: 1px solid #474A4A25; }
@@ -161,10 +164,13 @@ button { -webkit-appearance: none; }
   .ts-results__heading { flex-direction: column; align-items: flex-start; gap: 23px; }
   .ts-match-grid { gap: 22px; }
   .ts-trainer-card__bottom { left: 17px; right: 15px; bottom: 21px; }
-  .ts-trainer-card__club { top: 16px; left: 16px; }
+  .ts-trainer-card__meta { top: 16px; left: 16px; right: 16px; }
   .ts-trainer-card__arrow { width: 36px; height: 36px; }
 }
 @media (max-width: 900px) {
+  .ts-landing { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto auto; row-gap: 32px; padding-top: calc(var(--ts-header-height) + 32px); }
+  .ts-landing__content { max-width: 760px; }
+  .ts-landing__media { width: calc(100% + 2 * var(--ts-landing-gutter)); height: clamp(220px, 48vw, 400px); margin-inline: calc(-1 * var(--ts-landing-gutter)); }
   .ts-app--chat .ts-header { height: auto; min-height: var(--ts-header-height); grid-template-columns: minmax(0, 1fr) auto; column-gap: 16px; padding-block: 14px 18px; }
   .ts-header__title { grid-column: 1 / -1; grid-row: 2; padding-top: 12px; font-size: 30px; }
 }
@@ -179,7 +185,7 @@ button { -webkit-appearance: none; }
   .ts-header__label { font-size: 10px; }
   .ts-header__actions { gap: 17px; }
   .ts-header__actions .ts-text-button { font-size: 11px; gap: 6px; }
-  .ts-landing { padding-inline: 24px; }
+  .ts-landing { --ts-landing-gutter: 24px; }
   .ts-landing h1 { font-size: clamp(56px, min(10.6vw, 15dvh), 92px); }
   .ts-landing__content > p { font-size: 14px; max-width: 370px; margin-top: 27px; }
   .ts-landing__foot { justify-content: flex-start; font-size: 10px; }
@@ -239,7 +245,7 @@ button { -webkit-appearance: none; }
   .ts-brand__logo { width: 135px; }
   .ts-header__actions { gap: 9px; }
   .ts-header__actions .ts-text-button { gap: 4px; font-size: 9px; }
-  .ts-landing { padding-inline: 20px; }
+  .ts-landing { --ts-landing-gutter: 20px; }
   .ts-conversation { padding-inline: 16px; }
   .ts-header__title { font-size: 28px; }
   .ts-quick-replies button { font-size: 10px; padding-inline: 12px; }

@@ -7,6 +7,7 @@ import { BUDGET_QUICK_REPLIES, OPENING_MESSAGE, type DemoMessage, type DavidLloy
 import { findDavidLloydMatches, runDavidLloydTurn } from "./api";
 import { Conversation } from "./Conversation";
 import { ProfilePanel } from "./ProfilePanel";
+import { sessionPrice } from "./price";
 
 type Screen = "landing" | "chat" | "matching" | "matches";
 type FailedRequest = { stage: "turn" | "matching"; messages: DemoMessage[] };
@@ -25,6 +26,9 @@ function Landing({ onStart }: { onStart: () => void }) {
       <p>Your goals. Your routine. Your way of training.<br className="ts-desktop-break" /> Let’s find the person to bring it all together.</p>
       <button className="ts-button ts-button--light" onClick={onStart}>Find my trainer <ArrowRight size={19} strokeWidth={1.6} /></button>
     </motion.div>
+    <motion.div className="ts-landing__media" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: reducedMotion ? 0 : 0.8, delay: reducedMotion ? 0 : 0.2 }}>
+      <img src="/david-lloyd-demo/hero-coaching-1600.webp" srcSet="/david-lloyd-demo/hero-coaching-1600.webp 1600w, /david-lloyd-demo/hero-coaching-4k.webp 3840w" sizes="(max-width: 900px) 100vw, 50vw" alt="A trainer and member sitting on a gym bench, smiling in conversation in a bright gym" width="3840" height="2160" fetchPriority="high" />
+    </motion.div>
     <div className="ts-landing__foot"><span>AI matchmaking demo with fictional trainers <span aria-hidden="true">·</span> Powered by <a href="https://joinpetey.com" target="_blank" rel="noopener noreferrer">Petey<span className="ts-sr-only"> (opens in a new tab)</span></a></span></div>
   </main>;
 }
@@ -35,9 +39,9 @@ function MatchCard({ match, index, onOpen }: { match: DavidLloydMatch; index: nu
   const club = CLUBS.find((item) => item.id === match.clubId);
   const reducedMotion = useReducedMotion();
   return <motion.article className="ts-match" initial={{ opacity: 0, y: reducedMotion ? 0 : 22 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reducedMotion ? 0 : 0.5, delay: reducedMotion ? 0 : index * 0.1 }}>
-    <button className="ts-trainer-card" aria-label={`View ${firstName}’s profile`} onClick={() => onOpen(match)}>
+    <button className="ts-trainer-card" aria-label={`View ${firstName}’s profile`} aria-describedby={`ts-trainer-meta-${trainer.id}`} onClick={() => onOpen(match)}>
       <span className="ts-trainer-card__portrait" aria-hidden="true"><img src={trainer.photoUrl} alt="" loading={index === 0 ? "eager" : "lazy"} /></span>
-      <span className="ts-trainer-card__club">{club?.name}</span>
+      <span className="ts-trainer-card__meta" id={`ts-trainer-meta-${trainer.id}`}><span className="ts-trainer-card__club">{club?.name}</span><span className="ts-trainer-card__price">{sessionPrice(trainer.pricePerSessionGbp)}</span></span>
       <span className="ts-trainer-card__bottom"><span className="ts-trainer-card__name">{firstName}</span><span className="ts-trainer-card__arrow" aria-hidden="true"><ArrowUpRight size={21} strokeWidth={1.5} /></span></span>
     </button>
     <div className="ts-match__reasons"><h2>A fit for you</h2><ul className="ts-reasons">{match.reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul><p className="ts-match__location"><MapPin size={15} aria-hidden="true" />{match.locationReason}</p></div>
@@ -49,7 +53,6 @@ function Matches({ result, onRefine, onOpen }: { result: DavidLloydMatches; onRe
     <div className="ts-results__heading"><div><h1>{result.matches.length > 0 ? "Meet your matches" : "Let’s open up the possibilities."}</h1><p>{result.matches.length > 0 ? "Selected around you, with a reason for every match." : (result.emptyReason || "We couldn’t find a strong match within your current preferences.")}</p></div><button className="ts-button ts-button--outline" onClick={onRefine}><SlidersHorizontal size={17} />Refine my matches</button></div>
     {result.matches.length > 0 ? <div className="ts-match-grid">{result.matches.map((match, index) => <MatchCard key={match.trainerId} match={match} index={index} onOpen={onOpen} />)}</div> : <div className="ts-empty"><p>Tell us what you’d be happy to adjust — such as your training area or coaching preferences.</p><button className="ts-button ts-button--light" onClick={onRefine}>Talk it through <ArrowRight size={18} /></button></div>}
     <footer className="ts-results__footer">
-      {result.unconfirmed.length > 0 ? <ul className="ts-results__notes" aria-label="Details to confirm">{result.unconfirmed.map((note) => <li key={note}>{note}</li>)}</ul> : null}
       <span>AI matchmaking demo <span aria-hidden="true">·</span> {TRAINERS.length} fictional trainer profiles</span><span>Powered by <a href="https://joinpetey.com" target="_blank" rel="noopener noreferrer">Petey<span className="ts-sr-only"> (opens in a new tab)</span></a></span>
     </footer>
   </main>;

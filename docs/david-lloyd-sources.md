@@ -37,7 +37,24 @@ Other London neighbourhood/station anchors are approximate matching aids, not tr
 
 [David Lloyd personal training](https://www.davidlloyd.co.uk/personal-training/) describes personalised goal-based coaching and fitness assessment. [Gym FAQs](https://www.davidlloyd.co.uk/gym/) describe app booking and subscription savings, without establishing the individual prices or diaries of this demo's fictional trainers. [Membership options](https://www.davidlloyd.co.uk/membership-options/) makes package and club choice relevant to membership pricing, with personal training an additional service.
 
-No current universal PT price floor, hourly rate, session duration or trainer-tier pricing is verified. The demo therefore asks for an arbitrary **per-session** budget or accepts “Not sure yet”/“Flexible”. Budget is retained as an unconfirmed preference and never filters or ranks trainers. Third Space's rates and Personal/Elite tiers do not carry over. A historical [official PT blog](https://blog.davidlloyd.co.uk/david-lloyd-clubs-news/the-benefits-of-working-out-with-a-personal-trainer-at-david-lloyd-clubs/) mentions 45-minute sessions; this is not used as a current universal session length. No official current “PT 55” assumption is used.
+The user supplied David Lloyd app screenshots from Cheam as price references. Reviewed 29 September 2026, `377ae5a3-9722-49a5-ab68-cca54f0b9759.JPG` shows **SINGLE SESSIONS** with four trainers priced at **£42.50** and one at **£40.00**. `30581b3f-6913-4ac5-8788-4decfd3ab22c.JPG` shows one £42.50 profile with an explicit **45 MIN** duration. The remaining directory screenshots (`4237216d-8ca2-4b30-a48a-5c0dcc809fa3.JPG`, `cf524567-98a9-4670-9e22-0546b275d444.JPG`, `5a593a66-6431-45a5-b676-8a96325943c9.JPG`, `e5ea9e56-a49c-4777-b555-bf597cbc8092.JPG`, `08f05fc2-be4f-4d40-96f4-11747c632bc2.JPG`) repeat those amounts. These reference files remain in the user's Downloads folder and are not published or committed. No real trainer identities, biographies, portraits or account information are copied into the demo.
+
+The fictional catalogue now assigns these example per-session amounts to its existing identities. This is demo data, not verification of individual tariffs at Raynes Park, Kingston or Colliers Wood. Session duration is deliberately omitted because only one reference profile establishes it; the demo does not infer a universal 45-minute session, an hourly conversion or package discounts.
+
+| Fictional trainer | Assigned price per session |
+| --- | --- |
+| Emma Carter | £42.50 |
+| Daniel Reed | £42.50 |
+| Amira Hassan | £42.50 |
+| Lucas Bennett | £42.50 |
+| Sophie Morgan | £42.50 |
+| Nathan Cole | £40 |
+| Isabel Ross | £42.50 |
+| Adam Khan | £40 |
+| Grace Ellis | £42.50 |
+| Theo Parker | £42.50 |
+
+The UI reads `pricePerSessionGbp` from the shared catalogue for cards and full profiles. The demo continues to ask for a free-form **per-session** budget or accept “Not sure yet”/“Flexible”. Display rates and budget do not change eligibility or ranking, and are excluded from the AI ranking payload. It therefore makes no affordability promises. Third Space's rates and Personal/Elite tiers do not carry over.
 
 [Raynes Park](https://www.davidlloyd.co.uk/clubs/raynes-park/) advertises racquet facilities, indoor/outdoor swimming and personal training. Daniel's fictional profile therefore supports strength and conditioning for tennis/padel. It does not offer lessons. [Kingston](https://www.davidlloyd.co.uk/clubs/kingston/gym/) and [Colliers Wood](https://www.davidlloyd.co.uk/clubs/colliers-wood/gym/) advertise personal training including older-adult, mobility and beginner needs. Sophie's fictional profile emphasises older-adult strength, balance and mobility. Colliers Wood's [main page](https://www.davidlloyd.co.uk/clubs/colliers-wood/) says it is open. Neither Kingston nor Colliers Wood is represented as a racquets club. Tennis, padel and swimming lessons are separate services, outside this PT matching demo.
 
@@ -51,7 +68,9 @@ The demo records a volunteered package name as free text, without requiring it o
 
 The [official homepage](https://www.davidlloyd.co.uk/) was inspected on the verification date. Its light brand palette informed cream `#FCFCF6`, plum `#82285F` and text `#474A4A`. The first David Lloyd CLUBS inline script-logo SVG (`viewBox="0 0 199 78"`) was extracted; its path geometry is retained and fills changed to plum. The local copies are `david-lloyd-demo/public/david-lloyd-logo.svg` and `src/david-lloyd-demo-admin/david-lloyd-logo.svg`. Existing DM Sans remains the UI font by design; the demo does not redistribute the official site's proprietary font.
 
-The ten synthetic identities and monochrome portraits are reused unchanged from the approved Third Space fictional sample. The David Lloyd files have isolated `dl-demo-` IDs and asset paths. Emma remains the hero portrait. Only fictional club assignments and relevant profile details change. No public trainer photography or biographies are imported.
+The ten synthetic identities and monochrome portraits are reused unchanged from the approved Third Space fictional sample. The David Lloyd files have isolated `dl-demo-` IDs and asset paths. Only fictional club assignments and relevant profile details change. No public trainer photography or biographies are imported.
+
+The homepage uses an original generated photograph of fictional adults chatting between sets. The visual direction draws on the warm coaching photography on the [official personal training page](https://www.davidlloyd.co.uk/personal-training/), inspected on 29 September 2026. The [generation source and prompt](../demo-media/david-lloyd-hero/README.md) record the native dimensions and 4K delivery export.
 
 ## Deployment configuration
 

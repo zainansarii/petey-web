@@ -14,6 +14,8 @@ assert.equal(new Set(TRAINERS.map(trainer => trainer.id)).size, 10);
 assert.deepEqual([...DEMO_CLUB_IDS], ["raynes-park", "kingston", "colliers-wood"]);
 assert.deepEqual(Object.fromEntries(DEMO_CLUB_IDS.map(id => [id, TRAINERS.filter(trainer => trainer.clubIds.includes(id)).length])),
   { "raynes-park": 4, kingston: 3, "colliers-wood": 3 });
+assert.equal(TRAINERS.filter(trainer => trainer.pricePerSessionGbp === 40).length, 2);
+assert.equal(TRAINERS.filter(trainer => trainer.pricePerSessionGbp === 42.5).length, 8);
 assert.equal(CLUBS.length, 20, "Keep every verified Greater London club available to access/location handling");
 assert.equal(new Set(CLUBS.map(club => club.id)).size, 20);
 assert.equal(new Set(LONDON_LOCATIONS.map(location => location.id)).size, LONDON_LOCATIONS.length);
@@ -30,6 +32,8 @@ for (const trainer of TRAINERS) {
   assert.ok(trainer.id.startsWith("dl-demo-"));
   assert.ok(trainer.name && trainer.bio && trainer.summary && trainer.expertise.length && trainer.qualifications.length);
   assert.equal(trainer.tier, null, "Do not inherit Third Space trainer tiers");
+  assert.ok([40, 42.5].includes(trainer.pricePerSessionGbp), `${trainer.id} must use a supplied single-session example`);
+  assert.equal("sessionDurationMinutes" in trainer, false, "Do not infer an unshown session duration");
   assert.equal(trainer.clubIds.length, 1);
   assert.ok(DEMO_CLUB_IDS.includes(trainer.clubIds[0]));
   for (const field of ["sourceUrl", "verifiedAt", "price", "rating", "availability", "gender", "testimonials"]) {
@@ -76,4 +80,4 @@ const html = await readFile(new URL("dist-david-lloyd/index.html", root), "utf8"
 assert.match(html, /noindex/);
 assert.match(html, /\/david-lloyd-demo\/assets\//);
 assert.ok(!(await readdir(new URL("dist-david-lloyd/assets/", root))).some(asset => /^fixture-.*\.js$/.test(asset)), "Do not ship fixture responses");
-console.log("David Lloyd verified: 20 official Greater London clubs, 10 fictional trainers across 3 clubs, preserved monochrome portraits, isolated noindex build.");
+console.log("David Lloyd verified: 20 official Greater London clubs, 10 fictional trainers across 3 clubs, reference-based per-session demo rates, preserved monochrome portraits, isolated noindex build.");

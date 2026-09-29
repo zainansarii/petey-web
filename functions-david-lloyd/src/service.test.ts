@@ -119,8 +119,10 @@ describe("David Lloyd access and location eligibility", () => {
     expect(result.emptyReason).toMatch(/confidently locate/);
   });
 
-  it("never treats a changed or uncertain budget as evidence of affordability", () => {
+  it("keeps display-only catalogue rates and budget uncertainty out of eligibility", () => {
     const baseline = select().candidates.map(candidate => candidate.trainer.id);
+    const repriced = TRAINERS.map(trainer => ({ ...trainer, pricePerSessionGbp: 999 }));
+    expect(selectCandidates(brief, repriced, CLUBS, LONDON_LOCATIONS).candidates.map(candidate => candidate.trainer.id)).toEqual(baseline);
     for (const budget of ["£20", "£400", "Flexible", "Not sure yet", ""]) {
       expect(select({ budget }).candidates.map(candidate => candidate.trainer.id)).toEqual(baseline);
     }
@@ -223,11 +225,12 @@ describe("David Lloyd conversation and model boundaries", () => {
     expect(ranking.brief).toEqual({ goal: brief.goal, experience: brief.experience, coachingStyle: brief.coachingStyle, specialistNeeds: [] });
     expect(JSON.stringify(ranking)).not.toContain("Tuesday");
     expect(JSON.stringify(ranking)).not.toContain("Platinum");
+    expect(JSON.stringify(ranking)).not.toContain("pricePerSessionGbp");
     expect(ranking.candidates).toHaveLength(4);
     expect(ranking.candidates.every((candidate: { location: { distanceKm: number } }) => candidate.location.distanceKm === 0)).toBe(true);
     expect(result.brief.budget).toBe(budget);
     expect(result.matches).toHaveLength(1);
-    expect(result.unconfirmed[0]).toMatch(/prices and session availability/);
+    expect(result.unconfirmed[0]).toBe("Session availability needs to be confirmed.");
   });
 
   it("does not call ranking after an unknown location or substitute fake AI on provider failure", async () => {

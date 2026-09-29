@@ -2,6 +2,8 @@ import type { DavidLloydTrainer } from "./contract.js";
 
 // Fictional identities, qualifications and coaching histories for the standalone demo.
 // Reuses the Petey fictional identities and portraits, with David Lloyd demo context.
+// Demo per-session rates use the £40/£42.50 examples supplied from the Cheam app.
+// They are assigned sample data, not verified tariffs for these fictional trainers/clubs.
 export const SYNTHETIC_TRAINERS: DavidLloydTrainer[] = [
   {
     kind: "synthetic", id: "dl-demo-emma-carter", name: "Emma Carter", clubIds: ["raynes-park"],
@@ -11,6 +13,7 @@ export const SYNTHETIC_TRAINERS: DavidLloydTrainer[] = [
     summary: "Patient strength coaching that helps beginners feel at home in the gym.",
     bio: "Emma starts with the movements a client wants to feel more confident doing, then builds a manageable routine around them. She explains the purpose of each exercise, makes space for questions and uses small, repeatable steps to develop strength. Her calm, encouraging sessions suit people starting out or returning after time away.",
     tier: null,
+    pricePerSessionGbp: 42.5,
   },
   {
     kind: "synthetic", id: "dl-demo-daniel-reed", name: "Daniel Reed", clubIds: ["raynes-park"],
@@ -20,6 +23,7 @@ export const SYNTHETIC_TRAINERS: DavidLloydTrainer[] = [
     summary: "Structured strength and conditioning to support tennis, padel and confident movement on court.",
     bio: "Daniel makes the technical side of strength training easier to understand. He builds purposeful gym programmes around tennis and padel goals, developing strength, power and change-of-direction fitness. His direct, collaborative coaching suits clients who like a plan, precise feedback and a training log that shows progress. These are personal-training sessions supporting racquet sports, rather than on-court lessons.",
     tier: null,
+    pricePerSessionGbp: 42.5,
   },
   {
     kind: "synthetic", id: "dl-demo-amira-hassan", name: "Amira Hassan", clubIds: ["raynes-park"],
@@ -29,6 +33,7 @@ export const SYNTHETIC_TRAINERS: DavidLloydTrainer[] = [
     summary: "Thoughtful strength and mobility coaching, including pre- and postnatal training.",
     bio: "Amira takes time to understand what a comfortable, sustainable routine looks like for each client. She combines strength fundamentals with mobility work and adapts the pace of sessions as confidence grows. Her coaching includes pre- and postnatal exercise, with an emphasis on listening, clear explanations and practical progression rather than pressure to keep up.",
     tier: null,
+    pricePerSessionGbp: 42.5,
   },
   {
     kind: "synthetic", id: "dl-demo-lucas-bennett", name: "Lucas Bennett", clubIds: ["raynes-park"],
@@ -38,6 +43,7 @@ export const SYNTHETIC_TRAINERS: DavidLloydTrainer[] = [
     summary: "Running and strength coaching for a first event or a more rounded fitness routine.",
     bio: "Lucas connects gym training with the activities clients enjoy outside it. He builds strength sessions around running goals and helps clients practise pacing, consistency and progressive conditioning. His upbeat approach mixes encouragement with straightforward feedback, whether someone is preparing for a first 5K or balancing longer runs with strength work.",
     tier: null,
+    pricePerSessionGbp: 42.5,
   },
   {
     kind: "synthetic", id: "dl-demo-sophie-morgan", name: "Sophie Morgan", clubIds: ["kingston"],
@@ -47,6 +53,7 @@ export const SYNTHETIC_TRAINERS: DavidLloydTrainer[] = [
     summary: "Encouraging strength, balance and mobility coaching for older adults and people returning to training.",
     bio: "Sophie helps older adults and returning beginners build confidence with strength training. She combines accessible strength exercises, balance and mobility practice, using clear cues and a pace that leaves room to learn. Her collaborative routines support everyday movement and celebrate consistency as well as lifting ability, without pressure to keep up with anyone else.",
     tier: null,
+    pricePerSessionGbp: 42.5,
   },
   {
     kind: "synthetic", id: "dl-demo-nathan-cole", name: "Nathan Cole", clubIds: ["kingston"],
@@ -56,6 +63,7 @@ export const SYNTHETIC_TRAINERS: DavidLloydTrainer[] = [
     summary: "Practical strength and body-composition coaching built around consistency and accountability.",
     bio: "Nathan uses straightforward programmes and regular reviews to help clients see what is working. His sessions develop lifting technique and progressive strength, alongside general nutrition habits that support a consistent routine. He is clear about the plan, attentive to feedback and well suited to clients who want constructive challenge without an all-or-nothing approach.",
     tier: null,
+    pricePerSessionGbp: 40,
   },
   {
     kind: "synthetic", id: "dl-demo-isabel-ross", name: "Isabel Ross", clubIds: ["kingston"],
@@ -65,6 +73,7 @@ export const SYNTHETIC_TRAINERS: DavidLloydTrainer[] = [
     summary: "Calm, detail-focused coaching that brings running, strength and mobility together.",
     bio: "Isabel helps clients fit purposeful gym work around the running they enjoy. She explains how each strength movement supports their training goals and builds sessions with clear priorities, leaving room for adjustments when life gets busy. Her measured, supportive style suits people who value understanding the plan and developing a routine they can sustain.",
     tier: null,
+    pricePerSessionGbp: 42.5,
   },
   {
     kind: "synthetic", id: "dl-demo-adam-khan", name: "Adam Khan", clubIds: ["colliers-wood"],
@@ -74,6 +83,7 @@ export const SYNTHETIC_TRAINERS: DavidLloydTrainer[] = [
     summary: "Welcoming boxing and strength coaching with clear instruction and plenty of energy.",
     bio: "Adam introduces boxing through footwork, pad skills and manageable combinations, pairing that practice with foundational strength work. He makes technical sessions feel accessible through demonstrations, repetition and encouraging feedback. His lively, patient coaching suits beginners who want to build confidence and clients who enjoy learning a skill as part of their fitness routine.",
     tier: null,
+    pricePerSessionGbp: 40,
   },
   {
     kind: "synthetic", id: "dl-demo-grace-ellis", name: "Grace Ellis", clubIds: ["colliers-wood"],
@@ -83,6 +93,7 @@ export const SYNTHETIC_TRAINERS: DavidLloydTrainer[] = [
     summary: "Supportive strength coaching for beginners, changing routines and pre- or postnatal training.",
     bio: "Grace builds sessions around realistic starting points and the kind of encouragement each client finds useful. She teaches strength fundamentals with clear explanations and uses regular conversations to adapt the programme. Her approach includes pre- and postnatal exercise and body-composition goals, with an emphasis on manageable habits and growing confidence rather than quick fixes.",
     tier: null,
+    pricePerSessionGbp: 42.5,
   },
   {
     kind: "synthetic", id: "dl-demo-theo-parker", name: "Theo Parker", clubIds: ["colliers-wood"],
@@ -92,5 +103,6 @@ export const SYNTHETIC_TRAINERS: DavidLloydTrainer[] = [
     summary: "Focused strength and Olympic weightlifting sessions for clients who enjoy technical progression.",
     bio: "Theo pairs careful movement practice with a clearly structured progression plan. He enjoys teaching Olympic weightlifting through manageable drills and connecting those skills with broader strength and conditioning goals. His coaching is direct and positive, offering precise cues, regular feedback and a steady challenge for clients who like to understand what they are working towards.",
     tier: null,
+    pricePerSessionGbp: 42.5,
   },
 ];
