@@ -1,0 +1,19 @@
+{
+  "duration": 52,
+  "assertions": [
+    {
+      "kind": "appearsBy",
+      "selector": "#hook-question",
+      "bySec": 0.1
+    },
+    {
+      "kind": "staysInFrame",
+      "selector": "#closing-copy"
+    },
+    {
+      "kind": "keepsMoving",
+      "withinSelector": "#root",
+      "maxStaticSec": 5.0
+    }
+  ]
+}

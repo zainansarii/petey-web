@@ -1,0 +1,12 @@
+{
+  "functions": [{
+    "source": "functions-david-lloyd",
+    "codebase": "david-lloyd-demo",
+    "ignore": ["node_modules", ".git", "*.log", "src/**/*.test.ts"],
+    "predeploy": ["npm --prefix functions-david-lloyd run build"]
+  }],
+  "emulators": {
+    "functions": { "port": 5002 },
+    "firestore": { "port": 8080 }
+  }
+}

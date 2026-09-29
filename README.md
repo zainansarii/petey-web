@@ -92,6 +92,8 @@ The mobile app's current callable and redirect are intentionally not reused: the
 
 ## GitHub Pages
 
+The separate [David Lloyd demo](./docs/david-lloyd-demo.md) has dedicated consumer/admin builds and a Firebase codebase. Its frontend is published from an immutable source pin after hosted backend verification, alongside the independently pinned Third Space demo.
+
 The included workflow builds and deploys `dist/` on pushes to `main`.
 
 1. In the GitHub repository, open **Settings → Pages** and choose **GitHub Actions** as the source.

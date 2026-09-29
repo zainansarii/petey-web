@@ -26,7 +26,15 @@
     "reset:user-data": "npm --prefix functions run reset:user-data --",
     "verify": "npm run lint && npm run typecheck && vitest run && vite build && npm run functions:build && npm run functions:test && npm run forms:test",
     "test:marketplace": "npx -y firebase-tools@latest --config firebase.marketplace-tests.json emulators:exec --project demo-petey-rules --only auth,firestore,storage \"node scripts/verify-marketplace.mjs\"",
-    "dev:marketplace-qa": "npm run functions:build && node scripts/marketplace-qa-server.mjs"
+    "dev:marketplace-qa": "npm run functions:build && node scripts/marketplace-qa-server.mjs",
+    "dev:david-lloyd": "vite --config vite.david-lloyd.config.ts",
+    "dev:david-lloyd-admin": "vite --config vite.david-lloyd-admin.config.ts",
+    "build:david-lloyd": "tsc -b && vite build --config vite.david-lloyd.config.ts",
+    "build:david-lloyd-admin": "tsc -b && vite build --config vite.david-lloyd-admin.config.ts",
+    "preview:david-lloyd": "vite preview --config vite.david-lloyd.config.ts",
+    "preview:david-lloyd-admin": "vite preview --config vite.david-lloyd-admin.config.ts",
+    "verify:david-lloyd": "npm run lint && npm run typecheck && vitest run src/david-lloyd-demo src/david-lloyd-demo-admin && npm run build:david-lloyd && npm run build:david-lloyd-admin && npm --prefix functions-david-lloyd run build && npm --prefix functions-david-lloyd test && node scripts/validate-david-lloyd.mjs",
+    "verify:david-lloyd:hosted": "node scripts/verify-david-lloyd-hosted.mjs --run"
   },
   "dependencies": {
     "@assistant-ui/react": "^0.15.17",

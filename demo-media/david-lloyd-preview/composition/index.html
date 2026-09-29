@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en-GB"><head><meta charset="UTF-8"><title>David Lloyd × Petey | personalised PT discovery</title>
+<script src="assets/gsap.min.js"></script>
+<style>
+@font-face{font-family:'DM Sans';src:url('assets/fonts/dm-sans-latin-400-normal.woff2');font-weight:400}
+@font-face{font-family:'DM Sans';src:url('assets/fonts/dm-sans-latin-500-normal.woff2');font-weight:500}
+@font-face{font-family:'Cormorant Garamond';src:url('assets/fonts/cormorant-garamond-latin-400-normal.woff2');font-weight:400}
+@font-face{font-family:'Cormorant Garamond';src:url('assets/fonts/cormorant-garamond-latin-400-italic.woff2');font-style:italic;font-weight:400}
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;background:#090909;color:#f7f5f1;font-family:'DM Sans',sans-serif}
+#root{position:relative;width:100%;height:100%;overflow:hidden;background:#090909}.clip,.stage{position:absolute;inset:0;overflow:hidden}h1,h2,h3,p{margin:0;font-weight:400}img{display:block}svg{display:block}.serif,h1,h2{font-family:'Cormorant Garamond',serif;font-weight:400;letter-spacing:-.03em}
+.brand{position:absolute;left:104px;top:67px;width:272px;height:28px}.partner{position:absolute;right:104px;top:66px;font-size:23px;color:#d1ceca;line-height:1.4}.shared-header{position:absolute;inset:0;pointer-events:none;z-index:20}.proof{position:absolute;left:104px;bottom:44px;font-size:18px;color:#a9a59e}.bottom-rule{position:absolute;left:104px;right:104px;bottom:82px;height:1px;background:#ffffff26}
+.copy{position:absolute;left:104px;top:332px;width:620px}h2{font-size:94px;line-height:1.04}.copy h2 span{display:block}.sub{font-size:28px;line-height:1.5;color:#c1bdb7;margin-top:32px;width:595px}
+/* Fictional trainer directory using the same ten approved synthetic identities. */
+#problem .copy{top:270px;width:670px}#problem h1{font-size:104px;line-height:1.04;letter-spacing:-.035em}#problem h1 span{display:block}#problem h1 .number{font:400 150px/1 'DM Sans',sans-serif;letter-spacing:-.065em;margin-bottom:22px}#hook-question{font-size:67px;line-height:1.15;font-style:italic;margin-top:42px;color:#e2ded7}
+#directory-window{position:absolute;left:826px;top:158px;width:1118px;height:822px;border-radius:12px;overflow:hidden}#directory-camera{width:1118px;transform-origin:top center}#directory-camera img{width:1118px;height:auto}
+/* Source-based recreation of Conversation.tsx, enlarged for presentation. */
+#preferences .copy{top:335px}#chat-panel{position:absolute;left:804px;top:170px;width:1012px;height:782px;border:1px solid #4b4945;border-radius:23px;background:#090909;overflow:hidden;box-shadow:0 22px 70px #0005}
+#chat-head{height:99px;border-bottom:1px solid #ffffff21;display:flex;align-items:center;padding:0 42px}#chat-head h3{font-family:'Cormorant Garamond',serif;font-size:43px;letter-spacing:-.025em}#chat-head .restart{margin-left:auto;font-size:17px;color:#c4c0b9;display:flex;align-items:center;gap:10px}
+#conversation{position:absolute;top:129px;left:42px;right:42px;height:507px;overflow:hidden}.message{position:relative;flex:none;font-size:25px;line-height:1.5;max-width:100%;letter-spacing:-.15px}.message.question{left:0;right:0;color:#e6e2dc}.message.answer{align-self:flex-end;right:0;background:#232323;border-radius:20px 20px 4px 20px;padding:15px 24px;color:#f7f5f1;transform-origin:right center}
+#chat-flow{position:absolute;top:0;left:0;right:0;display:flex;flex-direction:column;gap:32px}
+#composer{position:absolute;left:42px;right:42px;bottom:43px;height:69px;border:1px solid #77736e;border-radius:16px;background:#151515;padding:18px 23px;font-size:23px;line-height:31px;overflow:hidden}#placeholder{color:#aba8a2}.typed{position:absolute;top:18px;left:23px;white-space:nowrap;clip-path:inset(0 100% 0 0);color:#f7f5f1;padding-right:5px}#send{position:absolute;right:8px;top:8px;width:51px;height:51px;border-radius:50%;background:#f5f3ef;color:#151515;display:grid;place-items:center;transform-origin:center}#send svg{width:29px;height:29px}#privacy{position:absolute;left:0;right:0;bottom:13px;text-align:center;font-size:15px;color:#a9a49b}
+/* Original trainer cards: same shapes and portrait assets, without glass blur. */
+#matching .copy{top:301px;width:650px}#matching h2{font-size:85px;line-height:1.08}#matching .sub{font-size:28px;width:580px}#shortlist-title{position:absolute;left:822px;top:183px;font-size:51px;line-height:1.1;letter-spacing:-.025em}
+.trainer-card{position:absolute;top:290px;width:307px;height:442px;border-radius:17px;overflow:hidden;background:#202020;transform-origin:top left;box-shadow:inset 0 0 0 1px #ffffff30}.trainer-card>img{width:100%;height:100%;object-fit:cover;object-position:50% 50%}.trainer-card::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,#ffffff08,transparent 45%,#000b);pointer-events:none}.club{position:absolute;z-index:2;top:18px;left:17px;padding:8px 13px;background:#f7f5f1;color:#171717;border-radius:25px;font-size:17px;line-height:1.25}.identity{position:absolute;z-index:2;bottom:24px;left:24px;right:20px;display:flex;align-items:center;justify-content:space-between}.name{font-family:'Cormorant Garamond',serif;font-size:44px;line-height:1.05;letter-spacing:-.03em}.card-arrow{width:43px;height:43px;border:1px solid #fffb;border-radius:50%;display:grid;place-items:center}.card-arrow svg{width:22px;height:22px}
+#amira{left:822px}#emma{left:1164px}#grace{left:1506px}
+#short-reasons{position:absolute;left:822px;top:756px;display:grid;grid-template-columns:307px 307px 307px;gap:35px;font-size:24px;line-height:1.4;color:#ccc8c1}
+#why{position:absolute;left:1310px;top:296px;width:502px}#why h3{font-family:'Cormorant Garamond',serif;font-size:59px;line-height:1.1;letter-spacing:-.025em;margin-bottom:32px}.fit{display:flex;gap:18px;align-items:flex-start;border-top:1px solid #ffffff29;padding:25px 0;font-size:29px;line-height:1.45;color:#e4e0d9}.fit svg{width:25px;height:25px;flex:none;margin-top:9px;stroke:#ddd6ca}.fit p{max-width:445px}#why-note{font-size:20px;color:#b9b5ad;line-height:1.45;margin-top:10px}
+.cursor{position:absolute;left:0;top:0;width:34px;height:42px;z-index:8;filter:drop-shadow(0 2px 3px #0008)}
+/* Actual admin component captures, cropped for presentation with ten fictional identities. */
+#admin .stage{background:#090909;color:#f7f5f1}#admin-viewport{position:absolute;left:104px;top:178px;width:1040px;height:754px;overflow:hidden;border-radius:17px;border:1px solid #4b4945;background:#f7f7f4;box-shadow:0 22px 70px #0005}.admin-shot{position:absolute;inset:0;overflow:hidden;background:#f7f7f4}.admin-camera{position:absolute;left:0;top:0;width:1040px;transform-origin:0 0}.admin-camera img{width:1040px;height:auto}#admin .copy{left:1240px;top:300px;width:580px}#admin h2{font-size:86px;line-height:1.08}#admin .sub{width:560px;font-size:28px;line-height:1.55}#admin-sample{position:absolute;left:104px;top:135px;font-size:20px;color:#c1bdb7}#trainer-row-highlight{position:absolute;left:32px;right:32px;top:188px;height:80px;border:2px solid #77776e;border-radius:5px;pointer-events:none}#dashboard-cursor{z-index:9}
+#table-shot,#detail-shot{opacity:0}
+/* Exact partnership statement, held through the final frame. */
+#closing .stage{background:#090909;display:flex;align-items:center;justify-content:center}#closing-copy{text-align:center;width:1720px;margin-top:-12px}#closing-partners{font-family:'DM Sans',sans-serif;font-size:53px;line-height:1.3;letter-spacing:-1.2px;font-weight:500}#closing-partners{display:flex;align-items:center;justify-content:center;gap:26px}#closing-logo{width:380px;height:auto;flex:none}#closing-line{font-family:'Cormorant Garamond',serif;font-size:108px;line-height:1.2;letter-spacing:-.03em;font-style:italic;margin-top:36px}
+
+/* David Lloyd palette; reference geometry and timing retained. */
+html,body,#root,#chat-panel,#admin .stage,#closing .stage{background:#FCFCF6;color:#474A4A}
+.serif,h1,h2,#chat-head h3,.name,#why h3,#closing-line{font-family:'DM Sans',sans-serif;font-style:normal;letter-spacing:-.045em;font-weight:400}
+h2{font-size:82px;line-height:1.09}#matching h2{font-size:76px;line-height:1.09}#admin h2{font-size:77px;line-height:1.1}
+.brand{left:104px;top:38px;width:212px;height:83px;object-fit:contain}.partner{color:#474A4A}.proof{color:#656967}.bottom-rule{background:#474A4A26}.sub{color:#5E6461}
+#problem .copy{top:259px}#problem h1{font-size:108px;line-height:1.02;color:#474A4A;width:620px}#hook-question{font-family:'DM Sans',sans-serif;font-style:normal;font-size:50px;letter-spacing:-.025em;color:#82285F;margin-top:36px}
+#directory-window{border:1px solid #474A4A26;border-radius:16px;box-shadow:0 22px 70px #474A4A0A;background:#F1F0E9}#directory-camera{padding:22px}#synthetic-directory{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
+.directory-card{position:relative;height:345px;border-radius:9px;overflow:hidden;background:#D4D4CD}#directory-camera .directory-card>img{width:100%;height:100%;object-fit:cover}.directory-card::after{content:'';position:absolute;inset:40% 0 0;background:linear-gradient(transparent,#000C)}.directory-card>div{position:absolute;z-index:1;left:18px;right:16px;bottom:20px;display:flex;align-items:center;justify-content:space-between;color:#FFF;font-size:22px}.directory-arrow{border:1px solid #FFFFFF99;width:31px;height:31px;border-radius:50%;display:grid;place-items:center;flex:none;margin-left:8px}
+#chat-panel{border-color:#C8CBC3;box-shadow:0 22px 70px #474A4A0C}#chat-head{border-color:#474A4A24}#chat-head h3{font-size:38px;letter-spacing:-.035em}#chat-head .restart{color:#656967}.message.question{color:#474A4A}.message.answer{background:#EEECE7;color:#474A4A}#composer{border-color:#C1C5BB;background:#FCFCF6}#placeholder{color:#656967}.typed{color:#474A4A}#send{background:#82285F;color:#FCFCF6}#privacy{color:#656967}
+#shortlist-title{font-size:45px;letter-spacing:-.035em}.club{background:#FCFCF6;color:#474A4A}.identity{color:#FCFCF6}.name{font-size:40px;letter-spacing:-.04em}#short-reasons{color:#5E6461}.trainer-card{box-shadow:none}.card-arrow{border-color:#FCFCF6AA}#why h3{font-size:49px;letter-spacing:-.04em}.fit{border-color:#474A4A26;color:#474A4A;font-size:27px}.fit svg{stroke:#82285F}#why-note{color:#5E6461}#match-cursor path{fill:#82285F;stroke:#FCFCF6}
+#admin-viewport{border-color:#C8CBC3;background:#FCFCF6;box-shadow:0 22px 70px #474A4A0C}.admin-shot{background:#FCFCF6}#admin-sample{color:#656967}#trainer-row-highlight{border-color:#82285F}#dashboard-cursor path{fill:#82285F;stroke:#FCFCF6}
+#closing-partners{color:#474A4A;gap:32px}#closing-logo{width:330px;height:129px;object-fit:contain}#closing-line{font-size:88px;letter-spacing:-.045em;color:#474A4A;margin-top:40px}
+#detail-camera{height:1400px}#detail-top{position:absolute;left:0;top:0;width:1040px;height:800px;overflow:hidden}#detail-bottom{position:absolute;left:0;top:800px;width:1040px;height:600px;object-fit:cover;object-position:top left}
+</style></head><body>
+<div data-hf-id="hf-bpjf" id="root" data-composition-id="petey-david-lloyd-functional" data-width="1920" data-height="1080" data-duration="52" data-fps="30">
+<section data-hf-id="hf-ha83" id="problem" class="clip" data-start="0" data-duration="5.75" data-track-index="0"><div data-hf-id="hf-tan6" class="stage">
+<div data-hf-id="hf-bdx3" class="copy"><h1 data-hf-id="hf-m3fm">Find your kind of trainer.</h1><p data-hf-id="hf-oh8w" id="hook-question" class="serif">Where to begin?</p></div>
+<div data-hf-id="hf-3tre" id="directory-window" data-layout-allow-overflow=""><div data-hf-id="hf-60cz" id="directory-camera" data-layout-allow-overflow=""><div id="synthetic-directory"><div class="directory-card"><img src="assets/dl-demo-emma-carter.webp" alt="Fictional demo portrait of Emma Carter"><div><span>Emma Carter</span><span class="directory-arrow">↗</span></div></div><div class="directory-card"><img src="assets/dl-demo-daniel-reed.webp" alt="Fictional demo portrait of Daniel Reed"><div><span>Daniel Reed</span><span class="directory-arrow">↗</span></div></div><div class="directory-card"><img src="assets/dl-demo-amira-hassan.webp" alt="Fictional demo portrait of Amira Hassan"><div><span>Amira Hassan</span><span class="directory-arrow">↗</span></div></div><div class="directory-card"><img src="assets/dl-demo-lucas-bennett.webp" alt="Fictional demo portrait of Lucas Bennett"><div><span>Lucas Bennett</span><span class="directory-arrow">↗</span></div></div><div class="directory-card"><img src="assets/dl-demo-sophie-morgan.webp" alt="Fictional demo portrait of Sophie Morgan"><div><span>Sophie Morgan</span><span class="directory-arrow">↗</span></div></div><div class="directory-card"><img src="assets/dl-demo-nathan-cole.webp" alt="Fictional demo portrait of Nathan Cole"><div><span>Nathan Cole</span><span class="directory-arrow">↗</span></div></div><div class="directory-card"><img src="assets/dl-demo-isabel-ross.webp" alt="Fictional demo portrait of Isabel Ross"><div><span>Isabel Ross</span><span class="directory-arrow">↗</span></div></div><div class="directory-card"><img src="assets/dl-demo-adam-khan.webp" alt="Fictional demo portrait of Adam Khan"><div><span>Adam Khan</span><span class="directory-arrow">↗</span></div></div><div class="directory-card"><img src="assets/dl-demo-grace-ellis.webp" alt="Fictional demo portrait of Grace Ellis"><div><span>Grace Ellis</span><span class="directory-arrow">↗</span></div></div><div class="directory-card"><img src="assets/dl-demo-theo-parker.webp" alt="Fictional demo portrait of Theo Parker"><div><span>Theo Parker</span><span class="directory-arrow">↗</span></div></div></div></div></div>
+</div></section>
+<section data-hf-id="hf-2ttz" id="preferences" class="clip" data-start="5.75" data-duration="13.75" data-track-index="1"><div data-hf-id="hf-xa86" class="stage">
+<div data-hf-id="hf-r8s7" class="copy"><h2 data-hf-id="hf-2l5r"><span data-hf-id="hf-jt2h">Tell us your</span><span data-hf-id="hf-drj1">preferences.</span></h2><p data-hf-id="hf-bg0g" class="sub">Your goals. Your club.<br data-hf-id="hf-x5px">Your way of training.</p></div>
+<div data-hf-id="hf-69s6" id="chat-panel"><div data-hf-id="hf-9xfu" id="chat-head"><h3 data-hf-id="hf-gg1e">Let’s find your fit.</h3><span data-hf-id="hf-qte4" class="restart">↶ &#160; Start again</span></div>
+<div data-hf-id="hf-ae9s" id="conversation"><div data-hf-id="hf-k08r" id="chat-flow" data-layout-allow-overflow="">
+<div data-hf-id="hf-f0oc" id="a-goal" class="message answer" data-layout-allow-overflow="">I want to feel confident at my wedding in 6 months</div>
+<div data-hf-id="hf-8vru" id="q-goal" class="message question" data-layout-allow-overflow="">Congratulations on the engagement! What does confidence look like for you?</div>
+<div data-hf-id="hf-yw2y" id="a-body" class="message answer" data-layout-allow-overflow="">I want to lose some body fat and tone up</div>
+<div data-hf-id="hf-l4uo" id="q-club" class="message question" data-layout-allow-overflow="">Great, are you a member at David Lloyd?</div>
+<div data-hf-id="hf-v61d" id="a-club" class="message answer" data-layout-allow-overflow="">Not yet but I'm based in Earlsfield</div>
+<div data-hf-id="hf-ydoe" id="q-coach" class="message question" data-layout-allow-overflow="">What kind of training style gets the most out of you?</div>
+<div data-hf-id="hf-05wt" id="a-coach" class="message answer" data-layout-allow-overflow="">Someone who is friendly and patient</div>
+</div></div>
+<div data-hf-id="hf-m28j" id="composer"><span data-hf-id="hf-fyyx" id="placeholder">Tell us in your own words...</span><span data-hf-id="hf-fuwm" class="typed" id="type-goal">I want to feel confident at my wedding in 6 months</span><span data-hf-id="hf-yibg" class="typed" id="type-body">I want to lose some body fat and tone up</span><span data-hf-id="hf-wjwf" class="typed" id="type-club">Not yet but I'm based in Earlsfield</span><span data-hf-id="hf-cg4v" class="typed" id="type-coach">Someone who is friendly and patient</span><span data-hf-id="hf-23ns" id="send"><svg data-hf-id="hf-y2c2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path data-hf-id="hf-8cpb" d="M12 20V4m-7 7 7-7 7 7" /></svg></span></div>
+<p data-hf-id="hf-y5ew" id="privacy">AI-assisted. Please leave out medical details. Demo Powered by Petey.</p>
+</div>
+</div></section>
+<section data-hf-id="hf-pp6x" id="matching" class="clip" data-start="19.5" data-duration="8.75" data-track-index="2"><div data-hf-id="hf-xoj7" class="stage">
+<div data-hf-id="hf-quh6" class="copy"><h2 data-hf-id="hf-gavz"><span data-hf-id="hf-a1cz">Get matched</span><span data-hf-id="hf-0eek">with the best</span><span data-hf-id="hf-wzqn">trainers for you.</span></h2><p data-hf-id="hf-8amr" class="sub">A reason for every match.</p></div>
+<h3 data-hf-id="hf-8dnz" id="shortlist-title" class="serif">Meet your matches</h3>
+<div data-hf-id="hf-royg" class="trainer-card" id="amira"><img data-hf-id="hf-phzt" src="assets/dl-demo-amira-hassan.webp" alt="Fictional demo portrait of Amira Hassan"><span data-hf-id="hf-1nwt" class="club">Raynes Park</span><div data-hf-id="hf-wk3y" class="identity"><span data-hf-id="hf-feto" class="name">Amira</span><span data-hf-id="hf-8urs" class="card-arrow">↗</span></div></div>
+<div data-hf-id="hf-619n" class="trainer-card" id="emma"><img data-hf-id="hf-xg9x" src="assets/dl-demo-emma-carter.webp" alt="Fictional demo portrait of Emma Carter"><span data-hf-id="hf-zv3n" class="club">Raynes Park</span><div data-hf-id="hf-8lw2" class="identity"><span data-hf-id="hf-rr25" class="name">Emma</span><span data-hf-id="hf-ftvp" class="card-arrow" id="emma-open"><svg data-hf-id="hf-a6sg" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" fill="none"><path data-hf-id="hf-6ymo" d="M6 18 18 6M6 6h12v12" /></svg></span></div></div>
+<div data-hf-id="hf-l9fg" class="trainer-card" id="grace"><img data-hf-id="hf-keeb" src="assets/dl-demo-grace-ellis.webp" alt="Fictional demo portrait of Grace Ellis"><span data-hf-id="hf-x9qr" class="club">Colliers Wood</span><div data-hf-id="hf-9073" class="identity"><span data-hf-id="hf-bso0" class="name">Grace</span><span data-hf-id="hf-r2v4" class="card-arrow">↗</span></div></div>
+<div data-hf-id="hf-mnq9" id="short-reasons"><p data-hf-id="hf-eeqm">Strength at your pace</p><p data-hf-id="hf-nqta">Patient, friendly coaching</p><p data-hf-id="hf-qqf8">Build confidence</p></div>
+<div data-hf-id="hf-u88p" id="why"><h3 data-hf-id="hf-84k8">Why you match</h3>
+<div data-hf-id="hf-vue2" class="fit" id="fit-strength"><svg data-hf-id="hf-1vya" viewBox="0 0 24 24" fill="none" stroke-width="1.6"><path data-hf-id="hf-06n2" d="m4 12 5 5L20 6" /></svg><p data-hf-id="hf-hsgj">Specialises in strength training</p></div>
+<div data-hf-id="hf-9oql" class="fit" id="fit-confidence"><svg data-hf-id="hf-nvqe" viewBox="0 0 24 24" fill="none" stroke-width="1.6"><path data-hf-id="hf-2bnm" d="m4 12 5 5L20 6" /></svg><p data-hf-id="hf-wp1g">Patient, encouraging coaching</p></div>
+<div data-hf-id="hf-56s4" class="fit" id="fit-location"><svg data-hf-id="hf-oa1f" viewBox="0 0 24 24" fill="none" stroke-width="1.6"><path data-hf-id="hf-2pyn" d="m4 12 5 5L20 6" /></svg><p data-hf-id="hf-rn5z">Raynes Park, near your Earlsfield base</p></div>
+<p data-hf-id="hf-h1fz" id="why-note">Build confidence for your wedding in 6 months.</p></div>
+<svg data-hf-id="hf-6ica" id="match-cursor" class="cursor" viewBox="0 0 40 48"><path data-hf-id="hf-v7h2" d="M4 3L33 26L20 28L16 42Z" fill="#f7f5f1" stroke="#111" stroke-width="2" stroke-linejoin="round" /></svg>
+</div></section>
+<section data-hf-id="hf-p8wq" id="admin" class="clip" data-start="28.25" data-duration="20" data-track-index="3"><div data-hf-id="hf-y2u8" class="stage">
+<p data-hf-id="hf-w6e0" id="admin-sample">PT insights · Demo · Sample data</p>
+<div data-hf-id="hf-aoet" id="admin-viewport">
+<div data-hf-id="hf-nhoe" id="overview-shot" class="admin-shot"><div data-hf-id="hf-82o7" id="overview-camera" class="admin-camera" data-layout-allow-overflow=""><img data-hf-id="hf-3ztc" src="assets/ui/admin-overview-new.jpg" alt="Dashboard metrics and primary member goals across the London demo clubs"></div></div>
+<div data-hf-id="hf-zjyh" id="table-shot" class="admin-shot"><div data-hf-id="hf-0hbh" id="table-camera" class="admin-camera"><img data-hf-id="hf-9f2k" src="assets/ui/admin-trainers-new.jpg" alt="Trainer rankings with the new fictional demo names, recommendations, enquiries and conversion"></div><div data-hf-id="hf-wcq4" id="trainer-row-highlight"></div></div>
+<div data-hf-id="hf-v5bw" id="detail-shot" class="admin-shot"><div data-hf-id="hf-r2d1" id="detail-camera" class="admin-camera" data-layout-allow-overflow=""><div id="detail-top"><img data-hf-id="hf-p9rj" src="assets/ui/admin-emma-new.jpg" alt="Emma Carter at Raynes Park, individual enquiry conversion"></div><img id="detail-bottom" src="assets/ui/admin-emma-bottom.jpg" alt="Emma Carter member goal breakdown from the same dashboard panel"></div></div>
+</div>
+<div data-hf-id="hf-hw7y" id="overview-copy" class="copy"><h2 data-hf-id="hf-fwky"><span data-hf-id="hf-4sm8">Know what</span><span data-hf-id="hf-g6dg">members</span><span data-hf-id="hf-rpzi">really want.</span></h2><p data-hf-id="hf-e000" class="sub">Turn member goals into actionable insight.</p></div>
+<div data-hf-id="hf-l9yi" id="trainer-copy" class="copy"><h2 data-hf-id="hf-fi9x"><span data-hf-id="hf-wvsc">See who is</span><span data-hf-id="hf-yc19">most in</span><span data-hf-id="hf-liuc">demand.</span></h2><p data-hf-id="hf-k20s" class="sub">Understand each trainer’s enquiries, conversion and the goals behind them.</p></div>
+<svg data-hf-id="hf-8d6v" id="dashboard-cursor" class="cursor" viewBox="0 0 40 48"><path data-hf-id="hf-8ttx" d="M4 3L33 26L20 28L16 42Z" fill="#20201f" stroke="#fff" stroke-width="2" stroke-linejoin="round" /></svg>
+</div></section>
+<section data-hf-id="hf-tcj3" id="closing" class="clip" data-start="48.25" data-duration="3.75" data-track-index="4"><div data-hf-id="hf-vap1" class="stage"><div data-hf-id="hf-2h8o" id="closing-copy"><h1 data-hf-id="hf-f4wp" id="closing-partners"><img data-hf-id="hf-n5j0" id="closing-logo" src="assets/david-lloyd-logo.svg" alt="David Lloyd"><span data-hf-id="hf-v48y">×</span><span data-hf-id="hf-4lk4">Petey</span></h1><p data-hf-id="hf-zwvl" id="closing-line">personalised PT discovery.</p></div></div></section>
+<div data-hf-id="hf-dd8b" id="member-header" class="shared-header"><img data-hf-id="hf-2801" class="brand" src="assets/david-lloyd-logo.svg" alt="David Lloyd"><p data-hf-id="hf-ugzt" class="partner">Powered by Petey</p><div data-hf-id="hf-c3r0" class="bottom-rule"></div><p data-hf-id="hf-qxv1" class="proof">Illustrative product demo</p></div>
+<audio data-hf-id="hf-w8fy" id="alita-zayner" src="assets/alita-zayner-34s-52s-levelled.wav" data-start="0" data-duration="52" data-track-index="10" data-volume="0.5" data-timeline-role="music"></audio>
+</div>
+<script>
+const tl=gsap.timeline({paused:true});
+tl.fromTo('#directory-camera',{y:-24},{y:-204,duration:3,ease:'power1.inOut'},0);
+[[3,'#problem'],[14,'#preferences'],[21,'#matching'],[37,'#admin']].forEach(([end,scene])=>tl.to(scene+' .stage',{opacity:0,y:-13,duration:.22,ease:'power2.in'},end-.22));
+[[3,'#preferences'],[14,'#matching']].forEach(([start,scene])=>{
+ tl.fromTo(scene+' .copy h2 span',{opacity:0,x:-22,y:10},{opacity:1,x:0,y:0,duration:.4,stagger:.08,ease:'power3.out'},start);
+ tl.fromTo(scene+' .sub',{opacity:0,y:10},{opacity:1,y:0,duration:.32,ease:'power2.out'},start+.28);
+});
+tl.fromTo('#chat-panel',{opacity:0,x:32,scale:.903},{opacity:1,x:0,scale:.92,duration:.44,ease:'power3.out'},3);
+function submit(id,begin,send){
+ tl.set('#placeholder',{opacity:0},begin);
+ tl.fromTo('#type-'+id,{clipPath:'inset(0 100% 0 0)',opacity:1},{clipPath:'inset(0 0% 0 0)',opacity:1,duration:send-begin-.09,ease:'steps(40)'},begin);
+ tl.to('#send',{scale:.84,duration:.07,ease:'power1.in'},send-.03);
+ tl.to('#send',{scale:1,duration:.16,ease:'power2.out'},send+.05);
+ tl.to('#type-'+id,{opacity:0,duration:.07},send+.02);
+ tl.fromTo('#a-'+id,{opacity:0,x:24,y:6,scale:.98},{opacity:1,x:0,y:0,scale:1,duration:.3,ease:'power3.out'},send+.07);
+ tl.to('#placeholder',{opacity:1,duration:.12},send+.15);
+}
+submit('goal',3.3,4.0);submit('body',6.0,6.7);submit('club',8.6,9.3);submit('coach',11.3,12.0);
+[['#q-goal',4.6],['#q-club',7.45],['#q-coach',10.15]].forEach(([selector,time])=>tl.fromTo(selector,{opacity:0,y:13},{opacity:1,y:0,duration:.3,ease:'power2.out'},time));
+// The chat history moves as one continuous surface while header/composer stay fixed.
+tl.to('#chat-flow',{y:0,duration:.66,ease:'power2.inOut'},10.06);
+tl.to('#chat-flow',{y:-86,duration:.66,ease:'power2.inOut'},11.98);
+tl.fromTo('#shortlist-title',{opacity:0,y:12},{opacity:1,y:0,duration:.34,ease:'power2.out'},14.05);
+tl.fromTo('.trainer-card',{opacity:0,y:27},{opacity:1,y:0,duration:.34,stagger:.07,ease:'power3.out'},14.04);
+tl.fromTo('#short-reasons',{opacity:0},{opacity:1,duration:.25},14.39);
+tl.fromTo('#match-cursor',{opacity:0,x:1630,y:894},{opacity:1,x:1430,y:685,duration:.45,ease:'power2.out'},15.68);
+tl.to('#emma-open',{backgroundColor:'#FCFCF6',color:'#82285F',scale:.92,duration:.12},16.15);
+tl.to('#match-cursor',{opacity:0,duration:.15},16.3);
+tl.to('#amira,#grace,#short-reasons,#shortlist-title',{opacity:0,y:-10,duration:.28,ease:'power2.in'},16.3);
+tl.to('#emma',{x:-342,y:-25,scale:1.42,duration:.56,ease:'power3.inOut'},16.3);
+tl.fromTo('#why h3',{opacity:0,y:12},{opacity:1,y:0,duration:.3,ease:'power2.out'},16.65);
+tl.fromTo('.fit',{opacity:0,x:20},{opacity:1,x:0,duration:.32,stagger:.24,ease:'power3.out'},16.88);
+tl.fromTo('#why-note',{opacity:0,y:6},{opacity:1,y:0,duration:.3},17.75);
+tl.fromTo('#admin .stage',{opacity:0},{opacity:1,duration:.3,ease:'power2.out'},21);
+tl.fromTo('#admin-viewport',{x:-28,y:8},{x:0,y:0,duration:.45,ease:'power3.out'},21);
+tl.fromTo('#overview-copy h2 span',{opacity:0,x:22},{opacity:1,x:0,duration:.4,stagger:.08,ease:'power3.out'},21.1);
+tl.fromTo('#overview-copy .sub',{opacity:0,y:10},{opacity:1,y:0,duration:.32},21.45);
+tl.fromTo('#overview-camera',{y:0},{y:-352,duration:1.8,ease:'power2.inOut'},24.1);
+tl.to('#overview-shot,#overview-copy',{opacity:0,duration:.28},28.72);
+tl.fromTo('#table-shot',{opacity:0,y:22},{opacity:1,y:0,duration:.4,ease:'power3.out'},29);
+tl.fromTo('#trainer-copy',{opacity:0,x:20},{opacity:1,x:0,duration:.4,ease:'power3.out'},29);
+tl.fromTo('#trainer-row-highlight',{opacity:0},{opacity:1,duration:.22},31.25);
+tl.fromTo('#dashboard-cursor',{opacity:0,x:1000,y:812},{opacity:1,x:347,y:415,duration:.62,ease:'power2.inOut'},31.1);
+tl.to('#dashboard-cursor',{scale:.9,duration:.12},31.75);
+tl.to('#dashboard-cursor',{opacity:0,duration:.16},31.95);
+tl.to('#table-shot',{opacity:0,duration:.35},32);
+tl.fromTo('#detail-shot',{opacity:0,x:70},{opacity:1,x:0,duration:.5,ease:'power3.out'},32);
+tl.fromTo('#detail-camera',{y:0},{y:-545,duration:1.5,ease:'power2.inOut'},34.35);
+tl.to('#member-header',{opacity:0,duration:.16},36.84);
+tl.fromTo('#closing-copy',{opacity:0,y:15},{opacity:1,y:0,duration:.36,ease:'power2.out'},37);
+// Preserve the approved 25% slower pacing; add two seconds to the opening pan.
+const retimedTweens=tl.getChildren(false,true,false).map(tween=>({tween,start:tween.startTime(),duration:tween.duration()}));
+retimedTweens.forEach(({tween,start,duration})=>{tween.startTime(start*1.25+(start>0?2:0));tween.duration(duration*1.25+(start===0?2:0));});
+window.__timelines=window.__timelines||{};window.__timelines['petey-david-lloyd-functional']=tl;
+</script>
+</body></html>

@@ -1,0 +1,59 @@
+{
+  "file": "david-lloyd-preview.mp4",
+  "sha256": "f17d2429e8c33ab8a3b30f3030f6033e237c6c91b787eeee03f13916ceb4469d",
+  "reference_sha256": "d0a0a10d7133b997d67dc393189e828bc8dea1d883a019f27cbc1d09f7e76025",
+  "duration": 52,
+  "resolution": [
+    1920,
+    1080
+  ],
+  "fps": 30,
+  "frames": 1560,
+  "video_codec": "h264",
+  "audio_codec": "aac",
+  "audio_source": "Existing levelled Alita Zayner 34\u201386s excerpt, fixed 0.5 gain",
+  "music_only": true,
+  "narration": false,
+  "sfx": false,
+  "audio_stream_preserved_after_poster": true,
+  "short_term_loudness_range_lu": 1.4,
+  "true_peak_dbfs": -10.9,
+  "scene_boundaries_seconds": [
+    0,
+    5.75,
+    19.5,
+    28.25,
+    38.25,
+    48.25,
+    52
+  ],
+  "full_decode": "passed",
+  "poster_timestamp_seconds": 0,
+  "poster_reason": "Settled title and synthetic trainer directory; baked into frame zero",
+  "bytes": 7534305,
+  "synthetic_identities": 10,
+  "featured_identities": [
+    "Amira Hassan",
+    "Emma Carter",
+    "Grace Ellis"
+  ],
+  "featured_clubs": [
+    "Raynes Park",
+    "Raynes Park",
+    "Colliers Wood"
+  ],
+  "admin_capture_method": "CUA screenshots of isolated final actual component with reference presentation CSS",
+  "hyperframes_version": "0.8.70",
+  "hyperframes_check": "passed",
+  "hyperframes_nonblocking_warnings": 6,
+  "contrast_checks_passed": 58,
+  "visual_review": "14 encoded frames reviewed; full-size opening, trainer table and final detail checked",
+  "actual_admin_figures": {
+    "completed_searches": 2818,
+    "enquiries": 911,
+    "conversion": "32.3%",
+    "emma_recommendations": 643,
+    "emma_enquiries": 147,
+    "emma_conversion": "22.9%"
+  }
+}

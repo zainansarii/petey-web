@@ -8,8 +8,20 @@ functions/lib
 functions-third-space/lib
 dist-third-space
 dist-third-space-admin
+functions-david-lloyd/lib
+dist-david-lloyd
+dist-david-lloyd-admin
+.third-space-source
+.david-lloyd-source
 *.log
 .DS_Store
 
 # Firebase emulator secret overrides
 .secret.local
+
+# Reproducible preview sources are versioned; render caches are local.
+demo-media/**/node_modules/
+demo-media/**/tools/
+demo-media/**/built/
+demo-media/**/snapshots/
+demo-media/**/*.mp4

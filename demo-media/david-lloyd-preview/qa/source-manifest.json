@@ -1,0 +1,243 @@
+{
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 3733,
+      "sha256": "5b38f6f4ff2de8585aba5d2944a8309b399ca38a63b258d239aa77a816379793"
+    },
+    {
+      "path": "brag-plan.md",
+      "bytes": 1577,
+      "sha256": "29131652611925e689516121c8bdfbc83785378971c894952561f20ac5f4a0db"
+    },
+    {
+      "path": "composition-brief.md",
+      "bytes": 1760,
+      "sha256": "ec60e9a2eae00d0249d936ad97391de8c4f092b7fd8efc51f7d0b59e1b917518"
+    },
+    {
+      "path": "composition/assets/alita-zayner-34s-52s-levelled.wav",
+      "bytes": 14976148,
+      "sha256": "adb1a10ea973a6ee90f56454b325d65c86f5946c4cd8970ebe81ef24e16fbb4a"
+    },
+    {
+      "path": "composition/assets/david-lloyd-logo.svg",
+      "bytes": 15782,
+      "sha256": "eb90e2e01e494d6fc90cc99dc0fe4c07d377a7b3934bc485a0bee20024e9990c"
+    },
+    {
+      "path": "composition/assets/dl-demo-adam-khan.webp",
+      "bytes": 46872,
+      "sha256": "919a91bbcf8134d7039550b3b65fd36301891dbd48317e64c16f557ec5c2ee1d"
+    },
+    {
+      "path": "composition/assets/dl-demo-amira-hassan.webp",
+      "bytes": 44740,
+      "sha256": "0eec3af8ab3f2dc9a585214335a710ce3d62357eee700bb0b426d223c2023dbf"
+    },
+    {
+      "path": "composition/assets/dl-demo-daniel-reed.webp",
+      "bytes": 62118,
+      "sha256": "7d50eb817462598056ac68bbffed27f97c8aa0a5a7defa5c1216d056642da463"
+    },
+    {
+      "path": "composition/assets/dl-demo-emma-carter.webp",
+      "bytes": 48058,
+      "sha256": "df5760ef0841bafa743b6240569164d74ed1937b83be5372444367590c0b5e28"
+    },
+    {
+      "path": "composition/assets/dl-demo-grace-ellis.webp",
+      "bytes": 48100,
+      "sha256": "3b471812af64789f62df2e5208f5d4d7b13bbe238ac703427640573dec2ba560"
+    },
+    {
+      "path": "composition/assets/dl-demo-isabel-ross.webp",
+      "bytes": 60314,
+      "sha256": "ee8ca305cffb3b6908827e12ccbd39985342fea85ef0ec229ea3d3c2da4f8be3"
+    },
+    {
+      "path": "composition/assets/dl-demo-lucas-bennett.webp",
+      "bytes": 72518,
+      "sha256": "31abe9557354ef8d3e459ecc3b7c88f9e9b73df556690994319924e34b1003aa"
+    },
+    {
+      "path": "composition/assets/dl-demo-nathan-cole.webp",
+      "bytes": 51246,
+      "sha256": "6f632a128188f879a391fac913069fb6e03d60d5e6a21cc293db95567a9da667"
+    },
+    {
+      "path": "composition/assets/dl-demo-sophie-morgan.webp",
+      "bytes": 42032,
+      "sha256": "dbd939afd374f1fc76a9fedbc2f402439ca14615709063ad115a19b0fa62b99c"
+    },
+    {
+      "path": "composition/assets/dl-demo-theo-parker.webp",
+      "bytes": 59046,
+      "sha256": "e53f4f476f0b08caf2261046c792f4f2c7f63c350801c6c27b1ab1cbb5a2c37f"
+    },
+    {
+      "path": "composition/assets/fonts/cormorant-garamond-latin-400-italic.woff2",
+      "bytes": 23660,
+      "sha256": "e48e58027030df56869b795ca6f19b7012158275f7ad7cde1900b4a0b68d02e2"
+    },
+    {
+      "path": "composition/assets/fonts/cormorant-garamond-latin-400-normal.woff2",
+      "bytes": 22876,
+      "sha256": "8048ac209bec741e1c29cd0cfac5aac1c0c2ba8c3ddbd4a58fa9bd92ef5c63c2"
+    },
+    {
+      "path": "composition/assets/fonts/cormorant-garamond-latin-500-normal.woff2",
+      "bytes": 23312,
+      "sha256": "8197bf53615ddc8c423f444c7f0eec63b7fa0ba093fcfbec60dfdd28429b0fc8"
+    },
+    {
+      "path": "composition/assets/fonts/dm-sans-latin-400-italic.woff2",
+      "bytes": 15140,
+      "sha256": "5da946c1525e99ad130ac74ad021cb4f85a8be57ee167969ce4573bff1d84f10"
+    },
+    {
+      "path": "composition/assets/fonts/dm-sans-latin-400-normal.woff2",
+      "bytes": 14200,
+      "sha256": "4ab51eb2cd7305d177187908d6397474d4520663f6c6e572feb0a64f4fa80006"
+    },
+    {
+      "path": "composition/assets/fonts/dm-sans-latin-500-normal.woff2",
+      "bytes": 14304,
+      "sha256": "19bf1984956517c35c2bd35b6cdedac12a21d6fcd3596c614ecdfb88b648909d"
+    },
+    {
+      "path": "composition/assets/gsap.min.js",
+      "bytes": 72779,
+      "sha256": "c174bfce53a729418d57a8ad8625e7247c793a22fef8e2851e3cfa3de9cd8280"
+    },
+    {
+      "path": "composition/assets/ui/admin-emma-bottom.jpg",
+      "bytes": 43762,
+      "sha256": "221fad7708e60e4ff82fb82fe3d2dda6418b92405379407d9c1cf91f2490b2fc"
+    },
+    {
+      "path": "composition/assets/ui/admin-emma-new.jpg",
+      "bytes": 59775,
+      "sha256": "b222edd1aa8e072441320f37549553133a3d2c872119cda7542f9e8bd5086305"
+    },
+    {
+      "path": "composition/assets/ui/admin-overview-new.jpg",
+      "bytes": 77876,
+      "sha256": "b975dcebcddfd4252c45b6c2463c6d35782443612d6b4043eeecb3ba69bc945e"
+    },
+    {
+      "path": "composition/assets/ui/admin-trainers-new.jpg",
+      "bytes": 51413,
+      "sha256": "d6e5874e2e2093b0c6318fca2bd8fc2bee46ab5d3f6d19e2527a220979f665ec"
+    },
+    {
+      "path": "composition/frame.md",
+      "bytes": 302,
+      "sha256": "dcc4361670243d0be4c96437da94dbe2cd1e1135f9e1caebaddc830945204b47"
+    },
+    {
+      "path": "composition/hyperframes.json",
+      "bytes": 111,
+      "sha256": "434bf2dcd7c7d3339443932cdfb821b708840302faffeda3b4b70095c9540603"
+    },
+    {
+      "path": "composition/index.html",
+      "bytes": 27622,
+      "sha256": "02c4e4173fd049e0da4c23c1be05488ffceaaa5e357c6e1b51a3bf72c14a46e0"
+    },
+    {
+      "path": "composition/index.motion.json",
+      "bytes": 316,
+      "sha256": "1d9632f48c237c9714fab92b034f45d1519554a378bec683a24ead5f34f435b7"
+    },
+    {
+      "path": "dashboard-source/AdminDashboard.tsx",
+      "bytes": 22482,
+      "sha256": "4b38b2b3d071009ebdea2a7cf5dd3330e0bfe9a3f197e5fbe99f732b97beb93f"
+    },
+    {
+      "path": "dashboard-source/admin-dashboard.css",
+      "bytes": 20936,
+      "sha256": "33e46d7ed689eb5c824a08063298cec936cd9c72f124b0ad63c02fb057511305"
+    },
+    {
+      "path": "dashboard-source/build.mjs",
+      "bytes": 944,
+      "sha256": "ede5121b38f778932a9ca0828ac0951939f256375766b02c9ddc4fad05f00bfd"
+    },
+    {
+      "path": "dashboard-source/capture.css",
+      "bytes": 3281,
+      "sha256": "a489106a1ecf6d1961ba4c6308f81c71bbc47b24fa6f113d635544275f446cda"
+    },
+    {
+      "path": "dashboard-source/data.ts",
+      "bytes": 10025,
+      "sha256": "a9bce291425b69f527dcbf0468dcc25ee1cea256591e90db0405740924edbaf8"
+    },
+    {
+      "path": "dashboard-source/david-lloyd-logo.svg",
+      "bytes": 15782,
+      "sha256": "eb90e2e01e494d6fc90cc99dc0fe4c07d377a7b3934bc485a0bee20024e9990c"
+    },
+    {
+      "path": "dashboard-source/main.tsx",
+      "bytes": 679,
+      "sha256": "866778fb134e157519cf40657eb7aa402e0dc1bef52a1ab0cd15affea037ce14"
+    },
+    {
+      "path": "dashboard-source/package.json",
+      "bytes": 257,
+      "sha256": "46057e5999e716bcec4926e7dfb2239d2e75a3ef479a7a3b9aaf05d71cdf993b"
+    },
+    {
+      "path": "dashboard-source/shared/catalogue.ts",
+      "bytes": 240,
+      "sha256": "a79ba4cd4412171ded4587a7be996693ae6d12f0d7d7dce489d983919da4de38"
+    },
+    {
+      "path": "dashboard-source/shared/contract.ts",
+      "bytes": 1961,
+      "sha256": "b6ad181440f903f9bf6fe6337bfbd6610a6bdd06a2f78ff898b1f9913b7a2572"
+    },
+    {
+      "path": "dashboard-source/shared/locations.ts",
+      "bytes": 21449,
+      "sha256": "480fb661498479cefdc2877a42ef6d6438be381e0297406b76b7937e95b690e0"
+    },
+    {
+      "path": "dashboard-source/shared/matching.ts",
+      "bytes": 11757,
+      "sha256": "b97175789786b0a08b7b572aa0f63ac610ca3a951bb8d359ed2c89f92fe4e60a"
+    },
+    {
+      "path": "dashboard-source/shared/synthetic-catalogue.ts",
+      "bytes": 9623,
+      "sha256": "e71de658999564a322cf4bc8ce57411b4250aa77676175c850beceeeed55d699"
+    },
+    {
+      "path": "finish-video.py",
+      "bytes": 3822,
+      "sha256": "5d11da4de97fddbd02b184c38555f99de88a1e75956a5162f81cdf90a6a9ae5a"
+    },
+    {
+      "path": "package.json",
+      "bytes": 544,
+      "sha256": "f31d1e71ec82f67dab04b0c8b71da05d176c2e71e5cb118624f93a806f25f261"
+    },
+    {
+      "path": "share-copy.txt",
+      "bytes": 150,
+      "sha256": "45fcd1e50f64f944ca3d1dd58708a085ae8f9b8561a49ac98af15989f4d4b457"
+    }
+  ],
+  "total_bytes": 16105424,
+  "excluded": [
+    "tools",
+    "node_modules",
+    "composition/snapshots",
+    "dashboard-source/built",
+    "render-master.mp4",
+    "qa/frame images"
+  ]
+}
