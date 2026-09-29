@@ -1,0 +1,78 @@
+{
+  "verifiedAt": "2026-09-29T20:44:39.092Z",
+  "source": "8886a1b4c0a8a7f43ee9b1b594644105309b8a0d",
+  "mainRelease": "bfdfa98a934f9b85d76c4b6b03cc10902293e827",
+  "pagesRun": 36627084347,
+  "thirdSpaceSource": "26af043937b05ccd08a433df21cd5ce1662ab278",
+  "preservedExistingFiles": 23,
+  "routes": {
+    "/david-lloyd-demo/": {
+      "status": 200,
+      "htmlSha256": "cedbdded55dab4bd6d1d6bf310ccd8f49583ac77cfb399f5cdd4a9f57f5a12b2",
+      "assets": [
+        "/david-lloyd-demo/assets/index-CeNnByHq.js",
+        "/david-lloyd-demo/assets/index-BJ5lak85.css"
+      ]
+    },
+    "/david-lloyd-demo-admin/": {
+      "status": 200,
+      "htmlSha256": "824efbdc7789c95ac77ee5e32fa4acac435d1f8f61d580b02dd292e5f7a5f00b",
+      "assets": [
+        "/david-lloyd-demo-admin/assets/index-BEojMqj3.js",
+        "/david-lloyd-demo-admin/assets/index-uj65nz3u.css"
+      ]
+    }
+  },
+  "images": {
+    "/david-lloyd-demo/hero-coaching-1600.webp": "fbe7deaed9700867524f8df8d9a8dbdfad8d94c4e348b94e7582c741b2e573e9",
+    "/david-lloyd-demo/hero-coaching-4k.webp": "0c74e56408d703dbd8809a24ae0e0da6e032041ec8b05626c9b0fb4a700e9519"
+  },
+  "backendRevisions": [
+    "rundavidlloydonboardingturnv1-00004-zip",
+    "matchdavidlloydtrainersv1-00004-dig"
+  ],
+  "hostedAcceptance": "passed",
+  "localVerification": {
+    "davidLloyd": "34 frontend/admin and 80 backend tests passed; builds and catalogue validator passed",
+    "regression": "185 frontend tests, 212 Functions tests, 20 Node tests and 16 form tests passed; configured skips unchanged",
+    "responsiveWidths": [
+      320,
+      390,
+      768,
+      1440
+    ],
+    "keyboardProfileOpenAndEscape": "passed",
+    "browserWarningsAndErrors": 0
+  },
+  "liveBrowser": {
+    "journey": "Completed on the public route using a synthetic Earlsfield brief",
+    "matches": [
+      "Grace Ellis",
+      "Emma Carter",
+      "Adam Khan"
+    ],
+    "cardPrices": [
+      "£42.50 / session",
+      "£42.50 / session",
+      "£40 / session"
+    ],
+    "profile": "Adam Khan £40 / session verified",
+    "removedResultsNotes": true,
+    "consoleWarningsAndErrors": 0
+  },
+  "imageDelivery": {
+    "nativeGeneratedDimensions": [
+      1672,
+      941
+    ],
+    "exportDimensions": [
+      3840,
+      2160
+    ],
+    "method": "Lanczos resampling",
+    "responsiveDefault": [
+      1600,
+      900
+    ]
+  }
+}
