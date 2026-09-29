@@ -82,7 +82,8 @@ async function withinDeadline<T>(request: ModelRequest, run: (signal: AbortSigna
   try {
     return await run(signal);
   } catch (error) {
-    if (deadline.aborted && !request.signal?.aborted) {
+    // The SDK's own timer can win the race with our whole-response deadline.
+    if ((deadline.aborted || error instanceof OpenAI.APIConnectionTimeoutError) && !request.signal?.aborted) {
       throw Object.assign(new Error("The model request timed out."), { name: "TimeoutError" });
     }
     throw error;

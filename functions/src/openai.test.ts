@@ -90,6 +90,32 @@ describe("shared OpenAI transport", () => {
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 
+  it.each(["buffered", "streamed"])("normalizes an SDK timeout before the %s request deadline expires", async mode => {
+    const client = clientFor(vi.fn());
+    const create = vi.spyOn(client.responses, "create").mockRejectedValue(new OpenAI.APIConnectionTimeoutError());
+    const deadlineRequest = { ...request, timeoutMs: 60_000 };
+    const response = mode === "streamed"
+      ? streamOpenAIText(client, deadlineRequest, async () => {})
+      : generateOpenAIText(client, deadlineRequest);
+    await expect(response).rejects.toMatchObject({ name: "TimeoutError", message: "The model request timed out." });
+    expect(create.mock.calls[0]?.[1]?.signal?.aborted).toBe(false);
+    expect(create).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(["buffered", "streamed"])("preserves caller cancellation during a %s request", async mode => {
+    const controller = new AbortController();
+    const fetch = vi.fn<typeof globalThis.fetch>(async () => {
+      controller.abort();
+      throw new DOMException("Aborted", "AbortError");
+    });
+    const cancelledRequest = { ...request, signal: controller.signal };
+    const response = mode === "streamed"
+      ? streamOpenAIText(clientFor(fetch), cancelledRequest, async () => {})
+      : generateOpenAIText(clientFor(fetch), cancelledRequest);
+    await expect(response).rejects.toBeInstanceOf(OpenAI.APIUserAbortError);
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
   it.each(["buffered", "streamed"])("enforces the deadline after %s response headers arrive", async mode => {
     const fetch = vi.fn<typeof globalThis.fetch>(async (_url, options) => new Response(new ReadableStream({
       start(controller) {
