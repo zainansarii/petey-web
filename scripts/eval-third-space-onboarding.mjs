@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { createOpenAIClient, generateOpenAIText } from "../functions-third-space/lib/functions/src/openai.js";
 import { createThirdSpaceService } from "../functions-third-space/lib/functions-third-space/src/service.js";
 import { generateModelResponse } from "../functions-third-space/lib/functions-third-space/src/generation.js";
-import { BUDGET_QUICK_REPLIES, OPENING_MESSAGE } from "../functions-third-space/lib/third-space-shared/contract.js";
+import { BUDGET_QUICK_REPLIES, LOCATION_QUICK_REPLIES, OPENING_MESSAGE } from "../functions-third-space/lib/third-space-shared/contract.js";
 import { CLUBS, LONDON_LOCATIONS } from "../functions-third-space/lib/third-space-shared/locations.js";
 
 async function main() {
@@ -88,6 +88,25 @@ async function main() {
       messages: messages(...trainee, ...coaching, practical[0], "Not a member yet.", ...practical.slice(4)),
       topics: ["location"], incomplete: "location",
     },
+    ...LOCATION_QUICK_REPLIES.map(area => ({
+      name: `Non-member moves on after choosing ${area}`,
+      messages: messages(...trainee, ...coaching, practical[0], "Not a member yet.",
+        "Where in London would be easiest for you to train?", area),
+      topics: ["budget"], covered: "location", incomplete: "budget",
+      forbiddenReplyPattern: /\b(home|office|commut\w*|based)\b/i,
+    })),
+    ...[...LOCATION_QUICK_REPLIES, "Near Liverpool Street", "Canary Wharf or Wimbledon"].map(area => ({
+      name: `Non-member completes after naming ${area}`,
+      messages: messages(...trainee, ...coaching, practical[0], "Not a member yet.", ...practical.slice(4),
+        "Where in London would be easiest for you to train?", area),
+      complete: true, covered: "location",
+    })),
+    {
+      name: "Non-member volunteered training area is not asked again",
+      messages: messages(...trainee, ...coaching, practical[0], "Not a member yet. I want to train in Wimbledon."),
+      topics: ["budget"], covered: "location", incomplete: "budget",
+      forbiddenReplyPattern: /\b(home|office|commut\w*|based)\b/i,
+    },
     {
       name: "Group member with phased access does not need another location question",
       messages: messages(...trainee, ...coaching, practical[0], "Yes, Group membership, home club City. I am still waitlisted for Moorgate.", ...practical.slice(4)),
@@ -126,8 +145,10 @@ async function main() {
       if (scenario.incomplete) assert.equal(turn.coverage[scenario.incomplete], false, "Premature topic coverage");
       if (scenario.covered) assert.equal(turn.coverage[scenario.covered], true, "Skip/no preference not respected");
       if (turn.topic === "budget") assert.deepEqual(turn.quickReplies, BUDGET_QUICK_REPLIES);
+      if (turn.topic === "location") assert.deepEqual(turn.quickReplies, LOCATION_QUICK_REPLIES);
       if (scenario.complete) assert.equal(turn.topic, "complete");
       if (scenario.replyPattern) assert.match(turn.reply, scenario.replyPattern);
+      if (scenario.forbiddenReplyPattern) assert.doesNotMatch(turn.reply, scenario.forbiddenReplyPattern);
     } catch (error) {
       failures += 1;
       console.error(`${scenario.name}: ${error.message}`);

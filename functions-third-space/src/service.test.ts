@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { DemoMessage, LondonLocation, ThirdSpaceBrief, ThirdSpaceClub, ThirdSpaceTrainer } from "../../third-space-shared/contract.js";
-import { BUDGET_QUICK_REPLIES, OPENING_MESSAGE } from "../../third-space-shared/contract.js";
+import { BUDGET_QUICK_REPLIES, LOCATION_QUICK_REPLIES, OPENING_MESSAGE } from "../../third-space-shared/contract.js";
 import { accessibleClubs, locationAnchorLabel, resolveLocation, selectCandidates, supportsSpecialistNeed } from "../../third-space-shared/matching.js";
 import { CLUBS, LONDON_LOCATIONS } from "../../third-space-shared/locations.js";
 import { TRAINERS } from "../../third-space-shared/catalogue.js";
@@ -257,6 +257,12 @@ describe("Third Space conversation and model boundaries", () => {
     expect(parseTurn(JSON.stringify({ reply: "What hourly budget works for you?", quickReplies: ["Anything"], readyForMatching: false, topic: "budget", coverage })).quickReplies).toEqual(BUDGET_QUICK_REPLIES);
     expect(() => parseTurn(JSON.stringify({ reply: "Finding your trainers.", quickReplies: [], readyForMatching: true, topic: "complete", coverage }))).toThrow(DemoModelError);
     expect(parseTurn(JSON.stringify({ reply: "I have enough to find your matches.", quickReplies: ["Bad suggestion"], readyForMatching: true, topic: "complete", coverage: { ...coverage, budget: true } })).quickReplies).toEqual([]);
+  });
+
+  it("offers concrete areas for non-members without changing home-club suggestions", () => {
+    const turn = { reply: "Which area would you like to train in?", quickReplies: ["Near home", "Near office", "On my commute"], readyForMatching: false, topic: "location", coverage: { ...coverage, location: false } };
+    expect(parseTurn(JSON.stringify(turn)).quickReplies).toEqual(LOCATION_QUICK_REPLIES);
+    expect(parseTurn(JSON.stringify({ ...turn, topic: "access", quickReplies: ["City", "Soho"] })).quickReplies).toEqual(["City", "Soho"]);
   });
 
   it("requires catalogue-backed match reasons and rejects fabricated or duplicate IDs", () => {

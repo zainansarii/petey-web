@@ -80,4 +80,5 @@ export interface ThirdSpaceMatches {
 }
 
 export const BUDGET_QUICK_REPLIES = ["£85–£100", "£100–£125", "Not sure yet"];
+export const LOCATION_QUICK_REPLIES = ["Canary Wharf", "City", "Wimbledon"];
 export const OPENING_MESSAGE = "What would you like a personal trainer to help you achieve?";
