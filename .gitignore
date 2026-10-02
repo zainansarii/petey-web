@@ -25,3 +25,9 @@ demo-media/**/tools/
 demo-media/**/built/
 demo-media/**/snapshots/
 demo-media/**/*.mp4
+
+# Isolated Gymbox demo build outputs
+functions-gymbox/lib
+dist-gymbox
+dist-gymbox-admin
+.gymbox-source

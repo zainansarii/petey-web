@@ -34,7 +34,15 @@
     "preview:david-lloyd": "vite preview --config vite.david-lloyd.config.ts",
     "preview:david-lloyd-admin": "vite preview --config vite.david-lloyd-admin.config.ts",
     "verify:david-lloyd": "npm run lint && npm run typecheck && vitest run src/david-lloyd-demo src/david-lloyd-demo-admin && npm run build:david-lloyd && npm run build:david-lloyd-admin && npm --prefix functions-david-lloyd run build && npm --prefix functions-david-lloyd test && node scripts/validate-david-lloyd.mjs",
-    "verify:david-lloyd:hosted": "node scripts/verify-david-lloyd-hosted.mjs --run"
+    "verify:david-lloyd:hosted": "node scripts/verify-david-lloyd-hosted.mjs --run",
+    "dev:gymbox": "vite --config vite.gymbox.config.ts",
+    "dev:gymbox-admin": "vite --config vite.gymbox-admin.config.ts",
+    "build:gymbox": "tsc -b && vite build --config vite.gymbox.config.ts",
+    "build:gymbox-admin": "tsc -b && vite build --config vite.gymbox-admin.config.ts",
+    "preview:gymbox": "vite preview --config vite.gymbox.config.ts",
+    "preview:gymbox-admin": "vite preview --config vite.gymbox-admin.config.ts",
+    "verify:gymbox": "npm run lint && npm run typecheck && vitest run src/gymbox-demo src/gymbox-demo-admin && npm run build:gymbox && npm run build:gymbox-admin && npm --prefix functions-gymbox run build && npm --prefix functions-gymbox test && node scripts/validate-gymbox.mjs",
+    "verify:gymbox:hosted": "node scripts/verify-gymbox-hosted.mjs --run"
   },
   "dependencies": {
     "@assistant-ui/react": "^0.15.17",

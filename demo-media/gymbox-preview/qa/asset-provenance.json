@@ -1,0 +1,69 @@
+{
+  "portraits": [
+    {
+      "file": "assets/gb-demo-adam-khan.webp",
+      "sha256": "919a91bbcf8134d7039550b3b65fd36301891dbd48317e64c16f557ec5c2ee1d"
+    },
+    {
+      "file": "assets/gb-demo-amira-hassan.webp",
+      "sha256": "0eec3af8ab3f2dc9a585214335a710ce3d62357eee700bb0b426d223c2023dbf"
+    },
+    {
+      "file": "assets/gb-demo-daniel-reed.webp",
+      "sha256": "7d50eb817462598056ac68bbffed27f97c8aa0a5a7defa5c1216d056642da463"
+    },
+    {
+      "file": "assets/gb-demo-emma-carter.webp",
+      "sha256": "df5760ef0841bafa743b6240569164d74ed1937b83be5372444367590c0b5e28"
+    },
+    {
+      "file": "assets/gb-demo-grace-ellis.webp",
+      "sha256": "3b471812af64789f62df2e5208f5d4d7b13bbe238ac703427640573dec2ba560"
+    },
+    {
+      "file": "assets/gb-demo-isabel-ross.webp",
+      "sha256": "ee8ca305cffb3b6908827e12ccbd39985342fea85ef0ec229ea3d3c2da4f8be3"
+    },
+    {
+      "file": "assets/gb-demo-lucas-bennett.webp",
+      "sha256": "31abe9557354ef8d3e459ecc3b7c88f9e9b73df556690994319924e34b1003aa"
+    },
+    {
+      "file": "assets/gb-demo-nathan-cole.webp",
+      "sha256": "6f632a128188f879a391fac913069fb6e03d60d5e6a21cc293db95567a9da667"
+    },
+    {
+      "file": "assets/gb-demo-sophie-morgan.webp",
+      "sha256": "dbd939afd374f1fc76a9fedbc2f402439ca14615709063ad115a19b0fa62b99c"
+    },
+    {
+      "file": "assets/gb-demo-theo-parker.webp",
+      "sha256": "e53f4f476f0b08caf2261046c792f4f2c7f63c350801c6c27b1ab1cbb5a2c37f"
+    }
+  ],
+  "portrait_source": "Existing approved generated monochrome assets in the final Gymbox demo; fictional identities",
+  "audio": {
+    "file": "assets/alita-zayner-34s-52s-levelled.wav",
+    "source": "Preserved approved David Lloyd template asset per user implementation plan",
+    "sha256": "adb1a10ea973a6ee90f56454b325d65c86f5946c4cd8970ebe81ef24e16fbb4a",
+    "gain": 0.5
+  },
+  "font": {
+    "family": "DM Sans",
+    "licence": "SIL OFL 1.1",
+    "file": "assets/fonts/DM-Sans-OFL.txt",
+    "substitution_reason": "No redistribution licence verified for Gymbox Monument"
+  },
+  "logo": {
+    "file": "assets/gymbox-logo.png",
+    "source_page": "https://gymbox.com/",
+    "url": "https://gymbox.com/wp-content/uploads/2025/01/logo-gymbox-768x768.png",
+    "retrieved": "2026-10-02",
+    "dimensions": [
+      768,
+      768
+    ],
+    "sha256": "c84add566d754351ad6cac26f73d69e880450e4d34372fcb751f842c8c59e996",
+    "note": "Actual homepage logo acquired via browser page-assets bundle and visually verified; unchanged raster, no recreation."
+  }
+}

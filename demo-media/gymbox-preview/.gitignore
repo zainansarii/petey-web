@@ -1,0 +1,16 @@
+node_modules/
+tools/
+dashboard-source/built/
+dashboard-source/capture-*/
+render-master.mp4
+gymbox-preview.mp4
+qa/capture-*/
+qa/final-frame-*.jpg
+qa/reference-contact-sheet.jpg
+qa/final-contact-sheet.jpg
+qa/snapshots/
+*.log
+qa/member-snapshots/
+qa/admin-snapshots/
+qa/transition-*.jpg
+qa/transitions-contact-sheet.jpg

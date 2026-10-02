@@ -1,0 +1,12 @@
+{
+  "functions": [{
+    "source": "functions-gymbox",
+    "codebase": "gymbox-demo",
+    "ignore": ["node_modules", ".git", "*.log", "src/**/*.test.ts"],
+    "predeploy": ["npm --prefix functions-gymbox run build"]
+  }],
+  "emulators": {
+    "functions": { "port": 5002 },
+    "firestore": { "port": 8080 }
+  }
+}

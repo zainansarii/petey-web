@@ -1,0 +1,36 @@
+{
+  "project": "petey-dev-getcass",
+  "region": "europe-west2",
+  "runtime": "nodejs22",
+  "codebase": "gymbox-demo",
+  "serviceAccount": "petey-web-onboarding-v2@petey-dev-getcass.iam.gserviceaccount.com",
+  "deployExitStatus": 0,
+  "services": [
+    {
+      "service": "rungymboxonboardingturnv1",
+      "ready": true,
+      "revision": "rungymboxonboardingturnv1-00004-gom",
+      "traffic": [
+        {
+          "latestRevision": true,
+          "percent": 100,
+          "revisionName": "rungymboxonboardingturnv1-00004-gom"
+        }
+      ],
+      "invokerIamDisabled": "true"
+    },
+    {
+      "service": "matchgymboxtrainersv1",
+      "ready": true,
+      "revision": "matchgymboxtrainersv1-00004-jer",
+      "traffic": [
+        {
+          "latestRevision": true,
+          "percent": 100,
+          "revisionName": "matchgymboxtrainersv1-00004-jer"
+        }
+      ],
+      "invokerIamDisabled": "true"
+    }
+  ]
+}

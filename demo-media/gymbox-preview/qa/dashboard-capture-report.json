@@ -1,0 +1,29 @@
+{
+  "method": "Hyperframes native snapshot of final source snapshot",
+  "captures": [
+    {
+      "route": "overview",
+      "output": "composition/assets/ui/admin-overview-new.jpg",
+      "sha256": "b7d24f04fa989606ec8594d67a5252c5194a21e6262777c3e8a942847871388a",
+      "snapshot_exit_status": 0
+    },
+    {
+      "route": "trainers",
+      "output": "composition/assets/ui/admin-trainers-new.jpg",
+      "sha256": "59b83fb89e0fcc34276c537dfbfbb61ce089ac587fd12289ab10250ed10f952f",
+      "snapshot_exit_status": 0
+    },
+    {
+      "route": "emma",
+      "output": "composition/assets/ui/admin-emma-new.jpg",
+      "sha256": "50d39a264ea9afc3314919e343b69b52deaca57756306d24b472b12444b7589a",
+      "snapshot_exit_status": 0
+    },
+    {
+      "route": "emma-bottom",
+      "output": "composition/assets/ui/admin-emma-bottom.jpg",
+      "sha256": "430ac2b13a6b878164666649371faa705a14a11ba726d28a196a2f7c9e0e4a2b",
+      "snapshot_exit_status": 0
+    }
+  ]
+}

@@ -1,0 +1,105 @@
+{
+  "ok": true,
+  "errorCount": 0,
+  "warningCount": 6,
+  "infoCount": 0,
+  "findings": [
+    {
+      "code": "duplicate_media_discovery_risk",
+      "severity": "warning",
+      "message": "Detected 2 matching img entries with the same source/start/duration.",
+      "selector": "[data-composition-id]",
+      "dataAttributes": {},
+      "sourceFile": "/Users/zainansari/dev/petey/gymbox-output-2026-10-02-181629/composition/index.html",
+      "bbox": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "time": 0,
+      "fixHint": "Avoid duplicated media nodes that can be discovered twice during compilation."
+    },
+    {
+      "code": "nested_structure_needs_subcomposition",
+      "severity": "warning",
+      "message": "<section id=\"problem\"> is a timeline element that contains nested <div>. The timeline shows one row per top-level element, and the root composition is built only from sub-compositions.",
+      "selector": "#problem",
+      "dataAttributes": {},
+      "sourceFile": "/Users/zainansari/dev/petey/gymbox-output-2026-10-02-181629/composition/index.html",
+      "bbox": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "time": 0,
+      "fixHint": "Move <section id=\"problem\"> and its contents into a sub-composition file and mount it with data-composition-src."
+    },
+    {
+      "code": "nested_structure_needs_subcomposition",
+      "severity": "warning",
+      "message": "<section id=\"preferences\"> is a timeline element that contains nested <div>. The timeline shows one row per top-level element, and the root composition is built only from sub-compositions.",
+      "selector": "#preferences",
+      "dataAttributes": {},
+      "sourceFile": "/Users/zainansari/dev/petey/gymbox-output-2026-10-02-181629/composition/index.html",
+      "bbox": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "time": 0,
+      "fixHint": "Move <section id=\"preferences\"> and its contents into a sub-composition file and mount it with data-composition-src."
+    },
+    {
+      "code": "nested_structure_needs_subcomposition",
+      "severity": "warning",
+      "message": "<section id=\"matching\"> is a timeline element that contains nested <div>. The timeline shows one row per top-level element, and the root composition is built only from sub-compositions.",
+      "selector": "#matching",
+      "dataAttributes": {},
+      "sourceFile": "/Users/zainansari/dev/petey/gymbox-output-2026-10-02-181629/composition/index.html",
+      "bbox": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "time": 0,
+      "fixHint": "Move <section id=\"matching\"> and its contents into a sub-composition file and mount it with data-composition-src."
+    },
+    {
+      "code": "nested_structure_needs_subcomposition",
+      "severity": "warning",
+      "message": "<section id=\"admin\"> is a timeline element that contains nested <div>. The timeline shows one row per top-level element, and the root composition is built only from sub-compositions.",
+      "selector": "#admin",
+      "dataAttributes": {},
+      "sourceFile": "/Users/zainansari/dev/petey/gymbox-output-2026-10-02-181629/composition/index.html",
+      "bbox": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "time": 0,
+      "fixHint": "Move <section id=\"admin\"> and its contents into a sub-composition file and mount it with data-composition-src."
+    },
+    {
+      "code": "nested_structure_needs_subcomposition",
+      "severity": "warning",
+      "message": "<section id=\"closing\"> is a timeline element that contains nested <div>. The timeline shows one row per top-level element, and the root composition is built only from sub-compositions.",
+      "selector": "#closing",
+      "dataAttributes": {},
+      "sourceFile": "/Users/zainansari/dev/petey/gymbox-output-2026-10-02-181629/composition/index.html",
+      "bbox": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "time": 0,
+      "fixHint": "Move <section id=\"closing\"> and its contents into a sub-composition file and mount it with data-composition-src."
+    }
+  ],
+  "filesScanned": 1
+}

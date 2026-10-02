@@ -1,0 +1,51 @@
+{
+  "snapshot_time": "2026-10-02T22:46:39.365871+00:00",
+  "source_files": [
+    {
+      "path": "src/gymbox-demo-admin/AdminDashboard.tsx",
+      "sha256": "c5ed0b6488f02b15036f41c14b8e4709b96a62e6ce27acae06f2bb0cfe3d726c"
+    },
+    {
+      "path": "src/gymbox-demo-admin/data.ts",
+      "sha256": "6cc610c5e5a7ad50c7ac34db83ef537a632eedd8310087cdbe2175ddb3a80902"
+    },
+    {
+      "path": "src/gymbox-demo-admin/admin-dashboard.css",
+      "sha256": "eee83d6ead007b407f81c16f44271a90797d8eab803979ac820c0cf5d3a0ca9c"
+    },
+    {
+      "path": "gymbox-shared/catalogue.ts",
+      "sha256": "ee571d9a42a0b966730907348944c92def50870c83b82d640a3a8cdd5fe54686"
+    },
+    {
+      "path": "gymbox-shared/locations.ts",
+      "sha256": "34f3b98c7101ce6be45d8390977b897da6a458f4904ebd6c1e0afafd086f346d"
+    },
+    {
+      "path": "gymbox-shared/contract.ts",
+      "sha256": "971233a95a9804ba796166e891a5e686f94a132909cfa40f366ddc80d800fe24"
+    },
+    {
+      "path": "gymbox-shared/constraints.ts",
+      "sha256": "b89a6e25e5276d359180b9221b70b106aef5465cb91664791eda6da0248c8477"
+    },
+    {
+      "path": "gymbox-shared/matching.ts",
+      "sha256": "da4bf5aedd296dc153029c7cb2e30eebdef5d571c7c7396b7d69db768a073f9f"
+    },
+    {
+      "path": "gymbox-shared/synthetic-catalogue.ts",
+      "sha256": "bc4803bcc8db8622eb6bfc1e051a990058c7e0e2469056ff1df98ea2905a2426"
+    },
+    {
+      "path": "src/gymbox-demo-admin/gymbox-logo.png",
+      "sha256": "c84add566d754351ad6cac26f73d69e880450e4d34372fcb751f842c8c59e996"
+    }
+  ],
+  "capture_changes": [
+    "Initial view, sort and Emma dialog only",
+    "Presentation CSS matches approved capture geometry",
+    "Portrait asset paths rebased to identical local copies"
+  ],
+  "captured_after_source_finalised": true
+}

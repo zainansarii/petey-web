@@ -1,0 +1,82 @@
+{
+  "file": "gymbox-preview.mp4",
+  "sha256": "198f71af538ab382c4b35c1668d43ddfde6ca3130f87a7b9d9c204e68760ef23",
+  "reference_sha256": "d0a0a10d7133b997d67dc393189e828bc8dea1d883a019f27cbc1d09f7e76025",
+  "duration": 52,
+  "resolution": [
+    1920,
+    1080
+  ],
+  "fps": 30,
+  "frames": 1560,
+  "video_codec": "h264",
+  "audio_codec": "aac",
+  "audio_source": "Existing levelled Alita Zayner 34\u201386s excerpt, fixed 0.5 gain",
+  "music_only": true,
+  "narration": false,
+  "sfx": false,
+  "audio_stream_preserved_after_poster": true,
+  "short_term_loudness_range_lu": 1.4,
+  "true_peak_dbfs": -10.9,
+  "scene_boundaries_seconds": [
+    0,
+    5.75,
+    19.5,
+    28.25,
+    38.25,
+    48.25,
+    52
+  ],
+  "full_decode": "passed",
+  "full_decode_exit_status": 0,
+  "finish_exit_status": 0,
+  "poster_timestamp_seconds": 0,
+  "poster_reason": "Settled title and synthetic trainer directory; baked into frame zero",
+  "bytes": 7387336,
+  "synthetic_identities": 10,
+  "featured_identities": [
+    "Amira Hassan",
+    "Emma Carter",
+    "Grace Ellis"
+  ],
+  "featured_clubs": [
+    "Bank",
+    "Bank",
+    "Bank"
+  ],
+  "admin_capture_method": "Hyperframes static snapshots of isolated final actual Gymbox component with reference presentation CSS",
+  "transition_sample_times": [
+    5.6,
+    5.75,
+    6.1,
+    19.3,
+    19.5,
+    19.9,
+    28.1,
+    28.25,
+    28.6,
+    38.1,
+    38.25,
+    38.6,
+    48.1,
+    48.25,
+    48.7
+  ],
+  "visual_review": "All scenes and five boundaries checked in encoded frames",
+  "hyperframes_check": "passed",
+  "hyperframes_version": "0.8.70",
+  "dashboard_summary": {
+    "completed_searches": 1800,
+    "simulated_enquiry_intent": 555,
+    "intent_conversion_percent": 30.8,
+    "unmatched_searches": 149
+  },
+  "emma_summary": {
+    "recommendations": 570,
+    "simulated_enquiry_intent": 98,
+    "intent_conversion_percent": 17.2
+  },
+  "final_source_refresh_capture_hashes_unchanged": true,
+  "original_reference_preserved": true,
+  "mobile_accessibility_source_refresh_capture_hashes_unchanged": true
+}

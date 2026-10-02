@@ -1,0 +1,22 @@
+{
+  "name": "gymbox-preview",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build:captures": "node dashboard-source/build.mjs",
+    "check": "hyperframes check composition --json",
+    "render": "hyperframes render composition --quality delivery --fps 30 --output render-master.mp4",
+    "capture:dashboard": "python3 capture-dashboard.py"
+  },
+  "devDependencies": {
+    "hyperframes": "0.8.70",
+    "esbuild": "0.25.12",
+    "@fontsource/dm-sans": "5.3.0",
+    "lucide-react": "1.31.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  }
+}

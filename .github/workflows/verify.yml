@@ -30,9 +30,11 @@ jobs:
           npm ci --prefix functions
           npm ci --prefix functions-third-space
           npm ci --prefix functions-david-lloyd
+          npm ci --prefix functions-gymbox
 
       - name: Lint, test, and build
         run: |
           npm run verify
           npm run verify:third-space
           npm run verify:david-lloyd
+          npm run verify:gymbox

@@ -5,7 +5,7 @@ import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["dist", "dist-third-space", "dist-third-space-admin", "dist-david-lloyd", "dist-david-lloyd-admin", ".third-space-source", ".david-lloyd-source", "coverage", "demo-media", "functions/lib", "functions/node_modules", "functions-third-space/lib", "functions-third-space/node_modules", "functions-david-lloyd/lib", "functions-david-lloyd/node_modules"] },
+  { ignores: ["dist", "dist-third-space", "dist-third-space-admin", "dist-david-lloyd", "dist-david-lloyd-admin", "dist-gymbox", "dist-gymbox-admin", ".gymbox-source", ".third-space-source", ".david-lloyd-source", "coverage", "demo-media", "functions/lib", "functions/node_modules", "functions-third-space/lib", "functions-third-space/node_modules", "functions-david-lloyd/lib", "functions-david-lloyd/node_modules", "functions-gymbox/lib", "functions-gymbox/node_modules"] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
@@ -30,7 +30,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ["functions/src/**/*.ts", "functions/vitest.config.ts", "functions-third-space/**/*.ts", "functions-david-lloyd/**/*.ts", "scripts/**/*.mjs"],
+    files: ["functions/src/**/*.ts", "functions/vitest.config.ts", "functions-third-space/**/*.ts", "functions-david-lloyd/**/*.ts", "functions-gymbox/**/*.ts", "scripts/**/*.mjs"],
     languageOptions: {
       globals: globals.node,
     },

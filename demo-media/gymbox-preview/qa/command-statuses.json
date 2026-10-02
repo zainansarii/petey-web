@@ -1,0 +1,14 @@
+{
+  "source_refresh": 0,
+  "dashboard_build_and_four_snapshots": 0,
+  "composition_member_snapshots": 0,
+  "composition_admin_snapshots": 0,
+  "hyperframes_check": 0,
+  "render": 0,
+  "finish": 0,
+  "full_decode": 0,
+  "transition_frame_extraction": 0,
+  "render_wall_seconds": 55.5,
+  "capture_mode_reported": "CLI summary: screenshot capture; native trace: drawelement; hardware GPU",
+  "hyperframes_version": "0.8.70"
+}
