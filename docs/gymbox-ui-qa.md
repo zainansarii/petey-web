@@ -49,3 +49,28 @@ Reduced-motion handling was verified in source and test branches: Motion compone
 Admin portraits intentionally use the same-origin consumer route `/gymbox-demo/trainers/…`. They are available in the combined publication. The isolated admin server on port 5181 does not serve the consumer assets, so portrait requests there are expected to fail; the film capture rebases those URLs to identical local assets and verifies the rendered portraits. Check the combined live deployment separately.
 
 Screenshots were inspected inline during browser QA; the maintainable preview-film capture artifacts provide durable images of the final dashboard. No real enquiries were submitted, and no contact or medical information was entered.
+
+## Published browser acceptance — 2 October 2026, 23:02 UTC
+
+Verified the actual consumer at `https://joinpetey.com/gymbox-demo/` and dashboard at `https://joinpetey.com/gymbox-demo-admin/` following successful Pages run `37074602206`. Publication commit: `a33b9ddd7aed3deb17654b540f15da5f2ab10fe6`; pinned Gymbox source: `77ebfb6cdda2697b49f1e1f9df0a706476ba1b55`.
+
+The consumer used normal production App Check and real hosted callables through the page. No fixture query, debug-token injection or mocked response was used. Inputs described a fictional beginner wanting strength and confidence for a wedding in six months, patient/friendly coaching, single-club Bank membership near work, and an unknown per-session budget. The assistant clarified the lifting goal and desired coaching support, then produced Emma, Grace and Daniel, all at Bank. All three cards and Emma’s expanded profile displayed “Rates on enquiry”. Emma’s fictional biography, qualifications, Bank address and demo identification rendered correctly; Escape closed the profile and refinement remained available.
+
+Refinement explicitly requested “Only Bank” and exclusion of Farringdon and Holborn while preserving the goal, coaching preference and unknown budget. The second matching response succeeded with Emma, Daniel and Nathan, all Bank; no excluded-club trainer appeared and prices remained unknown. Exactly two successful matching rounds were exercised, with no additional matching requests after refinement.
+
+Confirmed full reset through the confirmation dialog: returned to the landing screen, then reopened chat without sending anything. Only the opening assistant message remained, the previous wedding text was absent and focus was on Your message.
+
+The published admin resolved all five displayed Bank portrait URLs successfully (`complete=true`, `naturalWidth=900`), confirming that the combined consumer/admin asset route works. Emma’s detail matched the sample source at 570 recommendations, 98 searches with intent and 17.2% conversion. Exercised all ten club filters at all three reporting periods through the live UI. The eight unpopulated clubs reported zero searches/intent/conversion throughout; populated-club figures were:
+
+| Club | Period | Completed searches | Searches with intent | Conversion |
+| --- | --- | --- | --- | --- |
+| Bank | 7 days | 222 | 60 | 27.0% |
+| Bank | 28 days | 880 | 259 | 29.4% |
+| Bank | 90 days | 2,500 | 667 | 26.7% |
+| Farringdon | 7 days | 229 | 83 | 36.2% |
+| Farringdon | 28 days | 920 | 296 | 32.2% |
+| Farringdon | 90 days | 2,691 | 799 | 29.7% |
+
+Live consumer and admin both measured equal document scroll/client widths at 375px and 1440px. The 375px admin detail also had equal dialog scroll/client widths. Live price pills measured equal 109px client/scroll widths. Desktop and mobile screenshots were inspected; neither captured browser console returned warning or error entries. Temporary viewport overrides were restored.
+
+Minor copy observation: the location fallback currently says “Bank is about 0.0 km from Bank.” for an explicit Bank anchor. The result is geographically consistent but the wording is awkward; it did not affect access filtering, refinement or acceptance. No source change was made during published verification.
