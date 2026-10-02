@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { validateTranscript } from "../../functions-david-lloyd/src/service";
 import { TRAINERS } from "../../david-lloyd-shared/catalogue";
 import { BUDGET_QUICK_REPLIES, OPENING_MESSAGE, type DemoMessage, type DavidLloydMatches, type DavidLloydTurn } from "../../david-lloyd-shared/contract";
@@ -22,9 +23,12 @@ const results: DavidLloydMatches = {
   unconfirmed: ["Individual trainer prices and session availability need confirming.", "A David Lloyd membership is required."],
 };
 
-function typeAndSend(text: string) {
-  fireEvent.change(screen.getByRole("textbox", { name: "Your message" }), { target: { value: text } });
-  fireEvent.click(screen.getByRole("button", { name: "Send message" }));
+async function typeAndSend(text: string) {
+  const user = userEvent.setup();
+  const input = screen.getByRole("textbox", { name: "Your message" });
+  await user.clear(input);
+  await user.type(input, text);
+  await user.click(screen.getByRole("button", { name: "Send message" }));
 }
 async function start() {
   fireEvent.click(screen.getByRole("button", { name: "Find my trainer" }));
@@ -39,8 +43,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   motionPreference.reduced = true;
   vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
-  api.runDavidLloydTurn.mockResolvedValue(readyTurn);
-  api.findDavidLloydMatches.mockResolvedValue(results);
+  api.runDavidLloydTurn.mockReset().mockResolvedValue(readyTurn);
+  api.findDavidLloydMatches.mockReset().mockResolvedValue(results);
 });
 
 it("completes an anonymous journey, identifies fictional profiles and preserves valid history for refinement", async () => {
@@ -50,7 +54,7 @@ it("completes an anonymous journey, identifies fictional profiles and preserves 
   expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
   await start();
   expect(screen.getByText(OPENING_MESSAGE)).toBeInTheDocument();
-  typeAndSend("I want to build strength. I’m a beginner near Wimbledon, not a member yet, and I can spend £90 per session.");
+  await typeAndSend("I want to build strength. I’m a beginner near Wimbledon, not a member yet, and I can spend £90 per session.");
   await screen.findByRole("heading", { name: "Meet your matches" });
   expect(api.runDavidLloydTurn).toHaveBeenCalledTimes(1);
   expect(api.findDavidLloydMatches).toHaveBeenCalledTimes(1);
@@ -71,7 +75,7 @@ it("completes an anonymous journey, identifies fictional profiles and preserves 
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   expect(card).toHaveFocus();
   fireEvent.click(screen.getByRole("button", { name: "Refine my matches" }));
-  typeAndSend("I’d prefer someone with running expertise too.");
+  await typeAndSend("I’d prefer someone with running expertise too.");
   await waitFor(() => expect(api.runDavidLloydTurn).toHaveBeenCalledTimes(2));
   const transcript = api.runDavidLloydTurn.mock.calls[1][0] as DemoMessage[];
   expect(transcript.filter((message) => message.role === "user")).toHaveLength(2);
@@ -97,7 +101,7 @@ it("omits confirmation disclaimers from the matches", async () => {
   api.findDavidLloydMatches.mockResolvedValueOnce({ ...results, unconfirmed });
   render(<DavidLloydDemo />);
   await start();
-  typeAndSend("Build strength near Wimbledon, up to £60 per session on Tuesday evenings. I’m unsure about membership.");
+  await typeAndSend("Build strength near Wimbledon, up to £60 per session on Tuesday evenings. I’m unsure about membership.");
   await screen.findByRole("heading", { name: "Meet your matches" });
   expect(screen.queryByRole("list", { name: "Details to confirm" })).not.toBeInTheDocument();
   for (const note of unconfirmed) expect(screen.queryByText(note)).not.toBeInTheDocument();
@@ -108,7 +112,7 @@ it("rejects a stale sourced trainer returned by an older backend", async () => {
   api.findDavidLloydMatches.mockResolvedValueOnce({ ...results, matches: [{ ...results.matches[0], trainerId: "amy-leese" }] });
   render(<DavidLloydDemo />);
   await start();
-  typeAndSend("Build strength at Wimbledon");
+  await typeAndSend("Build strength at Wimbledon");
   expect(await screen.findByRole("alert")).toHaveTextContent("Your conversation is still here");
   expect(screen.queryByRole("button", { name: /View .*profile/ })).not.toBeInTheDocument();
 });
@@ -117,11 +121,11 @@ it("uses the budget choices without price assumptions while accepting a differen
   api.runDavidLloydTurn.mockResolvedValueOnce({ ...readyTurn, reply: "What would you feel comfortable spending per personal-training session?", readyForMatching: false, topic: "budget", quickReplies: ["Incorrect model option"] });
   render(<DavidLloydDemo />);
   await start();
-  typeAndSend("Build strength at Raynes Park, my home club; I like encouraging coaching.");
+  await typeAndSend("Build strength at Raynes Park, my home club; I like encouraging coaching.");
   await screen.findByRole("button", { name: BUDGET_QUICK_REPLIES[0] });
   const suggestions = screen.getByLabelText("Suggested answers");
   expect(within(suggestions).getAllByRole("button").map((button) => button.textContent)).toEqual(BUDGET_QUICK_REPLIES);
-  typeAndSend("£65 per session");
+  await typeAndSend("£65 per session");
   await screen.findByRole("heading", { name: "Meet your matches" });
   expect(api.runDavidLloydTurn.mock.calls[1][0].at(-1).content).toBe("£65 per session");
 });
@@ -130,7 +134,7 @@ it("retries a failed AI turn without duplicating or losing the answer", async ()
   api.runDavidLloydTurn.mockRejectedValueOnce(new Error("offline"));
   render(<DavidLloydDemo />);
   await start();
-  typeAndSend("Train for my first marathon");
+  await typeAndSend("Train for my first marathon");
   expect(await screen.findByRole("alert")).toHaveTextContent("Your answer is still here");
   expect(await screen.findByText("Train for my first marathon")).toBeInTheDocument();
   expect(screen.getByRole("textbox", { name: "Your message" })).toBeDisabled();
@@ -168,7 +172,7 @@ it("clears memory on reset and ignores an old in-flight response", async () => {
   api.runDavidLloydTurn.mockImplementationOnce(() => new Promise<DavidLloydTurn>((resolve) => { resolveTurn = resolve; }));
   render(<DavidLloydDemo />);
   await start();
-  typeAndSend("An answer I want to clear");
+  await typeAndSend("An answer I want to clear");
   await waitFor(() => expect(api.runDavidLloydTurn).toHaveBeenCalledTimes(1));
   fireEvent.click(screen.getByRole("button", { name: "Start again" }));
   const confirmation = screen.getByRole("dialog", { name: "Start a new conversation?" });
@@ -193,7 +197,7 @@ it("reveals new assistant replies while keeping the complete text accessible", a
   expect(words[0].parentElement).toHaveAttribute("aria-hidden", "true");
   await waitFor(() => expect(words.every((word) => word.style.opacity === "1")).toBe(true), { timeout: 2000 });
   expect(screen.getByText("AI-assisted. Please leave out medical details. Demo Powered by Petey.")).toBeInTheDocument();
-  typeAndSend("Build strength");
+  await typeAndSend("Build strength");
   const reply = await screen.findByText("What does your training look like at the moment?");
   const newWords = Array.from(reply.parentElement!.querySelectorAll<HTMLElement>(".ts-message__word"));
   expect(newWords.some((word) => word.style.opacity !== "1")).toBe(true);
